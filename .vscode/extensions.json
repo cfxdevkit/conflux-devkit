@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "biomejs.biome",
+    "ms-vscode.vscode-json",
+    "ms-vscode.vscode-npm-scripts",
+    "ms-vscode.vscode-turbo",
+    "ms-vscode.vscode-pnpm",
+    "ms-vscode.vscode-vitest",
+    "ms-vscode.vscode-react-snippets",
+    "ms-vscode.vscode-eslint",
+    "ms-vscode.vscode-prettier",
+    "ms-vscode.vscode-git",
+    "ms-vscode.vscode-github-pullrequest"
+  ]
+}

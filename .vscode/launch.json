@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug API Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/api-server/src/index.ts",
+      "cwd": "${workspaceFolder}/packages/api-server",
+      "runtimeArgs": ["--loader", "tsx"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug Showcase WebApp",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/showcase-webapp/node_modules/.bin/vite",
+      "cwd": "${workspaceFolder}/packages/showcase-webapp",
+      "args": ["--host", "0.0.0.0"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug DevKit Node",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/devkit-node/src/index.ts",
+      "cwd": "${workspaceFolder}/packages/devkit-node",
+      "runtimeArgs": ["--loader", "tsx"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
