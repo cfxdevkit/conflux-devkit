@@ -1,9 +1,20 @@
 {
   "name": "Conflux DevKit",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20-bullseye",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": true,
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "latest"
+    }
   },
   "customizations": {
     "vscode": {
@@ -17,7 +28,18 @@
         "ms-vscode.vscode-turbo",
         "ms-vscode.vscode-pnpm",
         "ms-vscode.vscode-vitest",
-        "ms-vscode.vscode-react-snippets"
+        "ms-vscode.vscode-react-snippets",
+        "ms-vscode.vscode-docker",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-markdown",
+        "ms-vscode.vscode-git",
+        "ms-vscode.vscode-git-graph",
+        "eamodio.gitlens",
+        "ms-vscode.vscode-terminal",
+        "ms-vscode.remote-containers",
+        "ms-vscode.vscode-json5",
+        "ms-vscode.vscode-toml"
       ],
       "settings": {
         "typescript.preferences.importModuleSpecifier": "relative",
@@ -31,8 +53,8 @@
       }
     }
   },
-  "postCreateCommand": "pnpm install",
-  "forwardPorts": [3000, 3001, 8080],
+  "postCreateCommand": "bash scripts/setup-devcontainer-simple.sh",
+  "forwardPorts": [3000, 3001, 3002, 12537, 8545],
   "portsAttributes": {
     "3000": {
       "label": "Showcase WebApp",
@@ -42,8 +64,16 @@
       "label": "API Server",
       "onAutoForward": "notify"
     },
-    "8080": {
-      "label": "DevKit Node",
+    "3002": {
+      "label": "State Server (WebSocket)",
+      "onAutoForward": "notify"
+    },
+    "12537": {
+      "label": "Conflux Node (Core)",
+      "onAutoForward": "notify"
+    },
+    "8545": {
+      "label": "Conflux Node (EVM)",
       "onAutoForward": "notify"
     }
   },

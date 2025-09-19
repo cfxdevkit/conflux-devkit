@@ -1,3 +1,6 @@
 packages:
-  - 'packages/*'
+  - packages/*
   - '!packages/.dashboard'
+  - '!packages/.untracked'
+onlyBuiltDependencies:
+  - sqlite3

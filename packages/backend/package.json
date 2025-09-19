@@ -1,0 +1,50 @@
+{
+  "name": "@conflux-devkit/backend",
+  "version": "2.0.0",
+  "description": "Simplified backend services for Conflux DevKit - Clean API + WebSocket with DevKit integration",
+  "main": "dist/index.js",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "conflux",
+    "devkit",
+    "backend",
+    "api",
+    "websocket"
+  ],
+  "author": "Conflux DevKit Team",
+  "license": "MIT",
+  "dependencies": {
+    "@conflux-devkit/node": "workspace:*",
+    "dotenv": "^16.3.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "viem": "^2.37.8",
+    "winston": "^3.11.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.7.5",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.7.5",
+    "@types/ws": "^8.5.12",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.9"
+  }
+}

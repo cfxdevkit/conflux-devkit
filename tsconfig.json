@@ -6,28 +6,16 @@
   },
   "references": [
     {
-      "path": "./packages/core"
+      "path": "./packages/devkit-node"
     },
     {
-      "path": "./packages/blockchain"
+      "path": "./packages/devkit-backend"
     },
     {
-      "path": "./packages/state"
+      "path": "./packages/devkit-frontend"
     },
     {
-      "path": "./packages/api-server"
-    },
-    {
-      "path": "./packages/node"
-    },
-    {
-      "path": "./packages/ui-primitives"
-    },
-    {
-      "path": "./packages/ui-components"
-    },
-    {
-      "path": "./packages/showcase-webapp"
+      "path": "./packages/devkit-demo"
     }
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]

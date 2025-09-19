@@ -60,7 +60,7 @@
         "noAccumulatingSpread": "warn"
       }
     },
-    "includes": ["**", "!node_modules", "!dist", "!.next", "!out"]
+    "includes": ["**", "!node_modules", "!dist", "!.next", "!out", "!**/*.css"]
   },
   "javascript": {
     "formatter": {

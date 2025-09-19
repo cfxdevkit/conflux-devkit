@@ -1,0 +1,37 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+
+# Secrets
+secrets.json
+
+# IDE files
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+test-results/
+junit.xml
+
+# Build artifacts
+dist/
+build/
+
+# Coverage reports
+coverage/
+.nyc_output/

@@ -1,0 +1,88 @@
+# ============================================================================
+# Conflux DevKit - Development Docker Compose
+# Optimized for development with hot reloading and debugging
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # Main development container
+  conflux-devkit:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"    # API Server
+      - "3002:3002"    # State Server
+      - "3003:3003"    # Demo Webapp
+      - "12537:12537"  # Conflux Core RPC
+      - "8545:8545"    # Conflux EVM RPC
+      - "9229:9229"    # Node.js Debug Port
+    volumes:
+      - .:/workspaces/conflux-devkit
+      - /workspaces/conflux-devkit/node_modules
+      - /workspaces/conflux-devkit/packages/*/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - STATE_SERVER_URL=ws://localhost:3002
+      - VITE_API_BASE_URL=http://localhost:3001/api
+      - VITE_WS_URL=ws://localhost:3002
+      - DEBUG=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: ["pnpm", "run", "dev"]
+
+  # Optional: Add a reverse proxy for development
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.dev.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - conflux-devkit
+    restart: unless-stopped
+    profiles:
+      - proxy
+
+  # Optional: Add a database for development
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: conflux_devkit
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - database
+
+  # Optional: Add Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    profiles:
+      - cache
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: conflux-devkit-dev

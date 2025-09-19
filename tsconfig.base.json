@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "strict": true,
@@ -14,7 +14,12 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "incremental": false
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

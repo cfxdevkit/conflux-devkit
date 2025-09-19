@@ -1,0 +1,26 @@
+{
+  "name": "@conflux-devkit/contracts",
+  "version": "0.1.0",
+  "description": "Conflux DevKit Smart Contracts",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat ignition deploy",
+    "deploy:local": "hardhat ignition deploy --network confluxESpaceLocal",
+    "deploy:testnet": "hardhat ignition deploy --network confluxESpaceTestnet",
+    "deploy:mainnet": "hardhat ignition deploy --network confluxESpaceMainnet",
+    "deploy:erc20": "hardhat ignition deploy ignition/modules/ERC20Token.ts --network confluxESpaceLocal",
+    "deploy:storage": "hardhat ignition deploy ignition/modules/SimpleStorage.ts --network confluxESpaceLocal",
+    "deploy:counter": "hardhat ignition deploy ignition/modules/Counter.ts --network confluxESpaceLocal",
+    "test": "hardhat test",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition-viem": "^0.15.13",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^5.4.0",
+    "hardhat": "^2.26.3",
+    "typescript": "^5.9.2",
+    "viem": "^2.37.6"
+  }
+}

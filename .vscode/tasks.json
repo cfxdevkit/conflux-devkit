@@ -2,91 +2,132 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Install Dependencies",
+      "label": "Docker: Start All Services",
       "type": "shell",
-      "command": "pnpm install",
+      "command": "pnpm",
+      "args": ["run", "docker:start"],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Build All",
-      "type": "shell",
-      "command": "pnpm run build",
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Start Full Stack",
-      "type": "shell",
-      "command": "pnpm run start:full-stack",
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
       },
-      "isBackground": true
+      "problemMatcher": []
     },
     {
-      "label": "Start API Server",
+      "label": "Docker: Start with Conflux Nodes",
       "type": "shell",
-      "command": "pnpm run start:api-server",
+      "command": "pnpm",
+      "args": ["run", "docker:start", "conflux"],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "shared"
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
       },
-      "isBackground": true
+      "problemMatcher": []
     },
     {
-      "label": "Start Showcase",
+      "label": "Docker: Start with Database",
       "type": "shell",
-      "command": "pnpm run start:showcase",
+      "command": "pnpm",
+      "args": ["run", "docker:start", "database"],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "shared"
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
       },
-      "isBackground": true
+      "problemMatcher": []
     },
     {
-      "label": "Run Tests",
+      "label": "Docker: Stop All Services",
       "type": "shell",
-      "command": "pnpm run test",
-      "group": "test",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Lint and Format",
-      "type": "shell",
-      "command": "pnpm run check:fix",
+      "command": "pnpm",
+      "args": ["run", "docker:stop"],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": false,
-        "panel": "shared"
-      }
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Restart Services",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "docker:restart"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Show Status",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "docker:status"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Show Logs",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "docker:logs"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Cleanup",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "docker:cleanup"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
     }
   ]
 }
