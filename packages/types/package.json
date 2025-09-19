@@ -1,0 +1,69 @@
+{
+  "name": "@conflux-devkit/types",
+  "version": "0.1.0",
+  "description": "Type definitions for Conflux DevKit - Client and Server type hierarchies",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client/index.mjs",
+      "require": "./dist/client/index.js",
+      "types": "./dist/client/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
+    },
+    "./shared": {
+      "import": "./dist/shared/index.mjs",
+      "require": "./dist/shared/index.js",
+      "types": "./dist/shared/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest"
+  },
+  "keywords": [
+    "conflux",
+    "devkit",
+    "types",
+    "typescript",
+    "blockchain",
+    "ethereum",
+    "evm"
+  ],
+  "author": "Conflux DevKit Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0",
+    "eslint": "^8.0.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@conflux-devkit/core": "workspace:*"
+  },
+  "dependencies": {
+    "@conflux-devkit/core": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

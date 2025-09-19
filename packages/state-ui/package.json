@@ -1,0 +1,45 @@
+{
+  "name": "@conflux-devkit/state-ui",
+  "version": "0.1.0",
+  "description": "UI state management for Conflux DevKit applications",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "conflux",
+    "devkit",
+    "state",
+    "ui",
+    "zustand",
+    "react"
+  ],
+  "author": "Conflux DevKit Team",
+  "license": "MIT",
+  "dependencies": {
+    "zustand": "^4.4.7",
+    "immer": "^10.0.3"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

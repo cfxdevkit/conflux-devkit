@@ -1,0 +1,9 @@
+{
+  "index": 0,
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "privateKey": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+  "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "balance": "1000000000000000000",
+  "balanceFormatted": "1.0 CFX",
+  "isMining": false
+}

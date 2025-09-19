@@ -1,0 +1,12 @@
+{
+  "transactionHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "blockNumber": "12345",
+  "blockHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+  "transactionIndex": "0",
+  "from": "0x1234567890abcdef1234567890abcdef12345678",
+  "to": "0x9876543210fedcba9876543210fedcba98765432",
+  "gasUsed": "21000",
+  "effectiveGasPrice": "20000000000",
+  "status": "success",
+  "logs": []
+}

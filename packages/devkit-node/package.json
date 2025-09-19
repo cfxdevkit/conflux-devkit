@@ -1,0 +1,72 @@
+{
+  "name": "@conflux-devkit/node",
+  "version": "1.0.0",
+  "description": "Conflux Development Kit Node - Unified node management and workflow orchestration",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "devkit-node": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "type-check": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "cli": "ts-node src/cli/unified.ts",
+    "workflow": "ts-node src/cli/unified.ts workflow",
+    "workflow:dev": "ts-node src/cli/unified.ts workflow --dev",
+    "workflow:testnet": "ts-node src/cli/unified.ts workflow --network testnet",
+    "workflow:persistent": "ts-node src/cli/unified.ts workflow --persistent",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest --run",
+    "test:coverage": "vitest --run --coverage",
+    "test:watch": "vitest --watch",
+    "test:ci": "vitest --run --reporter=verbose",
+    "clean": "rm -rf dist",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/",
+    "check:fix:unsafe": "biome check --write --unsafe src/",
+    "checkpoint": "echo \"Checkpoint: @conflux-devkit/node - All checks passed\""
+  },
+  "dependencies": {
+    "@conflux-devkit/core": "workspace:*",
+    "@conflux-devkit/blockchain": "workspace:*",
+    "@xcfx/node": "^0.6.0",
+    "cive": "^0.8.1",
+    "commander": "^11.1.0",
+    "fs-extra": "^11.3.2",
+    "ora": "^8.0.1",
+    "chalk": "^5.3.0",
+    "viem": "^2.21.0",
+    "bip32": "^4.0.0",
+    "bip39": "^3.1.0",
+    "tiny-secp256k1": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.0.0",
+    "@vitest/ui": "^2.1.9",
+    "c8": "^8.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2",
+    "vitest": "^2.1.9"
+  },
+  "keywords": [
+    "conflux",
+    "blockchain",
+    "node",
+    "development",
+    "testing",
+    "evm",
+    "core"
+  ],
+  "author": "Conflux Development Team",
+  "license": "MIT",
+  "packageManager": "pnpm@10.11.0"
+}

@@ -1,0 +1,32 @@
+{
+  "contractName": "TestToken",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "transactionHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+  "blockNumber": "12345",
+  "blockHash": "0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba98",
+  "gasUsed": "1000000",
+  "gasPrice": "20000000000",
+  "abi": [
+    {
+      "type": "function",
+      "name": "totalSupply",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b50...",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50...",
+  "deployedAt": "2024-01-01T00:00:00.000Z",
+  "network": "evm",
+  "networkId": "2030",
+  "chainId": 2030,
+  "evmChainId": 2030,
+  "chainType": "evm",
+  "typesGenerated": true
+}
