@@ -13,8 +13,6 @@ Conflux DevKit is a professional-grade monorepo that provides a unified developm
 - **[@conflux-devkit/node](./packages/node/)** - Core library for Conflux blockchain interaction
 - **[@conflux-devkit/backend](./packages/backend/)** - REST API and WebSocket backend services
 - **[@conflux-devkit/frontend](./packages/frontend/)** - Modern React frontend application
-- **[@conflux-devkit/hardhat-core](./packages/hardhat-core/)** - Hardhat configuration for Conflux Core Space
-- **[@conflux-devkit/hardhat-espace](./packages/hardhat-espace/)** - Hardhat configuration for Conflux eSpace (EVM)
 
 ### Key Features
 
@@ -154,35 +152,7 @@ Modern React frontend with:
 
 ## 🔗 Smart Contract Development
 
-### Core Space Contracts
-
-```bash
-cd packages/hardhat-core
-
-# Compile contracts
-pnpm build
-
-# Deploy to local node
-pnpm deploy
-
-# Deploy to testnet
-pnpm deploy:testnet
-```
-
-### eSpace Contracts
-
-```bash
-cd packages/hardhat-espace
-
-# Compile contracts
-pnpm build
-
-# Deploy to local node
-pnpm deploy
-
-# Deploy to testnet
-pnpm deploy:testnet
-```
+The DevKit provides built-in support for deploying and interacting with smart contracts on both Conflux Core Space and eSpace through the frontend interface and backend APIs. Contract development tools are integrated into the main packages.
 
 ## 🧪 Testing
 
