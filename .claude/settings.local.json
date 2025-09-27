@@ -52,7 +52,9 @@
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm type-check:*)",
       "Bash(pnpm --filter=@conflux-devkit/backend type-check)",
-      "Bash(pnpm --filter=@conflux-devkit/frontend type-check)"
+      "Bash(pnpm --filter=@conflux-devkit/frontend type-check)",
+      "Bash(tree:*)",
+      "Bash(pnpm --filter @conflux-devkit/node build)"
     ],
     "deny": [],
     "ask": []
