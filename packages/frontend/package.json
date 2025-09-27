@@ -4,9 +4,9 @@
   "type": "module",
   "description": "Minimal React frontend for Conflux DevKit - Clean UI with modern stack",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -49,5 +49,5 @@
     "web3"
   ],
   "author": "Conflux DevKit Team",
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

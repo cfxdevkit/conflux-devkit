@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /**
  * DevKit API Routes
  *
@@ -19,21 +35,30 @@ function getNetworkConfig(network: NetworkType) {
   switch (network) {
     case 'testnet':
       return {
-        chainId: 71,
+        // eSpace (EVM) configuration
+        evmChainId: 71,
         rpcUrl: 'https://evmtestnet.confluxrpc.com',
+        // Core Space configuration  
+        coreNetworkId: 1, // Testnet Core network ID
         coreRpcUrl: 'https://test.confluxrpc.com',
       };
     case 'mainnet':
       return {
-        chainId: 1030,
+        // eSpace (EVM) configuration
+        evmChainId: 1030,
         rpcUrl: 'https://evm.confluxrpc.com',
+        // Core Space configuration
+        coreNetworkId: 1029, // Mainnet Core network ID
         coreRpcUrl: 'https://main.confluxrpc.com',
       };
     default: // local
       return {
-        chainId: 71, // Same as testnet for compatibility
-        rpcUrl: 'http://localhost:12537', // Local EVM RPC
-        coreRpcUrl: 'http://localhost:12539', // Local Core RPC
+        // eSpace (EVM) configuration
+        evmChainId: 2030, // Local EVM chain ID
+        rpcUrl: 'http://localhost:8545', // Local EVM RPC
+        // Core Space configuration
+        coreNetworkId: 2029, // Local Core network ID
+        coreRpcUrl: 'http://localhost:12537', // Local Core RPC
       };
   }
 }
@@ -125,31 +150,101 @@ export function createDevKitRoutes(
   // Get all accounts
   router.get('/accounts', async (req: AuthenticatedRequest, res) => {
     try {
-      const accounts = devkit.getAccounts();
-      const accountsData = accounts.map((account) => ({
-        index: account.index,
-        addresses: {
-          core: account.address.core,
-          evm: account.address.evm,
-        },
-        isAdmin:
-          req.wallet?.address?.toLowerCase() ===
-          account.address.evm.toLowerCase(),
-      }));
+      const network = currentNetwork;
+      const networkConfig = getNetworkConfig(network);
+      
+      // Get accounts from DevKit (these have the private keys we need)
+      const devkitAccounts = devkit.getAccounts();
+      const accountsData = [];
+      
+      if (network === 'local') {
+        // Use local DevKit accounts as-is for local network
+        devkitAccounts.forEach((account) => {
+          accountsData.push({
+            index: account.index,
+            addresses: {
+              core: account.address.core,
+              evm: account.address.evm,
+            },
+            isAdmin:
+              req.wallet?.address?.toLowerCase() ===
+              account.address.evm.toLowerCase(),
+          });
+        });
+      } else {
+        // Regenerate addresses for external networks using DevKit private keys
+        const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+          'cive/accounts'
+        );
+        const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
+          'viem/accounts'
+        );
+        
+        devkitAccounts.forEach((account) => {
+          // Use the Core private key for Core address
+          const corePrivateKey = account.privateKey as `0x${string}`;
+          
+          // Use the EVM private key for EVM address (Ethereum derivation path)
+          const evmPrivateKey = account.evmPrivateKey as `0x${string}`;
+          
+          // Generate Core address for current network
+          const coreAccount = corePrivateKeyToAccount(corePrivateKey, {
+            networkId: networkConfig.coreNetworkId,
+          });
+          
+          // Generate EVM address using the correct EVM private key
+          const evmAccount = evmPrivateKeyToAccount(evmPrivateKey);
+          
+          accountsData.push({
+            index: account.index,
+            addresses: {
+              core: coreAccount.address,
+              evm: evmAccount.address,
+            },
+            isAdmin: req.wallet?.address?.toLowerCase() === evmAccount.address.toLowerCase(),
+          });
+        });
+      }
 
       // Get faucet account info (admin only)
       let faucetAccount = null;
       if (req.wallet?.isAdmin) {
         try {
-          const faucet = await devkit.getFaucetAccount();
-          faucetAccount = {
-            addresses: {
-              core: faucet.address.core,
-              evm: faucet.address.evm,
-            },
-          };
+          if (network === 'local') {
+            const faucet = await devkit.getFaucetAccount();
+            faucetAccount = {
+              addresses: {
+                core: faucet.address.core,
+                evm: faucet.address.evm,
+              },
+            };
+          } else {
+            // For external networks, regenerate faucet addresses
+            const faucet = await devkit.getFaucetAccount();
+            const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+              'cive/accounts'
+            );
+            const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
+              'viem/accounts'
+            );
+            
+            const faucetCorePrivateKey = faucet.privateKey as `0x${string}`;
+            const faucetEvmPrivateKey = faucet.evmPrivateKey as `0x${string}`;
+            
+            const faucetCoreAccount = corePrivateKeyToAccount(faucetCorePrivateKey, {
+              networkId: networkConfig.coreNetworkId,
+            });
+            
+            const faucetEvmAccount = evmPrivateKeyToAccount(faucetEvmPrivateKey);
+            
+            faucetAccount = {
+              addresses: {
+                core: faucetCoreAccount.address,
+                evm: faucetEvmAccount.address,
+              },
+            };
+          }
         } catch (error) {
-          // Faucet account might not be available if node is stopped
           console.warn('Faucet account not available:', error);
         }
       }
@@ -158,6 +253,7 @@ export function createDevKitRoutes(
         accounts: accountsData,
         total: accountsData.length,
         faucetAccount,
+        network: currentNetwork,
         // Note: Mnemonic is not exposed via DevKit API for security reasons
       });
     } catch (error) {
@@ -167,24 +263,57 @@ export function createDevKitRoutes(
   });
 
   // Get account information
-  router.get('/accounts/:index', (req: AuthenticatedRequest, res) => {
+  router.get('/accounts/:index', async (req: AuthenticatedRequest, res) => {
     try {
       const index = parseInt(req.params.index, 10);
       if (Number.isNaN(index) || index < 0 || index >= 10) {
         return res.status(400).json({ error: 'Invalid account index (0-9)' });
       }
 
-      const account = devkit.account(index);
-      res.json({
-        index,
-        addresses: {
-          core: account.address.core,
-          evm: account.address.evm,
-        },
-        isAdmin:
-          req.wallet?.address?.toLowerCase() ===
-          account.address.evm.toLowerCase(),
-      });
+      const network = currentNetwork;
+      const networkConfig = getNetworkConfig(network);
+      const devkitAccount = devkit.account(index);
+      
+      if (network === 'local') {
+        // Use local DevKit account as-is
+        res.json({
+          index,
+          addresses: {
+            core: devkitAccount.address.core,
+            evm: devkitAccount.address.evm,
+          },
+          isAdmin:
+            req.wallet?.address?.toLowerCase() ===
+            devkitAccount.address.evm.toLowerCase(),
+        });
+      } else {
+        // Regenerate addresses for external networks
+        const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+          'cive/accounts'
+        );
+        const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
+          'viem/accounts'
+        );
+        
+        const corePrivateKey = devkitAccount.privateKey as `0x${string}`;
+        const evmPrivateKey = devkitAccount.evmPrivateKey as `0x${string}`;
+        
+        // Generate addresses for current network using correct private keys
+        const coreAccount = corePrivateKeyToAccount(corePrivateKey, {
+          networkId: networkConfig.coreNetworkId,
+        });
+        
+        const evmAccount = evmPrivateKeyToAccount(evmPrivateKey);
+        
+        res.json({
+          index,
+          addresses: {
+            core: coreAccount.address,
+            evm: evmAccount.address,
+          },
+          isAdmin: req.wallet?.address?.toLowerCase() === evmAccount.address.toLowerCase(),
+        });
+      }
     } catch (error) {
       logger.error('Account info failed:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -242,21 +371,77 @@ export function createDevKitRoutes(
         }
 
         const account = devkit.account(index);
-        const coreBalance = await account.getBalance('core');
-        const evmBalance = await account.getBalance('evm');
+        let coreBalance: string;
+        let evmBalance: string;
+
+        if (network === 'local') {
+          // Use DevKit's local clients for local network
+          coreBalance = (await account.getBalance('core')) as string;
+          evmBalance = (await account.getBalance('evm')) as string;
+        } else {
+          // For testnet/mainnet, create clients with external RPC URLs
+          const { createPublicClient: createViemClient } = await import('viem');
+          const { http: viemHttp } = await import('viem');
+          const { formatUnits } = await import('viem');
+
+          const { createPublicClient: createCoreClient } = await import('cive');
+          const { http: coreHttp } = await import('cive');
+          const { formatCFX } = await import('cive');
+
+          // Create EVM client for external networks
+          const evmClient = createViemClient({
+            transport: viemHttp(networkConfig.rpcUrl),
+          });
+
+          // Create Core client for external networks
+          const coreClient = createCoreClient({
+            transport: coreHttp(networkConfig.coreRpcUrl),
+          });
+
+          // For external networks, derive Core address from private key for correct network
+          const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+            'cive/accounts'
+          );
+          const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
+            'viem/accounts'
+          );
+
+          // Get private keys from DevKit account (Core and EVM use different derivation paths)
+          const corePrivateKey = account.privateKey as `0x${string}`;
+          const evmPrivateKey = account.evmPrivateKey as `0x${string}`;
+
+          // Generate addresses for current network using correct private keys
+          const coreAccount = corePrivateKeyToAccount(corePrivateKey, {
+            networkId: networkConfig.coreNetworkId,
+          });
+          const evmAccount = evmPrivateKeyToAccount(evmPrivateKey);
+
+          // Fetch balances from external networks using network-specific addresses
+          const [evmBalanceWei, coreBalanceDrip] = await Promise.all([
+            evmClient.getBalance({
+              address: evmAccount.address as `0x${string}`,
+            }),
+            coreClient.getBalance({
+              address: coreAccount.address,
+            }),
+          ]);
+
+          evmBalance = formatUnits(evmBalanceWei, 18);
+          coreBalance = formatCFX(coreBalanceDrip);
+        }
 
         res.json({
           index,
           balances: {
-            core: coreBalance.toString(),
-            evm: evmBalance.toString(),
+            core: coreBalance,
+            evm: evmBalance,
           },
           network,
           config: networkConfig,
         });
       } catch (error) {
         logger.error('Balance check failed:', error);
-        
+
         // Return graceful error instead of 500
         res.json({
           index: parseInt(req.params.index, 10) || 0,
@@ -313,6 +498,116 @@ export function createDevKitRoutes(
     }
   });
 
+  // Read contract function
+  router.post('/contracts/read', async (req: AuthenticatedRequest, res) => {
+    try {
+      const {
+        address,
+        abi,
+        functionName,
+        args = [],
+        chain = 'core',
+      } = req.body;
+
+      if (!address || !abi || !functionName) {
+        return res.status(400).json({
+          error: 'Address, ABI, and function name are required',
+        });
+      }
+
+      const network = currentNetwork;
+      
+      if (network === 'local') {
+        // Use DevKit for local network
+        const chainType = chain as 'core' | 'evm';
+        const result = await devkit.readContract({
+          address,
+          abi,
+          functionName,
+          args,
+          chain: chainType,
+        });
+
+        // Convert BigInt values to strings for JSON serialization
+        const serializableResult = JSON.parse(JSON.stringify(result, (_key, value) =>
+          typeof value === 'bigint' ? value.toString() : value
+        ));
+
+        // Send response with custom JSON handling for BigInt
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+          result: serializableResult,
+          functionName,
+          chain,
+        }, (_key, value) => typeof value === 'bigint' ? value.toString() : value));
+      } else {
+        // For external networks, we need to implement contract reading
+        // For now, return an error since external contract interaction isn't implemented
+        res.status(501).json({
+          error: 'Contract interaction on external networks not yet implemented',
+        });
+      }
+    } catch (error) {
+      logger.error('Read contract error:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Contract read failed',
+      });
+    }
+  });
+
+  // Write contract function
+  router.post('/contracts/write', async (req: AuthenticatedRequest, res) => {
+    try {
+      const {
+        address,
+        abi,
+        functionName,
+        args = [],
+        chain = 'core',
+        accountIndex = 0,
+      } = req.body;
+
+      if (!address || !abi || !functionName) {
+        return res.status(400).json({
+          error: 'Address, ABI, and function name are required',
+        });
+      }
+
+      const network = currentNetwork;
+      
+      if (network === 'local') {
+        // Use DevKit for local network
+        const chainType = chain as 'core' | 'evm';
+        const transactionHash = await devkit.writeContract({
+          address,
+          abi,
+          functionName,
+          args,
+          account: accountIndex,
+          chain: chainType,
+        });
+
+        res.json({
+          transactionHash,
+          functionName,
+          chain,
+          account: accountIndex,
+        });
+      } else {
+        // For external networks, we need to implement contract writing
+        // For now, return an error since external contract interaction isn't implemented
+        res.status(501).json({
+          error: 'Contract interaction on external networks not yet implemented',
+        });
+      }
+    } catch (error) {
+      logger.error('Write contract error:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Contract write failed',
+      });
+    }
+  });
+
   // Get contract info
   router.get('/contracts/:address', async (req, res) => {
     try {
@@ -364,48 +659,47 @@ export function createDevKitRoutes(
   });
 
   // Sign message (authenticated users only)
-  router.post('/accounts/:index/sign', async (req: AuthenticatedRequest, res) => {
-    try {
-      const accountIndex = parseInt(req.params.index, 10);
-      const { message, chain = 'core' } = req.body;
+  router.post(
+    '/accounts/:index/sign',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const accountIndex = parseInt(req.params.index, 10);
+        const { message, chain = 'core' } = req.body;
 
-      if (!message) {
-        return res
-          .status(400)
-          .json({ error: 'Message is required' });
+        if (!message) {
+          return res.status(400).json({ error: 'Message is required' });
+        }
+
+        if (Number.isNaN(accountIndex) || accountIndex < 0) {
+          return res.status(400).json({ error: 'Invalid account index' });
+        }
+
+        const chainType = chain as 'core' | 'evm';
+        const account = devkit.account(accountIndex);
+
+        let signature: string;
+        if (chainType === 'core') {
+          signature = await account.core.signMessage(message);
+        } else {
+          signature = await account.evm.signMessage(message);
+        }
+
+        res.json({
+          signature,
+          message,
+          address: account.address[chainType],
+          chain: chainType,
+          accountIndex,
+        });
+      } catch (error) {
+        logger.error('Message signing failed:', error);
+        res.status(500).json({
+          error: 'Message signing failed',
+          details: error instanceof Error ? error.message : String(error),
+        });
       }
-
-      if (Number.isNaN(accountIndex) || accountIndex < 0) {
-        return res
-          .status(400)
-          .json({ error: 'Invalid account index' });
-      }
-
-      const chainType = chain as 'core' | 'evm';
-      const account = devkit.account(accountIndex);
-      
-      let signature: string;
-      if (chainType === 'core') {
-        signature = await account.core.signMessage(message);
-      } else {
-        signature = await account.evm.signMessage(message);
-      }
-
-      res.json({
-        signature,
-        message,
-        address: account.address[chainType],
-        chain: chainType,
-        accountIndex,
-      });
-    } catch (error) {
-      logger.error('Message signing failed:', error);
-      res.status(500).json({
-        error: 'Message signing failed',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // ===== NODE CONTROL ENDPOINTS =====
 
@@ -474,6 +768,61 @@ export function createDevKitRoutes(
       logger.error('Node stop failed:', error);
       res.status(500).json({
         error: 'Failed to stop node',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Update development settings (only when node is stopped)
+  router.post('/node/dev-settings', async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.wallet?.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      // Check if node is running - these are pre-start configuration settings
+      try {
+        const status = await devkit.getStatus();
+        if (status.core.status === 'running' || status.evm.status === 'running') {
+          return res.status(409).json({
+            error: 'Development settings can only be changed when the node is stopped. These are pre-start configuration settings.'
+          });
+        }
+      } catch (error) {
+        // If status check fails, assume node is stopped and continue
+      }
+
+      const { devBlockIntervalMs, devPackTxImmediately } = req.body;
+
+      // Validate inputs
+      if (devBlockIntervalMs !== undefined && (typeof devBlockIntervalMs !== 'number' || devBlockIntervalMs < 100)) {
+        return res.status(400).json({
+          error: 'devBlockIntervalMs must be a number >= 100 or undefined to disable'
+        });
+      }
+
+      if (devPackTxImmediately !== undefined && typeof devPackTxImmediately !== 'boolean') {
+        return res.status(400).json({
+          error: 'devPackTxImmediately must be a boolean'
+        });
+      }
+
+      await devkit.updateDevSettings({
+        devBlockIntervalMs,
+        devPackTxImmediately,
+      });
+
+      res.json({
+        message: 'Development settings saved successfully. Settings will be applied when the node starts.',
+        settings: {
+          devBlockIntervalMs,
+          devPackTxImmediately,
+        },
+      });
+    } catch (error) {
+      logger.error('Dev settings update failed:', error);
+      res.status(500).json({
+        error: 'Failed to save development settings',
         details: error instanceof Error ? error.message : String(error),
       });
     }
@@ -659,14 +1008,14 @@ export function createDevKitRoutes(
       // Update the current network state
       currentNetwork = network as NetworkType;
       const networkConfig = getNetworkConfig(currentNetwork);
-      
+
       logger.info(`Network switched to: ${network}`, networkConfig);
 
       // Notify WebSocket clients about network change
       if (wsServer) {
         wsServer.broadcast({
           type: 'network-switched',
-          data: { 
+          data: {
             network,
             config: networkConfig,
           },

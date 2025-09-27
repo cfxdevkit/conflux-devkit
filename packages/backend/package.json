@@ -23,7 +23,7 @@
     "websocket"
   ],
   "author": "Conflux DevKit Team",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@conflux-devkit/node": "workspace:*",
     "dotenv": "^16.3.1",

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // WebSocket service for real-time DevKit events
 import { create } from 'zustand';
 
@@ -96,6 +112,15 @@ class DevKitWebSocketService {
       this.backendWs.onopen = () => {
         console.log('Connected to backend WebSocket');
         this.reconnectAttempts = 0;
+        
+        // Trigger immediate queries when connection is established
+        if (this.queryClient) {
+          console.log('WebSocket opened, triggering immediate data fetch');
+          this.queryClient.invalidateQueries({ queryKey: ['devkit-status'] });
+          this.queryClient.invalidateQueries({ queryKey: ['public-status'] });
+          this.queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        }
+        
         resolve();
       };
 
@@ -248,6 +273,15 @@ class DevKitWebSocketService {
     } else if (data.type === 'connected') {
       console.log('Backend WebSocket connected:', data.data?.message || data.message);
       this.updateStore({ isConnected: true });
+      
+      // Trigger immediate queries when WebSocket connects
+      if (this.queryClient) {
+        console.log('WebSocket connected, triggering immediate data fetch');
+        this.queryClient.invalidateQueries({ queryKey: ['devkit-status'] });
+        this.queryClient.invalidateQueries({ queryKey: ['public-status'] });
+        this.queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        this.queryClient.invalidateQueries({ queryKey: ['account-balance'] });
+      }
     } else if (data.type === 'blockUpdate') {
       // Handle block updates from backend
       console.log('Block update:', data);

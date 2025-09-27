@@ -75,7 +75,7 @@
     "core",
     "dual-chain"
   ],
-  "author": "Conflux Development Team",
-  "license": "MIT",
+  "author": "Conflux DevKit Team",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.11.0"
 }

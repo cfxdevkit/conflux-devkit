@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Core Configuration Types
 // Based on proven patterns from DevKit CLI and @xcfx/node
 
@@ -12,9 +28,9 @@ export interface NodeConfig {
   readonly jsonrpcWsPort?: number; // Core WebSocket port (default: 12538)
   readonly jsonrpcWsEthPort?: number; // EVM WebSocket port (default: 8546)
 
-  // Development Settings
-  readonly devBlockIntervalMs?: number; // Block generation interval (default: 1000)
-  readonly devPackTxImmediately?: boolean; // Pack transactions immediately
+  // // Development Settings
+  // readonly devBlockIntervalMs?: number; // Block generation interval (default: 1000)
+  // readonly devPackTxImmediately?: boolean; // Pack transactions immediately
 
   // Data & Logging
   readonly confluxDataDir?: string; // Data directory path
@@ -208,8 +224,8 @@ export interface ServerConfig {
   readonly logging?: boolean;
   readonly detached?: boolean;
   readonly mining?: MiningConfig;
-  readonly devBlockIntervalMs?: number;
-  readonly devPackTxImmediately?: boolean;
+  readonly devBlockIntervalMs?: number; // Auto block generation interval in ms (undefined = disabled)
+  readonly devPackTxImmediately?: boolean; // Pack transactions immediately for responsiveness
 }
 
 export interface MiningConfig {

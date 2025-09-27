@@ -1,0 +1,191 @@
+#!/usr/bin/env node
+
+/**
+ * Debug Contract Deployment
+ *
+ * Debug script to identify deployment issues
+ */
+
+import { DevKit } from './src/index.js';
+
+// Simple storage contract for deployment
+const SIMPLE_STORAGE_ABI = [
+  {
+    inputs: [
+      { internalType: 'string', name: 'name', type: 'string' },
+      { internalType: 'uint256', name: 'initialValue', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+  },
+  {
+    inputs: [],
+    name: 'getValue',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'newValue', type: 'uint256' }],
+    name: 'setValue',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getName',
+    outputs: [{ internalType: 'string', name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'string', name: 'newName', type: 'string' }],
+    name: 'setName',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+];
+
+const SIMPLE_STORAGE_BYTECODE =
+  '0x608060405234801561001057600080fd5b5060405161081138038061081183398101604081905261002f9161005b565b600161003b83826101b5565b5060005550610274565b634e487b7160e01b600052604160045260246000fd5b6000806040838503121561006e57600080fd5b82516001600160401b038082111561008557600080fd5b818501915085601f83011261009957600080fd5b8151818111156100ab576100ab610045565b604051601f8201601f19908116603f011681019083821181831017156100d3576100d3610045565b816040528281526020935088848487010111156100ef57600080fd5b600091505b8282101561011157848201840151818301850152908301906100f4565b6000928101840192909252509401519395939450505050565b600181811c9082168061013e57607f821691505b60208210810361015e57634e487b7160e01b600052602260045260246000fd5b50919050565b601f8211156101b0576000816000526020600020601f850160051c8101602086101561018d5750805b601f850160051c820191505b818110156101ac57828155600101610199565b5050505b505050565b81516001600160401b038111156101ce576101ce610045565b6101e2816101dc845461012a565b84610164565b602080601f83116001811461021757600084156101ff5750858301515b600019600386901b1c1916600185901b1785556101ac565b600085815260208120601f198616915b8281101561024657888601518255948401946001909101908401610227565b50858210156102645787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b61058e806102836000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c806317d7de7c1461006757806320965255146100855780632baeceb71461009657806355241077146100a0578063c47f0027146100b3578063d09de08a146100c6575b600080fd5b61006f6100ce565b60405161007c919061029c565b60405180910390f35b60005460405190815260200161007c565b61009e610160565b005b61009e6100ae3660046102eb565b610206565b61009e6100c136600461031a565b610244565b61009e61028a565b6060600180546100dd906103cb565b80601f0160208091040260200160405190810160405280929190318152602001828054610109906103cb565b80156101565780601f1061012b57610100808354040283529160200191610156565b820191906000526020600020905b81548152906001019060200180831161013957829003601f168201915b5050505050905090565b60008054116101b55760405162461bcd60e51b815260206004820152601860248201527f56616c75652063616e6e6f74206265206e656761746976650000000000000000604482015260640160405180910390fd5b60016000808282546101c7919061041b565b909155505060005460405190815233907fc53a6612a7428e1fc89cb87169d69d64eaefe94f5b45d43f80f1ad9d7065d2c89060200160405180910390a2565b600081905560405181815233907fc53a6612a7428e1fc89cb87169d69d64eaefe94f5b45d43f80f1ad9d7065d2c8906020015b60405180910390a250565b60016102508282610485565b50336001600160a01b03167f1e3652b21ef1bd2c76130610ad0be2b8ab01fbea80964c84c54473bf090dc8a482604051610239919061029c565b60016000808282546101c79190610545565b60006020808352835180602085015260005b818110156102ca578581018301518582016040015282016102ae565b506000604082860101526040601f19601f8301168501019250505092915050565b6000602082840312156102fd57600080fd5b5035919050565b634e487b7160e01b600052604160045260246000fd5b60006020828403121561032c57600080fd5b813567ffffffffffffffff8082111561034457600080fd5b818401915084601f83011261035857600080fd5b81358181111561036a5761036a610304565b604051601f8201601f19908116603f0116810190838211818310171561039257610392610304565b816040528281528760208487010111156103ab57600080fd5b826020860160208301376000928101602001929092525095945050505050565b600181811c908216806103df57607f821691505b6020821081036103ff57634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052601160045260246000fd5b8181038181111561042e5761042e610405565b92915050565b601f821115610480576000816000526020600020601f850160051c8101602086101561045d5750805b601f850160051c820191505b8181101561047c57828155600101610469565b5050505b505050565b815167ffffffffffffffff81111561049f5761049f610304565b6104b3816104ad84546103cb565b84610434565b602080601f8311600181146104e857600084156104d05750858301515b600019600386901b1c1916600185901b17855561047c565b600085815260208120601f198616915b82811015610517578886015182559484019460019091019084016104f8565b50858210156105355787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b8082018082111561042e5761042e61040556fea2646970667358221220e76a1d0387570e7ecb1490c3202309a750d4f14927c3bdc60d8395e314c99cc764736f6c63430008180033';
+
+async function main() {
+  console.log('🐛 Starting Debug Deployment\n');
+
+  const devkit = new DevKit({
+    chainId: 2029,
+    evmChainId: 2030,
+    jsonrpcHttpPort: 12537,
+    jsonrpcHttpEthPort: 8545,
+    jsonrpcWsPort: 12535,
+    log: false,
+  });
+
+  try {
+    console.log('📦 Starting development node...');
+    await devkit.start();
+    console.log('✅ Node started successfully!\n');
+
+    // Wait for mining to generate some blocks
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Get account information
+    const account0 = devkit.account(0);
+    console.log('👤 Account 0 info:');
+    console.log(`  Core: ${account0.address.core}`);
+    console.log(`  eSpace: ${account0.address.evm}`);
+    console.log(`  Core privateKey: ${account0.privateKey}`);
+    console.log(`  eSpace privateKey: ${account0.evmPrivateKey}\n`);
+
+    const balances = await account0.getBalances();
+    console.log(`  Core balance: ${balances.core} CFX`);
+    console.log(`  eSpace balance: ${balances.evm} CFX\n`);
+
+    // Test Core deployment first
+    console.log('🔗 Testing Core Space deployment...');
+    try {
+      const coreResult = await devkit.deployContract({
+        abi: SIMPLE_STORAGE_ABI,
+        bytecode: SIMPLE_STORAGE_BYTECODE,
+        args: ['CoreSimpleStorage', 10n],
+        chain: 'core',
+        account: 0,
+      });
+      console.log(`✅ Core deployment successful: ${coreResult.core}\n`);
+
+      // Test getName on Core
+      console.log('🧪 Testing getName on Core...');
+      try {
+        const coreName = await devkit.readContract({
+          address: coreResult.core || '',
+          abi: SIMPLE_STORAGE_ABI,
+          functionName: 'getName',
+          chain: 'core',
+        });
+        console.log(`✅ Core getName result: ${coreName}\n`);
+      } catch (error) {
+        console.error(`❌ Core getName failed:`, error);
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+          console.error('Stack:', error.stack);
+        }
+        console.log('');
+      }
+    } catch (error) {
+      console.error('❌ Core deployment failed:', error);
+      console.log('');
+    }
+
+    // Test eSpace deployment with detailed logging
+    console.log('🔗 Testing eSpace deployment...');
+    console.log('Creating EVM wallet client...');
+
+    try {
+      // Get the EVM wallet client directly to debug
+      const evmWallet = account0.evm;
+      console.log(`EVM wallet address: ${evmWallet.getAddress()}`);
+
+      console.log('Attempting contract deployment...');
+      const deployStart = Date.now();
+
+      // Add timeout to the deployment
+      const deploymentPromise = devkit.deployContract({
+        abi: SIMPLE_STORAGE_ABI,
+        bytecode: SIMPLE_STORAGE_BYTECODE,
+        args: ['eSpaceSimpleStorage', 20n],
+        chain: 'evm',
+        account: 0,
+      });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Deployment timeout after 30 seconds')), 30000);
+      });
+
+      const evmResult = await Promise.race([deploymentPromise, timeoutPromise]);
+      const deployTime = Date.now() - deployStart;
+
+      console.log(`✅ eSpace deployment successful in ${deployTime}ms: ${evmResult.evm}\n`);
+
+      // Test getName on eSpace
+      console.log('🧪 Testing getName on eSpace...');
+      try {
+        const evmName = await devkit.readContract({
+          address: evmResult.evm || '',
+          abi: SIMPLE_STORAGE_ABI,
+          functionName: 'getName',
+          chain: 'evm',
+        });
+        console.log(`✅ eSpace getName result: ${evmName}\n`);
+      } catch (error) {
+        console.error(`❌ eSpace getName failed:`, error);
+        console.log('');
+      }
+    } catch (error) {
+      console.error('❌ eSpace deployment failed:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Stack:', error.stack);
+      }
+      console.log('');
+    }
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack trace:', error.stack);
+    }
+  } finally {
+    console.log('🧹 Stopping development node...');
+    await devkit.stop();
+    console.log('✅ Node stopped cleanly');
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(console.error);
+}
+
+export default main;

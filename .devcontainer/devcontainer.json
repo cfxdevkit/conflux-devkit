@@ -49,32 +49,46 @@
           "source.organizeImports": "explicit"
         },
         "typescript.suggest.autoImports": true,
-        "typescript.updateImportsOnFileMove.enabled": "always"
+        "typescript.updateImportsOnFileMove.enabled": "always",
+        "git.openRepositoryInParentFolders": "always",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "workbench.colorTheme": "Default Dark+",
+        "editor.minimap.enabled": false,
+        "workbench.startupEditor": "readme"
       }
     }
+  },
+  "containerEnv": {
+    "BROWSER": "none"
   },
   "postCreateCommand": "bash scripts/setup-devcontainer-simple.sh",
   "forwardPorts": [3000, 3001, 3002, 12537, 8545],
   "portsAttributes": {
     "3000": {
-      "label": "Showcase WebApp",
-      "onAutoForward": "notify"
+      "label": "🚀 Conflux DevKit Frontend",
+      "onAutoForward": "openBrowser",
+      "protocol": "https",
+      "requireLocalPort": false
     },
     "3001": {
-      "label": "API Server",
-      "onAutoForward": "notify"
+      "label": "📡 API Server",
+      "onAutoForward": "notify",
+      "protocol": "https"
     },
     "3002": {
-      "label": "State Server (WebSocket)",
-      "onAutoForward": "notify"
+      "label": "🌐 WebSocket Server",
+      "onAutoForward": "ignore",
+      "protocol": "https"
     },
     "12537": {
-      "label": "Conflux Node (Core)",
-      "onAutoForward": "notify"
+      "label": "⛓️ Conflux Core Node",
+      "onAutoForward": "ignore",
+      "protocol": "https"
     },
     "8545": {
-      "label": "Conflux Node (EVM)",
-      "onAutoForward": "notify"
+      "label": "🔗 Conflux EVM Node",
+      "onAutoForward": "ignore", 
+      "protocol": "https"
     }
   },
   "remoteUser": "node"

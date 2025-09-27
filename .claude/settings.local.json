@@ -54,7 +54,8 @@
       "Bash(pnpm --filter=@conflux-devkit/backend type-check)",
       "Bash(pnpm --filter=@conflux-devkit/frontend type-check)",
       "Bash(tree:*)",
-      "Bash(pnpm --filter @conflux-devkit/node build)"
+      "Bash(pnpm --filter @conflux-devkit/node build)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

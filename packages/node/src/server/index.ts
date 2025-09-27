@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Server Manager for xcfx/node lifecycle management
 // Based on proven patterns from DevKit CLI, adapted for unified interface
 
@@ -12,7 +28,12 @@ import { promises as fs } from 'node:fs';
 import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import { defaultNetworkSelector } from '../config/chains.js';
-import type { AccountInfo, MiningStatus, ServerConfig, ServerStatus } from '../types/index.js';
+import type {
+  AccountInfo,
+  MiningStatus,
+  ServerConfig,
+  ServerStatus,
+} from '../types/index.js';
 import { NodeError } from '../types/index.js';
 
 // Port configuration
@@ -42,18 +63,20 @@ export class ServerManager {
       coreRpcPort: config.coreRpcPort || DEFAULT_CORE_RPC_PORT,
       evmRpcPort: config.evmRpcPort || DEFAULT_EVM_RPC_PORT,
       wsPort: config.wsPort || DEFAULT_WS_PORT,
-      chainId: config.chainId || 1,
-      evmChainId: config.evmChainId || 71,
+      chainId: config.chainId || 2029, // Local Core chain ID
+      evmChainId: config.evmChainId || 2030, // Local eSpace chain ID
       accounts: config.accounts || 10,
       balance: config.balance || '1000000',
       mnemonic: config.mnemonic,
       mining: config.mining || {
         enabled: false,
-        interval: 2000, // 2 seconds default
+        interval: 500, // 0.5 seconds default for faster response
         autoStart: false,
       },
+      devBlockIntervalMs: config.devBlockIntervalMs ?? 500, // Default 500ms for auto block generation
+      devPackTxImmediately: config.devPackTxImmediately ?? true, // Default to pack transactions immediately
     };
-  
+
     // Initialize mining status
     this.miningStatus = {
       isRunning: false,
@@ -72,7 +95,10 @@ export class ServerManager {
    * Return a sanitized copy of the server config with sensitive fields redacted.
    */
   private redactConfig(config: ServerConfig): Partial<ServerConfig> {
-    type SafeConfig = Partial<ServerConfig> & { mnemonic?: string; accounts?: unknown };
+    type SafeConfig = Partial<ServerConfig> & {
+      mnemonic?: string;
+      accounts?: unknown;
+    };
     const safe: SafeConfig = { ...(config as SafeConfig) };
     if (safe.mnemonic) safe.mnemonic = '[REDACTED]';
     // remove accounts and secrets to avoid leaking private keys
@@ -85,7 +111,10 @@ export class ServerManager {
    */
   async start(): Promise<void> {
     if (this.status === 'running') {
-            throw new NodeError('Server is already running', 'SERVER_ALREADY_RUNNING');
+      throw new NodeError(
+        'Server is already running',
+        'SERVER_ALREADY_RUNNING'
+      );
     }
 
     try {
@@ -104,19 +133,20 @@ export class ServerManager {
         chainId: this.config.chainId,
         evmChainId: this.config.evmChainId,
         // Genesis accounts configuration
-        genesisSecrets: this.accounts.map(acc => acc.privateKey),
-        genesisEvmSecrets: this.accounts.map(acc => acc.privateKey),
+        genesisSecrets: this.accounts.map((acc) => acc.privateKey),
+        genesisEvmSecrets: this.accounts.map(
+          (acc) => acc.evmPrivateKey || acc.privateKey
+        ),
         // Mining configuration - use dedicated mining account
         miningAuthor: this.miningAccount?.coreAddress,
-        // Development settings
-        devBlockIntervalMs: 1000, // Auto-generate blocks every second
-        devPackTxImmediately: true, // Pack transactions immediately
+        devPackTxImmediately: this.config.devPackTxImmediately ?? true, // Pack transactions immediately for UI responsiveness
+        devBlockIntervalMs: this.config.devBlockIntervalMs, // Auto block generation interval (undefined = disabled)
         log: this.config.logging || false,
       });
 
       // Start the server - this is required!
       await this.server.start();
-      
+
       this.status = 'running';
 
       // Update network selector with local chain URLs and notify it of node start
@@ -126,7 +156,7 @@ export class ServerManager {
         this.config.wsPort || DEFAULT_WS_PORT
       );
       defaultNetworkSelector.onNodeStart(2029, 2030); // Core local, eSpace local
-      
+
       // Set up cleanup handlers
       this.setupCleanupHandlers();
 
@@ -139,15 +169,17 @@ export class ServerManager {
           // Don't fail server startup if mining fails to start
         }
       }
-
     } catch (error) {
       this.status = 'error';
-        throw new NodeError(
-          `Failed to start server: ${error instanceof Error ? error.message : String(error)}`,
-          'SERVER_START_ERROR',
-          undefined,
-          { config: this.redactConfig(this.config as ServerConfig), originalError: error }
-        );
+      throw new NodeError(
+        `Failed to start server: ${error instanceof Error ? error.message : String(error)}`,
+        'SERVER_START_ERROR',
+        undefined,
+        {
+          config: this.redactConfig(this.config as ServerConfig),
+          originalError: error,
+        }
+      );
     }
   }
 
@@ -239,7 +271,9 @@ export class ServerManager {
    */
   getConfig(): ServerConfig {
     // Return a sanitized config to avoid exposing mnemonic/privkeys in logs or API
-    return { ...(this.redactConfig(this.config as ServerConfig) as ServerConfig) };
+    return {
+      ...(this.redactConfig(this.config as ServerConfig) as ServerConfig),
+    };
   }
 
   /**
@@ -271,12 +305,18 @@ export class ServerManager {
    * Add a new account to the server
    */
   async addAccount(privateKey?: string): Promise<AccountInfo> {
-    const accountPrivateKey = privateKey || `0x${randomBytes(32).toString('hex')}`;
-    
-    const coreAccount = privateKeyToAccount(accountPrivateKey as `0x${string}`, {
-      networkId: this.config.chainId || 1,
-    });
-    const evmAccount = privateKeyToEvmAccount(accountPrivateKey as `0x${string}`);
+    const accountPrivateKey =
+      privateKey || `0x${randomBytes(32).toString('hex')}`;
+
+    const coreAccount = privateKeyToAccount(
+      accountPrivateKey as `0x${string}`,
+      {
+        networkId: this.config.chainId || 1,
+      }
+    );
+    const evmAccount = privateKeyToEvmAccount(
+      accountPrivateKey as `0x${string}`
+    );
 
     const accountInfo: AccountInfo = {
       index: this.accounts.length,
@@ -300,7 +340,11 @@ export class ServerManager {
    * Note: @xcfx/node doesn't provide direct funding methods.
    * This would require using RPC calls to send transactions from funded genesis accounts.
    */
-  async fundAccount(address: string, amount: string, chainType: 'core' | 'evm' = 'core'): Promise<void> {
+  async fundAccount(
+    address: string,
+    amount: string,
+    chainType: 'core' | 'evm' = 'core'
+  ): Promise<void> {
     if (!this.isRunning() || !this.server) {
       throw new NodeError('Server is not running', 'SERVER_NOT_RUNNING');
     }
@@ -314,8 +358,6 @@ export class ServerManager {
       { address, amount, chainType }
     );
   }
-
-
 
   /**
    * Set next block timestamp (for testing)
@@ -353,7 +395,7 @@ export class ServerManager {
     return [
       'Log access not implemented for @xcfx/node.',
       'Consider capturing server output during startup or checking system logs.',
-      `Requested ${lines} lines of logs.`
+      `Requested ${lines} lines of logs.`,
     ];
   }
 
@@ -366,7 +408,12 @@ export class ServerManager {
       const configData = {
         ...this.redactConfig(this.config as ServerConfig),
         mnemonic: '[REDACTED]',
-        accounts: this.accounts.map((a) => ({ index: a.index, coreAddress: a.coreAddress, evmAddress: a.evmAddress, path: a.path })),
+        accounts: this.accounts.map((a) => ({
+          index: a.index,
+          coreAddress: a.coreAddress,
+          evmAddress: a.evmAddress,
+          path: a.path,
+        })),
         rpcUrls: this.getRpcUrls(),
       };
 
@@ -420,7 +467,10 @@ export class ServerManager {
       const confluxChild = root.derivePath(`m/44'/503'/0'/0/${i}`);
 
       if (!confluxChild.privateKey) {
-        throw new NodeError(`Failed to derive Conflux private key for account ${i}`, 'KEY_DERIVATION_ERROR');
+        throw new NodeError(
+          `Failed to derive Conflux private key for account ${i}`,
+          'KEY_DERIVATION_ERROR'
+        );
       }
 
       const confluxPrivateKey = `0x${confluxChild.privateKey.toString('hex')}`;
@@ -429,18 +479,26 @@ export class ServerManager {
       const ethereumChild = root.derivePath(`m/44'/60'/0'/0/${i}`);
 
       if (!ethereumChild.privateKey) {
-        throw new NodeError(`Failed to derive Ethereum private key for account ${i}`, 'KEY_DERIVATION_ERROR');
+        throw new NodeError(
+          `Failed to derive Ethereum private key for account ${i}`,
+          'KEY_DERIVATION_ERROR'
+        );
       }
 
       const ethereumPrivateKey = `0x${ethereumChild.privateKey.toString('hex')}`;
 
       // Create Core account using Conflux-derived private key
-      const coreAccount = privateKeyToAccount(confluxPrivateKey as `0x${string}`, {
-        networkId: this.config.chainId || 1,
-      });
+      const coreAccount = privateKeyToAccount(
+        confluxPrivateKey as `0x${string}`,
+        {
+          networkId: this.config.chainId || 1,
+        }
+      );
 
       // Create EVM account using Ethereum-derived private key
-      const evmAccount = privateKeyToEvmAccount(ethereumPrivateKey as `0x${string}`);
+      const evmAccount = privateKeyToEvmAccount(
+        ethereumPrivateKey as `0x${string}`
+      );
 
       this.accounts.push({
         index: i,
@@ -456,8 +514,6 @@ export class ServerManager {
     }
   }
 
-
-
   /**
    * Generate dedicated mining account (separate from genesis accounts)
    * This account will receive mining rewards and serve as the faucet
@@ -465,7 +521,7 @@ export class ServerManager {
   private async generateMiningAccount(): Promise<void> {
     // Initialize BIP32 with secure elliptic curve implementation
     const bip32 = BIP32Factory(ecc);
-    
+
     // Generate seed from mnemonic
     const seed = mnemonicToSeedSync(this.mnemonic);
     const root = bip32.fromSeed(seed);
@@ -473,9 +529,12 @@ export class ServerManager {
     // Use a different derivation path for mining account (m/44'/503'/1'/0/0)
     // This separates it from genesis accounts (m/44'/503'/0'/0/i)
     const child = root.derivePath(`m/44'/503'/1'/0/0`);
-    
+
     if (!child.privateKey) {
-      throw new NodeError('Failed to derive private key for mining account', 'KEY_DERIVATION_ERROR');
+      throw new NodeError(
+        'Failed to derive private key for mining account',
+        'KEY_DERIVATION_ERROR'
+      );
     }
 
     const privateKey = `0x${child.privateKey.toString('hex')}`;
@@ -495,7 +554,9 @@ export class ServerManager {
       path: `m/44'/503'/1'/0/0`,
     };
 
-    console.log(`Generated mining account: Core=${this.miningAccount.coreAddress}, eSpace=${this.miningAccount.evmAddress}`);
+    console.log(
+      `Generated mining account: Core=${this.miningAccount.coreAddress}, eSpace=${this.miningAccount.evmAddress}`
+    );
   }
 
   // ===== MINING METHODS =====
@@ -505,11 +566,17 @@ export class ServerManager {
    */
   async startMining(interval?: number): Promise<void> {
     if (!this.isRunning()) {
-      throw new NodeError('Server must be running to start mining', 'SERVER_NOT_RUNNING');
+      throw new NodeError(
+        'Server must be running to start mining',
+        'SERVER_NOT_RUNNING'
+      );
     }
 
     if (this.miningStatus.isRunning) {
-      throw new NodeError('Mining is already running', 'MINING_ALREADY_RUNNING');
+      throw new NodeError(
+        'Mining is already running',
+        'MINING_ALREADY_RUNNING'
+      );
     }
 
     // Initialize test client if not already created
@@ -521,7 +588,7 @@ export class ServerManager {
     }
 
     const miningInterval = interval || this.config.mining?.interval || 2000;
-    
+
     this.miningStatus = {
       ...this.miningStatus,
       isRunning: true,
@@ -533,10 +600,13 @@ export class ServerManager {
     this.miningTimer = setInterval(async () => {
       try {
         if (this.testClient) {
-          await this.testClient.mine({ blocks: 1 });
+          // Use generateEmptyLocalNodeBlocks for proper EVM transaction processing
+          const blocksToMine = 2;
+          const { generateEmptyLocalNodeBlocks } = await import('cive');
+          await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocksToMine });
           this.miningStatus = {
             ...this.miningStatus,
-            blocksMined: this.miningStatus.blocksMined + 1,
+            blocksMined: this.miningStatus.blocksMined + blocksToMine,
           };
         }
       } catch (error) {
@@ -575,11 +645,14 @@ export class ServerManager {
    */
   async setMiningInterval(interval: number): Promise<void> {
     if (interval < 100) {
-      throw new NodeError('Mining interval must be at least 100ms', 'INVALID_INTERVAL');
+      throw new NodeError(
+        'Mining interval must be at least 100ms',
+        'INVALID_INTERVAL'
+      );
     }
 
     const wasRunning = this.miningStatus.isRunning;
-    
+
     if (wasRunning) {
       await this.stopMining();
     }
@@ -607,11 +680,49 @@ export class ServerManager {
   }
 
   /**
+   * Update development settings (pre-start configuration)
+   * These settings are applied when the server starts, not at runtime
+   */
+  async updateDevSettings(settings: {
+    devBlockIntervalMs?: number;
+    devPackTxImmediately?: boolean;
+  }): Promise<void> {
+    if (this.isRunning()) {
+      throw new NodeError(
+        'Development settings can only be changed when the node is stopped. These are pre-start configuration settings.',
+        'SERVER_RUNNING'
+      );
+    }
+
+    if (settings.devBlockIntervalMs !== undefined && settings.devBlockIntervalMs < 100) {
+      throw new NodeError(
+        'Development block interval must be at least 100ms',
+        'INVALID_INTERVAL'
+      );
+    }
+
+    // Update config for next startup
+    this.config = {
+      ...this.config,
+      devBlockIntervalMs: settings.devBlockIntervalMs,
+      devPackTxImmediately: settings.devPackTxImmediately ?? this.config.devPackTxImmediately,
+    };
+
+    console.log('Development settings saved for next startup:', {
+      devBlockIntervalMs: this.config.devBlockIntervalMs,
+      devPackTxImmediately: this.config.devPackTxImmediately,
+    });
+  }
+
+  /**
    * Mine a specific number of blocks immediately
    */
   async mine(blocks: number = 1): Promise<void> {
     if (!this.isRunning()) {
-      throw new NodeError('Server must be running to mine blocks', 'SERVER_NOT_RUNNING');
+      throw new NodeError(
+        'Server must be running to mine blocks',
+        'SERVER_NOT_RUNNING'
+      );
     }
 
     if (!this.testClient) {
@@ -622,7 +733,9 @@ export class ServerManager {
     }
 
     try {
-      await this.testClient.mine({ blocks });
+      // Use generateEmptyLocalNodeBlocks for proper EVM transaction processing
+      const { generateEmptyLocalNodeBlocks } = await import('cive');
+      await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocks });
       this.miningStatus = {
         ...this.miningStatus,
         blocksMined: this.miningStatus.blocksMined + blocks,
@@ -653,7 +766,10 @@ export class ServerManager {
    */
   getFaucetAccount(): AccountInfo {
     if (this.accounts.length === 0) {
-      throw new NodeError('No accounts available. Server must be started first.', 'NO_ACCOUNTS');
+      throw new NodeError(
+        'No accounts available. Server must be started first.',
+        'NO_ACCOUNTS'
+      );
     }
     return this.accounts[0]; // First account is the faucet
   }
@@ -661,54 +777,89 @@ export class ServerManager {
   /**
    * Fund a Core Space account using the faucet account
    */
-  async fundCoreAccount(targetAddress: string, amount: string): Promise<string> {
+  async fundCoreAccount(
+    targetAddress: string,
+    amount: string
+  ): Promise<string> {
     if (!this.isRunning()) {
-      throw new NodeError('Server must be running to fund accounts', 'SERVER_NOT_RUNNING');
+      throw new NodeError(
+        'Server must be running to fund accounts',
+        'SERVER_NOT_RUNNING'
+      );
     }
 
     const faucetAccount = this.getFaucetAccount();
-    
+
     try {
       // Create wallet client for the faucet account
       const { createWalletClient, http } = await import('cive');
       const { privateKeyToAccount } = await import('cive/accounts');
-      
-      const account = privateKeyToAccount(faucetAccount.privateKey as `0x${string}`, {
-        networkId: this.config.chainId || 1,
-      });
+
+      const account = privateKeyToAccount(
+        faucetAccount.privateKey as `0x${string}`,
+        {
+          networkId: this.config.chainId || 1,
+        }
+      );
 
       const walletClient = createWalletClient({
         account,
-        chain: (this.config.chainId || 1) === 1029 ? {
-          id: 1029,
-          name: 'Conflux Core',
-          nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-          rpcUrls: { default: { http: [`http://localhost:${this.config.coreRpcPort}`] } },
-        } : {
-          id: this.config.chainId || 1,
-          name: 'Conflux Core Testnet', 
-          nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-          rpcUrls: { default: { http: [`http://localhost:${this.config.coreRpcPort}`] } },
-        },
+        chain:
+          (this.config.chainId || 1) === 1029
+            ? {
+                id: 1029,
+                name: 'Conflux Core',
+                nativeCurrency: {
+                  name: 'Conflux',
+                  symbol: 'CFX',
+                  decimals: 18,
+                },
+                rpcUrls: {
+                  default: {
+                    http: [`http://localhost:${this.config.coreRpcPort}`],
+                  },
+                },
+              }
+            : {
+                id: this.config.chainId || 1,
+                name: 'Conflux Core Testnet',
+                nativeCurrency: {
+                  name: 'Conflux',
+                  symbol: 'CFX',
+                  decimals: 18,
+                },
+                rpcUrls: {
+                  default: {
+                    http: [`http://localhost:${this.config.coreRpcPort}`],
+                  },
+                },
+              },
         transport: http(`http://localhost:${this.config.coreRpcPort}`),
       });
 
       const { parseCFX } = await import('cive');
-      
+
       const hash = await walletClient.sendTransaction({
         account,
         to: targetAddress as `cfx:${string}`,
         value: parseCFX(amount),
       });
 
-      console.log(`Funded Core account ${targetAddress} with ${amount} CFX. TX: ${hash}`);
+      console.log(
+        `Funded Core account ${targetAddress} with ${amount} CFX. TX: ${hash}`
+      );
       return hash;
     } catch (error) {
       throw new NodeError(
         `Failed to fund Core account: ${error instanceof Error ? error.message : String(error)}`,
         'FAUCET_ERROR',
         'core',
-        { targetAddress, amount, faucetAccount: faucetAccount.coreAddress, originalError: error }
+        {
+          targetAddress,
+          amount,
+          faucetAccount: faucetAccount.coreAddress,
+          originalError: error,
+        }
       );
     }
   }
@@ -718,17 +869,22 @@ export class ServerManager {
    */
   async fundEvmAccount(targetAddress: string, amount: string): Promise<string> {
     if (!this.isRunning()) {
-      throw new NodeError('Server must be running to fund accounts', 'SERVER_NOT_RUNNING');
+      throw new NodeError(
+        'Server must be running to fund accounts',
+        'SERVER_NOT_RUNNING'
+      );
     }
 
     const faucetAccount = this.getFaucetAccount();
-    
+
     try {
       // Create EVM wallet client for the faucet account
       const { createWalletClient, http, parseEther } = await import('viem');
       const { privateKeyToAccount } = await import('viem/accounts');
-      
-      const account = privateKeyToAccount(faucetAccount.privateKey as `0x${string}`);
+
+      const account = privateKeyToAccount(
+        faucetAccount.privateKey as `0x${string}`
+      );
 
       const walletClient = createWalletClient({
         account,
@@ -736,25 +892,34 @@ export class ServerManager {
           id: this.config.evmChainId || 71,
           name: 'Conflux eSpace Local',
           nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-          rpcUrls: { default: { http: [`http://localhost:${this.config.evmRpcPort}`] } },
+          rpcUrls: {
+            default: { http: [`http://localhost:${this.config.evmRpcPort}`] },
+          },
         },
         transport: http(`http://localhost:${this.config.evmRpcPort}`),
       });
-      
+
       const hash = await walletClient.sendTransaction({
         account,
         to: targetAddress as `0x${string}`,
         value: parseEther(amount),
       });
 
-      console.log(`Funded eSpace account ${targetAddress} with ${amount} CFX. TX: ${hash}`);
+      console.log(
+        `Funded eSpace account ${targetAddress} with ${amount} CFX. TX: ${hash}`
+      );
       return hash;
     } catch (error) {
       throw new NodeError(
         `Failed to fund eSpace account: ${error instanceof Error ? error.message : String(error)}`,
         'FAUCET_ERROR',
         'evm',
-        { targetAddress, amount, faucetAccount: faucetAccount.evmAddress, originalError: error }
+        {
+          targetAddress,
+          amount,
+          faucetAccount: faucetAccount.evmAddress,
+          originalError: error,
+        }
       );
     }
   }
@@ -762,7 +927,11 @@ export class ServerManager {
   /**
    * Fund both Core and eSpace accounts for the same private key
    */
-  async fundDualChainAccount(privateKey: string, coreAmount: string, evmAmount: string): Promise<{
+  async fundDualChainAccount(
+    privateKey: string,
+    coreAmount: string,
+    evmAmount: string
+  ): Promise<{
     coreHash: string;
     evmHash: string;
     coreAddress: string;
@@ -770,8 +939,10 @@ export class ServerManager {
   }> {
     // Create accounts from private key
     const { privateKeyToAccount } = await import('cive/accounts');
-    const { privateKeyToAccount: privateKeyToEvmAccount } = await import('viem/accounts');
-    
+    const { privateKeyToAccount: privateKeyToEvmAccount } = await import(
+      'viem/accounts'
+    );
+
     const coreAccount = privateKeyToAccount(privateKey as `0x${string}`, {
       networkId: this.config.chainId || 1,
     });
@@ -794,13 +965,19 @@ export class ServerManager {
   /**
    * Check faucet account balances on both chains
    */
-  async getFaucetBalances(): Promise<{ coreBalance: string; evmBalance: string }> {
+  async getFaucetBalances(): Promise<{
+    coreBalance: string;
+    evmBalance: string;
+  }> {
     if (!this.isRunning()) {
-      throw new NodeError('Server must be running to check balances', 'SERVER_NOT_RUNNING');
+      throw new NodeError(
+        'Server must be running to check balances',
+        'SERVER_NOT_RUNNING'
+      );
     }
 
     const faucetAccount = this.getFaucetAccount();
-    
+
     try {
       const [coreBalance, evmBalance] = await Promise.all([
         this.getCoreBalance(faucetAccount.coreAddress),
@@ -823,23 +1000,36 @@ export class ServerManager {
    */
   private async getCoreBalance(address: string): Promise<string> {
     const { createPublicClient, http, formatCFX } = await import('cive');
-    
+
     const publicClient = createPublicClient({
-      chain: this.config.chainId === 1029 ? {
-        id: 1029,
-        name: 'Conflux Core',
-        nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-        rpcUrls: { default: { http: [`http://localhost:${this.config.coreRpcPort}`] } },
-      } : {
-        id: 1,
-        name: 'Conflux Core Testnet',
-        nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-        rpcUrls: { default: { http: [`http://localhost:${this.config.coreRpcPort}`] } },
-      },
+      chain:
+        this.config.chainId === 1029
+          ? {
+              id: 1029,
+              name: 'Conflux Core',
+              nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
+              rpcUrls: {
+                default: {
+                  http: [`http://localhost:${this.config.coreRpcPort}`],
+                },
+              },
+            }
+          : {
+              id: 1,
+              name: 'Conflux Core Testnet',
+              nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
+              rpcUrls: {
+                default: {
+                  http: [`http://localhost:${this.config.coreRpcPort}`],
+                },
+              },
+            },
       transport: http(`http://localhost:${this.config.coreRpcPort}`),
     });
 
-    const balance = await publicClient.getBalance({ address: address as `cfx:${string}` });
+    const balance = await publicClient.getBalance({
+      address: address as `cfx:${string}`,
+    });
     return formatCFX(balance);
   }
 
@@ -848,18 +1038,22 @@ export class ServerManager {
    */
   private async getEvmBalance(address: string): Promise<string> {
     const { createPublicClient, http, formatEther } = await import('viem');
-    
+
     const publicClient = createPublicClient({
       chain: {
         id: this.config.evmChainId || 71,
         name: 'Conflux eSpace Local',
         nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-        rpcUrls: { default: { http: [`http://localhost:${this.config.evmRpcPort}`] } },
+        rpcUrls: {
+          default: { http: [`http://localhost:${this.config.evmRpcPort}`] },
+        },
       },
       transport: http(`http://localhost:${this.config.evmRpcPort}`),
     });
 
-    const balance = await publicClient.getBalance({ address: address as `0x${string}` });
+    const balance = await publicClient.getBalance({
+      address: address as `0x${string}`,
+    });
     return formatEther(balance);
   }
 
@@ -881,7 +1075,10 @@ export class ServerManager {
     const child = root.derivePath(`m/44'/60'/0'/0/0`);
 
     if (!child.privateKey) {
-      throw new NodeError('Failed to derive Ethereum admin private key', 'KEY_DERIVATION_ERROR');
+      throw new NodeError(
+        'Failed to derive Ethereum admin private key',
+        'KEY_DERIVATION_ERROR'
+      );
     }
 
     const privateKey = `0x${child.privateKey.toString('hex')}`;

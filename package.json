@@ -81,7 +81,9 @@
     "docker:cleanup": "bash scripts/docker-services.sh cleanup",
     "generate:contracts": "node scripts/generate-contract-config.cjs",
     "contracts:sync": "pnpm run generate:contracts",
-    "postinstall": "pnpm run generate:contracts"
+    "postinstall": "pnpm run generate:contracts",
+    "license:check": "bash scripts/check-license-headers.sh",
+    "license:add": "bash scripts/add-license-headers.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
@@ -108,8 +110,8 @@
     "evm",
     "core"
   ],
-  "author": "Conflux Development Team",
-  "license": "MIT",
+  "author": "Conflux DevKit Team",
+  "license": "Apache-2.0",
   "dependencies": {
     "@xcfx/node": "^0.6.0",
     "cive": "^0.8.1"

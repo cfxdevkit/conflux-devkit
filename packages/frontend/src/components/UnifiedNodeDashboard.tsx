@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { useState, useId } from 'react';
 import { DevKitApiService } from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,12 +35,15 @@ interface UnifiedNodeDashboardProps {
 
 export function UnifiedNodeDashboard({ isAdmin, nodeRunning, miningStatus }: UnifiedNodeDashboardProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [miningInterval, setMiningInterval] = useState(miningStatus?.interval || 2000);
   const [blocksToMine, setBlocksToMine] = useState(1);
+  const [devBlockIntervalEnabled, setDevBlockIntervalEnabled] = useState(true); // Default enabled
+  const [devBlockIntervalMs, setDevBlockIntervalMs] = useState(500); // Default 500ms
+  const [devPackTxImmediately, setDevPackTxImmediately] = useState(true);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const intervalId = useId();
   const blocksId = useId();
+  const devBlockIntervalId = useId();
+  const devPackTxId = useId();
 
   // WebSocket data for live status
   const {
@@ -63,53 +82,6 @@ export function UnifiedNodeDashboard({ isAdmin, nodeRunning, miningStatus }: Uni
     }
   };
 
-  const handleMiningAction = async (action: 'start' | 'stop') => {
-    if (!isAdmin) {
-      toast.warning('Admin access required');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      if (action === 'start') {
-        await DevKitApiService.startMining();
-        toast.success('Mining started successfully');
-      } else {
-        await DevKitApiService.stopMining();
-        toast.success('Mining stopped successfully');
-      }
-      refreshData();
-    } catch (error) {
-      console.error(`Mining ${action} failed:`, error);
-      toast.error(`Failed to ${action} mining: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSetMiningInterval = async () => {
-    if (!isAdmin) {
-      toast.warning('Admin access required');
-      return;
-    }
-
-    if (miningInterval < 100) {
-      toast.warning('Mining interval must be at least 100ms');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await DevKitApiService.setMiningInterval(miningInterval);
-      toast.success(`Mining interval set to ${miningInterval}ms`);
-      refreshData();
-    } catch (error) {
-      console.error('Mining interval update failed:', error);
-      toast.error(`Failed to update mining interval: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleMineBlocks = async () => {
     if (!isAdmin) {
@@ -130,6 +102,38 @@ export function UnifiedNodeDashboard({ isAdmin, nodeRunning, miningStatus }: Uni
     } catch (error) {
       console.error('Manual mining failed:', error);
       toast.error(`Failed to mine blocks: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateDevSettings = async () => {
+    if (!isAdmin) {
+      toast.warning('Admin access required');
+      return;
+    }
+
+    if (nodeRunning) {
+      toast.warning('Development settings can only be changed when the node is stopped');
+      return;
+    }
+
+    if (devBlockIntervalEnabled && devBlockIntervalMs < 100) {
+      toast.warning('Block interval must be at least 100ms when enabled');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await DevKitApiService.updateDevSettings({
+        devBlockIntervalMs: devBlockIntervalEnabled ? devBlockIntervalMs : undefined,
+        devPackTxImmediately: devPackTxImmediately
+      });
+      toast.success('Development settings saved. Settings will be applied when the node starts.');
+      refreshData();
+    } catch (error) {
+      console.error('Dev settings update failed:', error);
+      toast.error(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -270,68 +274,11 @@ export function UnifiedNodeDashboard({ isAdmin, nodeRunning, miningStatus }: Uni
                 </div>
               </div>
 
-              {/* Mining Controls */}
+              {/* Manual Mining (Simplified) */}
               <div className="flex-1">
-                <h4 className="font-medium text-gray-900 mb-3">Mining Controls</h4>
+                <h4 className="font-medium text-gray-900 mb-3">Manual Mining</h4>
                 <div className="space-y-3">
-                  {/* Start/Stop Mining */}
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleMiningAction('start')}
-                      disabled={!isAdmin || isLoading || !nodeRunning || miningStatus?.isRunning}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        !isAdmin || isLoading || !nodeRunning || miningStatus?.isRunning
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {isLoading ? '...' : miningStatus?.isRunning ? 'Mining Active' : 'Start Mining'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMiningAction('stop')}
-                      disabled={!isAdmin || isLoading || !nodeRunning || !miningStatus?.isRunning}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        !isAdmin || isLoading || !nodeRunning || !miningStatus?.isRunning
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-orange-600 text-white hover:bg-orange-700'
-                      }`}
-                    >
-                      {isLoading ? '...' : 'Pause Mining'}
-                    </button>
-                  </div>
-
-                  {/* Mining Interval Control */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <label htmlFor={intervalId} className="text-xs text-gray-700 font-medium">Interval:</label>
-                    <input
-                      id={intervalId}
-                      type="number"
-                      value={miningInterval}
-                      onChange={(e) => setMiningInterval(parseInt(e.target.value) || 2000)}
-                      min="100"
-                      max="60000"
-                      step="100"
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!isAdmin || isLoading}
-                    />
-                    <span className="text-xs text-gray-500">ms</span>
-                    <button
-                      type="button"
-                      onClick={handleSetMiningInterval}
-                      disabled={!isAdmin || isLoading || !nodeRunning}
-                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                        !isAdmin || isLoading || !nodeRunning
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-purple-600 text-white hover:bg-purple-700'
-                      }`}
-                    >
-                      Update
-                    </button>
-                  </div>
-
-                  {/* Manual Mining */}
+                  {/* Manual Mining Only */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <label htmlFor={blocksId} className="text-xs text-gray-700 font-medium">Mine:</label>
                     <input
@@ -356,6 +303,80 @@ export function UnifiedNodeDashboard({ isAdmin, nodeRunning, miningStatus }: Uni
                       }`}
                     >
                       Mine Now
+                    </button>
+                  </div>
+
+                  {/* Info about automatic mining */}
+                  <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 border border-gray-200">
+                    ℹ️ Automatic mining is configured in Development Settings below.
+                  </div>
+                </div>
+              </div>
+
+              {/* Development Settings */}
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900 mb-3">Development Settings</h4>
+                <div className="space-y-3">
+                  {/* Auto Block Generation */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      id={devBlockIntervalId}
+                      type="checkbox"
+                      checked={devBlockIntervalEnabled}
+                      onChange={(e) => setDevBlockIntervalEnabled(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={!isAdmin || isLoading || nodeRunning}
+                    />
+                    <label htmlFor={devBlockIntervalId} className="text-xs text-gray-700 font-medium">
+                      Auto Block Generation:
+                    </label>
+                    <input
+                      type="number"
+                      value={devBlockIntervalMs}
+                      onChange={(e) => setDevBlockIntervalMs(parseInt(e.target.value) || 500)}
+                      min="100"
+                      max="10000"
+                      step="100"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!isAdmin || isLoading || nodeRunning || !devBlockIntervalEnabled}
+                    />
+                    <span className="text-xs text-gray-500">ms</span>
+                  </div>
+
+                  {/* Pack Transactions Immediately */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      id={devPackTxId}
+                      type="checkbox"
+                      checked={devPackTxImmediately}
+                      onChange={(e) => setDevPackTxImmediately(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={!isAdmin || isLoading || nodeRunning}
+                    />
+                    <label htmlFor={devPackTxId} className="text-xs text-gray-700 font-medium">
+                      Pack Transactions Immediately
+                    </label>
+                  </div>
+
+                  {/* Apply Settings Info */}
+                  <div className="text-xs text-gray-600 bg-blue-50 rounded p-2 border border-blue-200">
+                    ℹ️ Development settings can only be changed when the node is stopped.
+                    Settings will be applied when the node starts.
+                  </div>
+
+                  {/* Update Settings Button */}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      onClick={handleUpdateDevSettings}
+                      disabled={!isAdmin || isLoading || nodeRunning}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        !isAdmin || isLoading || nodeRunning
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      }`}
+                    >
+                      {isLoading ? 'Saving...' : 'Save Dev Settings'}
                     </button>
                   </div>
                 </div>

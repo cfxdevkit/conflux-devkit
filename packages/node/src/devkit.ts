@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /**
  * DevKit - Ergonomic API for Conflux Development
  *
@@ -163,7 +179,7 @@ export class DevKitAccount {
       this._evmWallet = new EspaceWalletClient({
         chainId: config.evmChainId || 1030,
         rpcUrl: rpcUrls.evm,
-        privateKey: this.privateKey,
+        privateKey: this.evmPrivateKey,
       });
     }
     return this._evmWallet;
@@ -181,8 +197,8 @@ export class DevKit {
   constructor(config: Partial<NodeConfig> = {}) {
     // Set sensible defaults
     this.config = {
-      chainId: 1029,
-      evmChainId: 1030,
+      chainId: 2029, // Local development Core Space chain ID
+      evmChainId: 2030, // Local development eSpace chain ID
       jsonrpcHttpPort: 12537,
       jsonrpcHttpEthPort: 8545,
       jsonrpcWsPort: 12535,

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // API service for communicating with DevKit Backend Core
 import axios from 'axios';
 
@@ -63,14 +79,18 @@ export class DevKitApiService {
 
   // Deploy contract
   static async deployContract(
-    contractName: string,
+    abi: any,
+    bytecode: string,
     args: any[] = [],
-    chain: 'core' | 'evm' = 'core'
+    chain: 'core' | 'evm' = 'core',
+    accountIndex: number = 0
   ) {
     const response = await api.post('/devkit/deploy', {
-      contractName,
+      abi,
+      bytecode,
       args,
       chain,
+      accountIndex,
     });
     return response.data;
   }
@@ -106,18 +126,41 @@ export class DevKitApiService {
     return response.data;
   }
 
+  static async updateDevSettings(settings: {
+    devBlockIntervalMs?: number;
+    devPackTxImmediately: boolean;
+  }) {
+    const response = await api.post('/devkit/node/dev-settings', settings);
+    return response.data;
+  }
+
   // Send transaction
-  static async sendTransaction(transferRequest: { accountIndex: number; to: string; value: string; chain: 'core' | 'evm' }) {
-    const response = await api.post('/devkit/transactions/send', transferRequest);
+  static async sendTransaction(transferRequest: {
+    accountIndex: number;
+    to: string;
+    value: string;
+    chain: 'core' | 'evm';
+  }) {
+    const response = await api.post(
+      '/devkit/transactions/send',
+      transferRequest
+    );
     return response.data;
   }
 
   // Sign message
-  static async signMessage(signRequest: { accountIndex: number; message: string; chain: 'core' | 'evm' }) {
-    const response = await api.post(`/devkit/accounts/${signRequest.accountIndex}/sign`, {
-      message: signRequest.message,
-      chain: signRequest.chain,
-    });
+  static async signMessage(signRequest: {
+    accountIndex: number;
+    message: string;
+    chain: 'core' | 'evm';
+  }) {
+    const response = await api.post(
+      `/devkit/accounts/${signRequest.accountIndex}/sign`,
+      {
+        message: signRequest.message,
+        chain: signRequest.chain,
+      }
+    );
     return response.data;
   }
 
@@ -130,6 +173,43 @@ export class DevKitApiService {
   // Get current network
   static async getCurrentNetwork() {
     const response = await api.get('/devkit/network/current');
+    return response.data;
+  }
+
+  // Contract interaction methods
+  static async readContract(
+    address: string,
+    abi: any,
+    functionName: string,
+    args: any[] = [],
+    chain: 'core' | 'evm' = 'core'
+  ) {
+    const response = await api.post('/devkit/contracts/read', {
+      address,
+      abi,
+      functionName,
+      args,
+      chain,
+    });
+    return response.data;
+  }
+
+  static async writeContract(
+    address: string,
+    abi: any,
+    functionName: string,
+    args: any[] = [],
+    chain: 'core' | 'evm' = 'core',
+    accountIndex: number = 0
+  ) {
+    const response = await api.post('/devkit/contracts/write', {
+      address,
+      abi,
+      functionName,
+      args,
+      chain,
+      accountIndex,
+    });
     return response.data;
   }
 

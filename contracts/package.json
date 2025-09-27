@@ -15,6 +15,17 @@
     "test": "hardhat test",
     "clean": "hardhat clean"
   },
+  "keywords": [
+    "conflux",
+    "devkit",
+    "contracts",
+    "solidity",
+    "hardhat",
+    "blockchain",
+    "smart-contracts"
+  ],
+  "author": "Conflux DevKit Team",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition-viem": "^0.15.13",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",

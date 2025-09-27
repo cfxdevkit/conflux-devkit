@@ -1,10 +1,28 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { UnifiedNodeDashboard } from '../components/UnifiedNodeDashboard';
+import { useEffect, useState } from 'react';
 import { AccountSelector } from '../components/AccountSelector';
 import { ChainStatusWidget } from '../components/ChainStatusWidget';
-import { MesonWidget } from '../components/MesonWidget';
+import { ContractDeployment } from '../components/ContractDeployment';
+import { ContractInteraction } from '../components/ContractInteraction';
 import { GinsengSwapWidget } from '../components/GinsengSwapWidget';
+import { MesonWidget } from '../components/MesonWidget';
+import { UnifiedNodeDashboard } from '../components/UnifiedNodeDashboard';
 import { DevKitApiService } from '../services/api';
 import { DevKitApiServiceWithAuth } from '../services/developmentAuth';
 import { useWebSocketStore } from '../services/websocket';
@@ -15,19 +33,45 @@ interface DashboardProps {
   onNodeStatusChange: (running: boolean) => void;
 }
 
-export function Dashboard({ 
+interface DeployedContract {
+  address: string;
+  chain: 'core' | 'evm';
+  deployer: string;
+  timestamp: string;
+  template?: string;
+}
+
+export function Dashboard({
   currentNetwork,
-  onNodeStatusChange
+  onNodeStatusChange,
 }: DashboardProps) {
   const { isAdmin } = useAuthStore();
   const queryClient = useQueryClient();
+  const [selectedContract, setSelectedContract] = useState<DeployedContract | null>(null);
 
   // WebSocket connection for real-time data
   const {
     connect: connectWs,
     disconnect: disconnectWs,
     setQueryClient: setWsQueryClient,
+    isConnected: wsConnected,
   } = useWebSocketStore();
+
+  // Fetch DevKit status with less frequent polling (WebSocket provides real-time updates)
+  const { data: devkitStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['devkit-status'],
+    queryFn: DevKitApiServiceWithAuth.getDevKitStatusSafe,
+    refetchInterval: 30000, // Reduced from 5s to 30s - WebSocket handles real-time
+    retry: 1, // Don't retry too much on auth failures
+  });
+
+  // Fetch public status with reduced polling (WebSocket provides real-time updates)
+  const { data: publicStatus } = useQuery({
+    queryKey: ['public-status'],
+    queryFn: DevKitApiService.getPublicStatus,
+    refetchInterval: 60000, // Reduced from 10s to 60s - WebSocket handles real-time
+    retry: 2,
+  });
 
   // Connect to WebSocket on component mount and inject query client
   useEffect(() => {
@@ -41,27 +85,23 @@ export function Dashboard({
     DevKitApiServiceWithAuth.initialize().catch(console.error);
   }, []);
 
-  // Fetch DevKit status with less frequent polling (WebSocket provides real-time updates)
-  const { data: devkitStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ['devkit-status'],
-    queryFn: DevKitApiServiceWithAuth.getDevKitStatusSafe,
-    refetchInterval: 30000, // Reduced from 5s to 30s - WebSocket handles real-time
-    retry: 1, // Don't retry too much on auth failures
-  });
+  // Trigger immediate data fetch when component mounts
+  useEffect(() => {
+    // Immediate fetch on mount
+    queryClient.invalidateQueries({ queryKey: ['devkit-status'] });
+    queryClient.invalidateQueries({ queryKey: ['public-status'] });
+  }, [queryClient]); // Run once on mount
 
+  // Trigger immediate data fetch when WebSocket connects
+  useEffect(() => {
+    if (wsConnected) {
+      // Immediate fetch when WebSocket connects
+      queryClient.invalidateQueries({ queryKey: ['devkit-status'] });
+      queryClient.invalidateQueries({ queryKey: ['public-status'] });
+    }
+  }, [wsConnected, queryClient]);
 
-
-  // Fetch public status with reduced polling (WebSocket provides real-time updates)
-  const { data: publicStatus } = useQuery({
-    queryKey: ['public-status'],
-    queryFn: DevKitApiService.getPublicStatus,
-    refetchInterval: 60000, // Reduced from 10s to 60s - WebSocket handles real-time
-    retry: 2,
-  });
-
-
-
-    // Handle network changes from the header dropdown
+  // Handle network changes from the header dropdown
   useEffect(() => {
     // TODO: Add backend API call to switch networks/chains
     console.log(`Switched to ${currentNetwork}...`);
@@ -110,6 +150,22 @@ export function Dashboard({
 
       {/* Account Selector - Always visible */}
       <AccountSelector currentNetwork={currentNetwork} />
+
+      {/* Contract Widgets - Always visible */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Contract Deployment Widget */}
+        <div className="bg-white rounded-lg border shadow-sm">
+          <ContractDeployment 
+            onContractDeployed={(contract) => setSelectedContract(contract)} 
+            currentNetwork={currentNetwork}
+          />
+        </div>
+
+        {/* Contract Interaction Widget */}
+        <div className="bg-white rounded-lg border shadow-sm">
+          <ContractInteraction contract={selectedContract} />
+        </div>
+      </div>
 
       {/* GinsengSwap Widget - Show on testnet and mainnet */}
       {(currentNetwork === 'testnet' || currentNetwork === 'mainnet') && (

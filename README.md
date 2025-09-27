@@ -1,4 +1,22 @@
+<!--
+Copyright 2025 Conflux DevKit Team
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 # Conflux DevKit
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cfxdevkit/conflux-devkit)
 
 A comprehensive development toolkit for building applications on the Conflux blockchain ecosystem, supporting both Core Space and eSpace (EVM-compatible).
 
@@ -253,23 +271,90 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+Copyright 2025 Conflux DevKit Team
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this project except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+See [LICENSE](LICENSE) file for the full license text.
 
 ## 🆘 Support
 
 - **Issues**: Report bugs and request features on GitHub Issues
 - **Documentation**: Additional docs in the `/docs` directory
 - **Community**: Join the Conflux developer community
+- **Contributing**: See our contribution guidelines below
+
+## 🤝 Contributing
+
+We welcome contributions from the community! Please read our contribution guidelines:
+
+1. **Fork the repository** and create your feature branch
+2. **Follow the coding standards** and ensure all tests pass
+3. **Add proper license headers** to new source files
+4. **Write clear commit messages** following conventional commits
+5. **Submit a pull request** with a detailed description
+
+### Code of Conduct
+
+This project adheres to the Contributor Covenant code of conduct. By participating, you are expected to uphold this code.
+
+### Development Setup
+
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/conflux-devkit.git
+cd conflux-devkit
+
+# Install dependencies
+pnpm install
+
+# Run development environment
+pnpm dev
+
+# Run tests
+pnpm test
+
+# Check code quality
+pnpm lint && pnpm type-check
+```
 
 ## 🗺️ Roadmap
 
-- [ ] Enhanced contract templates
-- [ ] Additional wallet integrations
-- [ ] Mobile SDK support
-- [ ] Advanced debugging tools
-- [ ] Mainnet deployment automation
-- [ ] Performance optimization suite
+- [ ] Enhanced contract templates and scaffolding
+- [ ] Additional wallet integrations (MetaMask, WalletConnect)
+- [ ] Mobile SDK support for React Native
+- [ ] Advanced debugging and profiling tools
+- [ ] Mainnet deployment automation and CI/CD
+- [ ] Performance optimization and monitoring suite
+- [ ] Multi-language bindings (Python, Go, Rust)
+
+## 📚 Documentation
+
+- **API Reference**: Comprehensive API documentation
+- **Tutorials**: Step-by-step guides for common tasks
+- **Examples**: Sample projects and code snippets
+- **Architecture**: Technical deep-dive into the system design
+
+## 🏆 Acknowledgments
+
+This project builds upon the excellent work of:
+
+- The Conflux Foundation and Core Team
+- The broader Ethereum and Web3 development community
+- Open source contributors and maintainers
 
 ---
 
-Built with ❤️ by the Conflux Development Team
+**Built with ❤️ by the Conflux DevKit Team**
+
+*Empowering developers to build the future of decentralized applications on Conflux.*

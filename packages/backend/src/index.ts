@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /**
  * Backend Core - Main Entry Point
  *
@@ -32,8 +48,8 @@ async function main() {
       port: parseInt(process.env.PORT || '3001', 10),
       wsPort: parseInt(process.env.WS_PORT || '3002', 10),
       devkitConfig: {
-        chainId: 1029,
-        evmChainId: 1030,
+        chainId: 2029, // Local development Core Space chain ID
+        evmChainId: 2030, // Local development eSpace chain ID
         jsonrpcHttpPort: 12537,
         jsonrpcWsPort: 12535,
         jsonrpcHttpEthPort: 8545,
@@ -50,9 +66,13 @@ async function main() {
     await server.start();
 
     // Warn if using the default test mnemonic (helps catch accidental leaks)
-    const usedMnemonic = process.env.HARDHAT_VAR_DEPLOYER_MNEMONIC || process.env.VITE_HARDHAT_VAR_DEPLOYER_MNEMONIC;
+    const usedMnemonic =
+      process.env.HARDHAT_VAR_DEPLOYER_MNEMONIC ||
+      process.env.VITE_HARDHAT_VAR_DEPLOYER_MNEMONIC;
     if (!usedMnemonic) {
-      logger.warn('No deployer mnemonic env var set; backend is using the default test mnemonic. Do NOT use this in production.');
+      logger.warn(
+        'No deployer mnemonic env var set; backend is using the default test mnemonic. Do NOT use this in production.'
+      );
     }
 
     // Graceful shutdown

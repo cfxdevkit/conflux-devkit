@@ -1,4 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
+/*
+ * Copyright 2025 Conflux DevKit Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { DevKitApiService } from '../services/api';
 import type { AccountBalance, AllAccountsResponse } from '../types/accounts';
@@ -11,6 +27,7 @@ interface AccountSelectorProps {
 export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
   const [selectedAccountIndex, setSelectedAccountIndex] = useState<number>(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch all accounts
   const {
@@ -35,6 +52,11 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
     }
   );
 
+  // Trigger immediate data fetch when component mounts or network changes
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['accounts', currentNetwork] });
+  }, [currentNetwork, queryClient]);
+
   // Auto-select first account when data loads
   useEffect(() => {
     if (
@@ -46,16 +68,10 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
     }
   }, [accountsData, selectedAccountIndex]);
 
-  // Format address for display
-  const formatAddress = (address: string) => {
-    if (address.length < 10) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
   // Format balance for display
   const formatBalance = (balance: string) => {
     if (!balance || balance === '0') return '0';
-    const cfx = parseFloat(balance) / 10 ** 18;
+    const cfx = parseFloat(balance);
     return cfx.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 3,
@@ -266,8 +282,8 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
                   <div className="text-xs font-medium text-gray-500 mb-1">
                     Core Address
                   </div>
-                  <code className="text-sm text-gray-900 font-mono truncate block">
-                    {formatAddress(selectedAccount.addresses.core)}
+                  <code className="text-sm text-gray-900 font-mono break-all">
+                    {selectedAccount.addresses.core}
                   </code>
                 </div>
                 <button
@@ -297,8 +313,8 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
                   <div className="text-xs font-medium text-gray-500 mb-1">
                     eSpace Address
                   </div>
-                  <code className="text-sm text-gray-900 font-mono truncate block">
-                    {formatAddress(selectedAccount.addresses.evm)}
+                  <code className="text-sm text-gray-900 font-mono break-all">
+                    {selectedAccount.addresses.evm}
                   </code>
                 </div>
                 <button
@@ -323,7 +339,7 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
             </div>
 
             {/* Balances */}
-            {currentNetwork === 'local' && balance && !balance.error && (
+            {balance && !balance.error && (
               <div className="flex justify-between p-3 bg-green-50 rounded-lg text-sm">
                 <div className="flex items-center">
                   <span className="text-gray-600">Core:</span>
@@ -341,7 +357,7 @@ export function AccountSelector({ currentNetwork }: AccountSelectorProps) {
             )}
 
             {/* Loading balance indicator */}
-            {balanceLoading && currentNetwork === 'local' && (
+            {balanceLoading && (
               <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="ml-2 text-sm text-gray-600">
