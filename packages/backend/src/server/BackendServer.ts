@@ -283,8 +283,8 @@ export class BackendServer {
 
         // Token addresses
         const TOKENS = {
-          USDT: { address: '0x7d682e65efc5c13bf4e394b8f376c48e6bae0355', decimals: 18 },
-          USDC: { address: '0xfbef97434ffd0587e5a1c88efd5f7bdc405ba6fa', decimals: 18 },
+          USDT: { address: '0x7d682e65efc5c13bf4e394b8f376c48e6bae0355' as `0x${string}`, decimals: 18 },
+          USDC: { address: '0xfbef97434ffd0587e5a1c88efd5f7bdc405ba6fa' as `0x${string}`, decimals: 18 },
         };
 
         // ERC20 ABI for balanceOf
@@ -319,8 +319,8 @@ export class BackendServer {
 
         // Format token balances (from wei to human readable)
         const cfxFormatted = formatEther(cfxBalance);
-        const usdtFormatted = formatUnits(usdtBalance, TOKENS.USDT.decimals);
-        const usdcFormatted = formatUnits(usdcBalance, TOKENS.USDC.decimals);
+        const usdtFormatted = formatUnits(usdtBalance as bigint, TOKENS.USDT.decimals);
+        const usdcFormatted = formatUnits(usdcBalance as bigint, TOKENS.USDC.decimals);
 
         logger.info('📊 Testnet balances fetched successfully:', {
           address: testAddress,
@@ -342,7 +342,10 @@ export class BackendServer {
 
       } catch (error) {
         logger.error('Test balance error:', error);
-        res.status(500).json({ error: 'Failed to test balances', details: error.message });
+        res.status(500).json({
+          error: 'Failed to test balances',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     });
 

@@ -9,7 +9,14 @@ export default defineConfig({
   sourcemap: true,
   minify: false,
   target: 'node18',
-  noExternal: [/.*/],
-  external: ['sqlite3'],
+  external: [
+    'sqlite3',
+    'tiny-secp256k1',
+    '@xcfx/node',
+    'cive',
+    'viem',
+    'bip32',
+    'bip39'
+  ],
   platform: 'node',
 });

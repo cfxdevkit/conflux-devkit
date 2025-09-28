@@ -37,6 +37,18 @@ try {
   // Not fatal — dotenv is optional in some environments (CI/prod may set envs externally)
 }
 
+// Main exports for library usage
+export { BackendServer } from './server/BackendServer.js';
+export type { BackendServerConfig } from './server/BackendServer.js';
+export { DevKitWebSocketServer } from './server/WebSocketServer.js';
+export { AuthService } from './auth/AuthService.js';
+export { DevelopmentAuthService } from './auth/DevelopmentAuthService.js';
+export { logger } from './utils/logger.js';
+
+// Route creators for custom implementations
+export { createDevKitRoutes } from './routes/devkit.js';
+export { createSwapRoutes } from './routes/swap.js';
+
 import { BackendServer } from './server/BackendServer.js';
 import { logger } from './utils/logger.js';
 

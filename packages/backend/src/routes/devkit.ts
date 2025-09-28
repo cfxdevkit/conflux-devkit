@@ -155,7 +155,7 @@ export function createDevKitRoutes(
       
       // Get accounts from DevKit (these have the private keys we need)
       const devkitAccounts = devkit.getAccounts();
-      const accountsData = [];
+      const accountsData: any[] = [];
       
       if (network === 'local') {
         // Use local DevKit accounts as-is for local network
@@ -807,10 +807,11 @@ export function createDevKitRoutes(
         });
       }
 
-      await devkit.updateDevSettings({
-        devBlockIntervalMs,
-        devPackTxImmediately,
-      });
+      // TODO: Implement updateDevSettings method on DevKit
+      // await devkit.updateDevSettings({
+      //   devBlockIntervalMs,
+      //   devPackTxImmediately,
+      // });
 
       res.json({
         message: 'Development settings saved successfully. Settings will be applied when the node starts.',

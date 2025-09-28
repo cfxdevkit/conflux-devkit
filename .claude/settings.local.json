@@ -55,7 +55,14 @@
       "Bash(pnpm --filter=@conflux-devkit/frontend type-check)",
       "Bash(tree:*)",
       "Bash(pnpm --filter @conflux-devkit/node build)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm pack:*)",
+      "Bash(pnpm --filter @conflux-devkit/backend build)",
+      "Bash(xargs:*)",
+      "Bash(for pkg in */package.json)",
+      "Bash(do echo \"=== $pkg ===\")",
+      "Bash(grep:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
