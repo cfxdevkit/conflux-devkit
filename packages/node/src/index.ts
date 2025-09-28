@@ -85,4 +85,4 @@ export { formatCFX, parseCFX } from 'cive';
 export { formatUnits, parseUnits } from 'cive/utils';
 
 // Version info
-export const VERSION = '0.2.0';
+export const VERSION = '0.1.0';

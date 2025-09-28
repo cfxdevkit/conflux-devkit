@@ -1,10 +1,18 @@
 {
   "name": "@conflux-devkit/node",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Fresh Conflux Development Kit Node - Clean implementation with unified dual-chain support",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -77,5 +85,14 @@
   ],
   "author": "Conflux DevKit Team",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.11.0"
+  "packageManager": "pnpm@10.11.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conflux-devkit/conflux-devkit.git",
+    "directory": "packages/node"
+  },
+  "homepage": "https://github.com/conflux-devkit/conflux-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/conflux-devkit/conflux-devkit/issues"
+  }
 }
