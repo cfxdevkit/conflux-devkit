@@ -14,14 +14,14 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "@tanstack/react-query": "^5.13.4",
-    "axios": "^1.6.2",
-    "ethers": "^6.8.1",
+    "@tanstack/react-query": "^5.90.12",
+    "axios": "^1.13.2",
+    "ethers": "^6.16.0",
     "zustand": "^4.4.7",
-    "lucide-react": "^0.294.0",
+    "lucide-react": "^0.562.0",
     "connectkit": "^1.8.2",
     "wagmi": "^2.12.20",
-    "viem": "^2.37.7",
+    "viem": "^2.43.3",
     "@mesonfi/to": "^2.0.0-rc.2"
   },
   "devDependencies": {
@@ -30,14 +30,14 @@
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
     "@vitejs/plugin-react": "^4.2.0",
-    "autoprefixer": "^10.4.16",
+    "autoprefixer": "^10.4.23",
     "eslint": "^8.54.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
-    "typescript": "^5.2.2",
-    "vite": "^5.0.5"
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
   },
   "keywords": [
     "conflux",
