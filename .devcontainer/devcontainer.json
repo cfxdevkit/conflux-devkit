@@ -5,6 +5,10 @@
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
 
+  "containerEnv": {
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
+
   "customizations": {
     "vscode": {
       "extensions": [

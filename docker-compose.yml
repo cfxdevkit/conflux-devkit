@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Backend service - runs the Express API and WebSocket server
   backend:
