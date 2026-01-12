@@ -32,10 +32,15 @@ RUN git config --global --add safe.directory /workspace
 # - .local directory (needed for Conflux node data)
 # - workspace directories
 RUN mkdir -p /home/node/.local/share/pnpm/store && \
+    mkdir -p /home/node/.local/share/pnpm && \
     mkdir -p /workspace/node_modules && \
     mkdir -p /workspace/.conflux-dev && \
     chown -R node:node /home/node/.local && \
     chown -R node:node /workspace
+
+# Configure pnpm global bin directory for node user
+ENV PNPM_HOME="/home/node/.local/share/pnpm"
+ENV PATH="${PNPM_HOME}:${PATH}"
 
 USER node
 
