@@ -3,6 +3,7 @@
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "devkit",
   "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
 
   "customizations": {
     "vscode": {
@@ -28,22 +29,7 @@
     }
   },
 
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20",
-      "nodeGypDependencies": true,
-      "nvmVersion": "latest"
-    },
-    "ghcr.io/devcontainers/features/git:1": {
-      "version": "latest"
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest"
-    }
-  },
-
   "postCreateCommand": "pnpm install",
-  "postStartCommand": "pnpm build",
 
   "forwardPorts": [3000, 3001, 3002, 8545, 12537],
   "portsAttributes": {

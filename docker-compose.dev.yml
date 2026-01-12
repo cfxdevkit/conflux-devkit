@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   devkit:
@@ -8,16 +8,16 @@ services:
     volumes:
       - .:/workspace:cached
       - node_modules:/workspace/node_modules
-      - pnpm-store:/root/.local/share/pnpm/store
+      - pnpm-store:/home/node/.local/share/pnpm/store
     command: sleep infinity
     environment:
       - NODE_ENV=development
       - HARDHAT_VAR_DEPLOYER_MNEMONIC=${HARDHAT_VAR_DEPLOYER_MNEMONIC:-test test test test test test test test test test test junk}
     ports:
-      - "3000:3000"   # Frontend
-      - "3001:3001"   # Backend API
-      - "3002:3002"   # WebSocket
-      - "8545:8545"   # eSpace RPC
+      - "3000:3000" # Frontend
+      - "3001:3001" # Backend API
+      - "3002:3002" # WebSocket
+      - "8545:8545" # eSpace RPC
       - "12537:12537" # Core Space RPC
     networks:
       - devkit-network

@@ -22,6 +22,11 @@ RUN git config --global --add safe.directory /workspace
 
 # Set up node user
 RUN chown -R node:node /workspace
+
+# Initialize pnpm store directory with correct ownership
+RUN mkdir -p /home/node/.local/share/pnpm/store && \
+    chown -R node:node /home/node/.local/share/pnpm
+
 USER node
 
 # Keep container running
