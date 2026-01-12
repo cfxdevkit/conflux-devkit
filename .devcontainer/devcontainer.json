@@ -1,0 +1,73 @@
+{
+  "name": "Conflux DevKit Development",
+  "dockerComposeFile": "../docker-compose.dev.yml",
+  "service": "devkit",
+  "workspaceFolder": "/workspace",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "biomejs.biome",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "github.copilot"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.codeActionsOnSave": {
+          "quickfix.biome": "explicit",
+          "source.organizeImports.biome": "explicit"
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true
+      }
+    }
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "nodeGypDependencies": true,
+      "nvmVersion": "latest"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
+  },
+
+  "postCreateCommand": "pnpm install",
+  "postStartCommand": "pnpm build",
+
+  "forwardPorts": [3000, 3001, 3002, 8545, 12537],
+  "portsAttributes": {
+    "3000": {
+      "label": "Frontend",
+      "onAutoForward": "notify"
+    },
+    "3001": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "3002": {
+      "label": "WebSocket",
+      "onAutoForward": "silent"
+    },
+    "8545": {
+      "label": "eSpace RPC",
+      "onAutoForward": "silent"
+    },
+    "12537": {
+      "label": "Core Space RPC",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "remoteUser": "node"
+}

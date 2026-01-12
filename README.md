@@ -118,13 +118,32 @@ The demo showcases:
 - ✅ Real-time blockchain updates via WebSocket
 - ✅ Full integration of all three packages
 
+### 🐳 Docker & DevContainers
+
+Run the full stack in Docker or use VS Code DevContainers:
+
+```bash
+# Using Docker Compose (full stack)
+docker-compose up -d
+
+# Using DevContainer (VS Code)
+# 1. Install "Dev Containers" extension
+# 2. Press F1 → "Dev Containers: Reopen in Container"
+# 3. Wait for build, then run: pnpm dev
+
+# Using development compose
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+See [DOCKER.md](./DOCKER.md) for comprehensive Docker documentation.
+
 ### Production
 
 ```bash
 # Build for production
 pnpm build
 
-# Start production services
+# Start production services (if not using Docker)
 pnpm start
 ```
 

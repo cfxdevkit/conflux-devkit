@@ -42,3 +42,14 @@ temp
 
 # Untracked development files
 packages/.untracked/
+
+# AI/Claude Code artifacts
+.claude/
+.cursor/
+.aider*
+.clinerules
+*.clinerules
+.cliner/
+.ai/
+**/claude-code-output/
+**/.claude-code/

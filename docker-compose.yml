@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Backend service - runs the Express API and WebSocket server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - WS_PORT=3002
+      - HARDHAT_VAR_DEPLOYER_MNEMONIC=${HARDHAT_VAR_DEPLOYER_MNEMONIC}
+    ports:
+      - "3001:3001"   # REST API
+      - "3002:3002"   # WebSocket
+      - "8545:8545"   # eSpace RPC
+      - "12537:12537" # Core Space RPC
+    volumes:
+      - backend-data:/app/data
+    networks:
+      - devkit-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Frontend service - serves the React application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:3001/api
+      - VITE_WS_URL=ws://localhost:3002
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - devkit-network
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+
+networks:
+  devkit-network:
+    driver: bridge
