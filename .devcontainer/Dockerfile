@@ -9,7 +9,12 @@ RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure sudo for node user
+RUN echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/node && \
+    chmod 0440 /etc/sudoers.d/node
 
 # Install pnpm globally via corepack (as root to cache it)
 RUN corepack enable && \
