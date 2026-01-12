@@ -3,7 +3,12 @@ packages:
   - '!packages/.dashboard'
   - '!packages/.untracked'
 onlyBuiltDependencies:
+  - '@swc/core'
+  - bufferutil
+  - esbuild
+  - keccak
   - sqlite3
+  - utf-8-validate
 overrides:
   esbuild@<=0.24.2: '>=0.25.0'
   js-yaml@>=4.0.0 <4.1.1: '>=4.1.1'

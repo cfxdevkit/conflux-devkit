@@ -22,12 +22,14 @@ WORKDIR /workspace
 # Configure git safe directory
 RUN git config --global --add safe.directory /workspace
 
-# Initialize pnpm store directory with correct ownership
+# Initialize directories with correct ownership
+# - pnpm store directory
+# - .local directory (needed for Conflux node data)
+# - workspace directories
 RUN mkdir -p /home/node/.local/share/pnpm/store && \
-    chown -R node:node /home/node/.local/share/pnpm
-
-# Pre-create workspace directories with correct ownership
-RUN mkdir -p /workspace/node_modules && \
+    mkdir -p /workspace/node_modules && \
+    mkdir -p /workspace/.conflux-dev && \
+    chown -R node:node /home/node/.local && \
     chown -R node:node /workspace
 
 USER node

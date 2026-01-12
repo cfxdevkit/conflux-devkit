@@ -29,10 +29,10 @@ import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import { defaultNetworkSelector } from '../config/chains.js';
 import type {
-  AccountInfo,
-  MiningStatus,
-  ServerConfig,
-  ServerStatus,
+    AccountInfo,
+    MiningStatus,
+    ServerConfig,
+    ServerStatus,
 } from '../types/index.js';
 import { NodeError } from '../types/index.js';
 
@@ -124,6 +124,15 @@ export class ServerManager {
       // Generate dedicated mining account (separate from genesis)
       await this.generateMiningAccount();
 
+      // Ensure data directory exists with proper permissions
+      const dataDir = this.config.dataDir || '/workspace/.conflux-dev';
+      try {
+        await fs.mkdir(dataDir, { recursive: true, mode: 0o755 });
+      } catch (error) {
+        console.warn('Failed to create data directory:', error);
+        // Continue anyway, might still work if directory exists
+      }
+
       // Create server instance with configuration
       this.server = await createServer({
         // Correct property names according to @xcfx/node API
@@ -132,6 +141,8 @@ export class ServerManager {
         jsonrpcWsPort: this.config.wsPort,
         chainId: this.config.chainId,
         evmChainId: this.config.evmChainId,
+        // Specify data directory to avoid permission issues
+        confluxDataDir: dataDir,
         // Genesis accounts configuration
         genesisSecrets: this.accounts.map((acc) => acc.privateKey),
         genesisEvmSecrets: this.accounts.map(

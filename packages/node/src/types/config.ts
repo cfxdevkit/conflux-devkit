@@ -226,6 +226,7 @@ export interface ServerConfig {
   readonly mining?: MiningConfig;
   readonly devBlockIntervalMs?: number; // Auto block generation interval in ms (undefined = disabled)
   readonly devPackTxImmediately?: boolean; // Pack transactions immediately for responsiveness
+  readonly dataDir?: string; // Data directory for Conflux node (default: /workspace/.conflux-dev)
 }
 
 export interface MiningConfig {

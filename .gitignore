@@ -40,6 +40,9 @@ coverage
 tmp
 temp
 
+# Conflux node data
+.conflux-dev/
+
 # Untracked development files
 packages/.untracked/
 
