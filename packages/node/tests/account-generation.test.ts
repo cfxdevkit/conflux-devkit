@@ -11,7 +11,7 @@ import { privateKeyToAccount } from 'cive/accounts';
 import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ServerManager } from '../src/server/index.js';
+import type { ServerManager } from '../src/server/index.js';
 import type { ServerConfig } from '../src/types/index.js';
 
 // Test vectors from standard BIP39/BIP32 implementations
@@ -35,11 +35,13 @@ const TEST_VECTORS = {
   },
 };
 
+let ServerManagerImpl: typeof import('../src/server/index.js').ServerManager;
+
 describe('Account Generation', () => {
   let serverManager: ServerManager;
   let config: ServerConfig;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     config = {
       coreRpcPort: 12537,
       evmRpcPort: 8545,
@@ -53,7 +55,11 @@ describe('Account Generation', () => {
       detached: false,
     };
 
-    serverManager = new ServerManager(config);
+    const module = await vi.importActual<typeof import('../src/server/index.js')>(
+      '../src/server/index.js'
+    );
+    ServerManagerImpl = module.ServerManager;
+    serverManager = new ServerManagerImpl(config);
   });
 
   describe('BIP39 Mnemonic Validation', () => {
@@ -222,7 +228,7 @@ describe('Account Generation', () => {
         mnemonic:
           'completely invalid words that are not in bip39 wordlist at all',
       };
-      const invalidServerManager = new ServerManager(invalidConfig);
+      const invalidServerManager = new ServerManagerImpl(invalidConfig);
 
       // This should still work because mnemonicToSeedSync accepts any string
       const generateAccounts = (
@@ -339,7 +345,7 @@ describe('Account Generation', () => {
 
     it('should handle large number of accounts', async () => {
       const largeConfig = { ...config, accounts: 100 };
-      const largeServerManager = new ServerManager(largeConfig);
+      const largeServerManager = new ServerManagerImpl(largeConfig);
 
       const generateAccounts = (
         largeServerManager as any

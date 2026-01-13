@@ -7,6 +7,7 @@ export default defineConfig({
     include: ['**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],
     testTimeout: 60000, // 60 second timeout for long-running tests
+    isolate: true,
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',

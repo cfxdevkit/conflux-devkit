@@ -14,46 +14,56 @@ import { MOCK_ACCOUNT, TEST_CONFIG } from './setup.js';
 
 // Mock the wallet clients
 vi.mock('../src/clients/core.js', () => ({
-  CoreClient: vi.fn().mockImplementation(() => ({
-    getBalance: vi.fn().mockResolvedValue('500000000000000000000'),
-  })),
-  CoreWalletClient: vi.fn().mockImplementation(() => ({
-    sendTransaction: vi.fn().mockResolvedValue('0xcore123'),
-    deployContract: vi.fn().mockResolvedValue('cfx:contract123'),
-    callContract: vi.fn().mockResolvedValue('result'),
-    writeContract: vi.fn().mockResolvedValue('0xwrite123'),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-  })),
+  CoreClient: vi.fn().mockImplementation(function () {
+    return {
+      getBalance: vi.fn().mockResolvedValue('500000000000000000000'),
+    };
+  }),
+  CoreWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      sendTransaction: vi.fn().mockResolvedValue('0xcore123'),
+      deployContract: vi.fn().mockResolvedValue('cfx:contract123'),
+      callContract: vi.fn().mockResolvedValue('result'),
+      writeContract: vi.fn().mockResolvedValue('0xwrite123'),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock('../src/clients/evm.js', () => ({
-  EspaceClient: vi.fn().mockImplementation(() => ({
-    getBalance: vi.fn().mockResolvedValue('750000000000000000000'),
-  })),
-  EspaceWalletClient: vi.fn().mockImplementation(() => ({
-    sendTransaction: vi.fn().mockResolvedValue('0xevm456'),
-    deployContract: vi
-      .fn()
-      .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-    callContract: vi.fn().mockResolvedValue('result'),
-    writeContract: vi.fn().mockResolvedValue('0xwrite456'),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-  })),
+  EspaceClient: vi.fn().mockImplementation(function () {
+    return {
+      getBalance: vi.fn().mockResolvedValue('750000000000000000000'),
+    };
+  }),
+  EspaceWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      sendTransaction: vi.fn().mockResolvedValue('0xevm456'),
+      deployContract: vi
+        .fn()
+        .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+      callContract: vi.fn().mockResolvedValue('result'),
+      writeContract: vi.fn().mockResolvedValue('0xwrite456'),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 // Mock ServerManager
 vi.mock('../src/server/index.js', () => ({
-  ServerManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-    getRpcUrls: vi.fn().mockReturnValue({
-      core: 'http://localhost:12537',
-      evm: 'http://localhost:8545',
-    }),
-    fundCoreAccount: vi.fn().mockResolvedValue('0xfund123'),
-    fundEvmAccount: vi.fn().mockResolvedValue('0xfund456'),
-  })),
+  ServerManager: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+      getRpcUrls: vi.fn().mockReturnValue({
+        core: 'http://localhost:12537',
+        evm: 'http://localhost:8545',
+      }),
+      fundCoreAccount: vi.fn().mockResolvedValue('0xfund123'),
+      fundEvmAccount: vi.fn().mockResolvedValue('0xfund456'),
+    };
+  }),
 }));
 
 describe('DevKitAccount', () => {

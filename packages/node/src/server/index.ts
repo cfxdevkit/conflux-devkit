@@ -63,8 +63,8 @@ export class ServerManager {
       coreRpcPort: config.coreRpcPort || DEFAULT_CORE_RPC_PORT,
       evmRpcPort: config.evmRpcPort || DEFAULT_EVM_RPC_PORT,
       wsPort: config.wsPort || DEFAULT_WS_PORT,
-      chainId: config.chainId || 2029, // Local Core chain ID
-      evmChainId: config.evmChainId || 2030, // Local eSpace chain ID
+      chainId: config.chainId || 1029, // Local Core chain ID
+      evmChainId: config.evmChainId || 1030, // Local eSpace chain ID
       accounts: config.accounts || 10,
       balance: config.balance || '1000000',
       mnemonic: config.mnemonic,
@@ -166,7 +166,7 @@ export class ServerManager {
         this.config.evmRpcPort || DEFAULT_EVM_RPC_PORT,
         this.config.wsPort || DEFAULT_WS_PORT
       );
-      defaultNetworkSelector.onNodeStart(2029, 2030); // Core local, eSpace local
+      defaultNetworkSelector.onNodeStart(this.config.chainId, this.config.evmChainId); // Core local, eSpace local
 
       // Set up cleanup handlers
       this.setupCleanupHandlers();
@@ -523,6 +523,14 @@ export class ServerManager {
         evmPath: `m/44'/60'/0'/0/${i}`,
       });
     }
+  }
+
+  /**
+   * Regenerate accounts using the current mnemonic
+   * Exposed for testing and tooling purposes
+   */
+  async generateAccounts(): Promise<void> {
+    this.generateAccountsSync();
   }
 
   /**

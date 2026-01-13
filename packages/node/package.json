@@ -27,7 +27,7 @@
     "type-check": "tsc --noEmit",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "test": "vitest",
+    "test": "vitest run --pass-with-no-tests",
     "test:ui": "vitest --ui",
     "test:run": "vitest --run",
     "test:coverage": "vitest --run --coverage",
@@ -44,7 +44,8 @@
     "@conflux-devkit/core": "workspace:*",
     "bip32": "^4.0.0",
     "bip39": "^3.1.0",
-    "tiny-secp256k1": "^2.2.4"
+    "tiny-secp256k1": "^2.2.4",
+    "viem": "^2.43.3"
   },
   "peerDependencies": {
     "@conflux-devkit/plugin-devnode": "^0.1.0"

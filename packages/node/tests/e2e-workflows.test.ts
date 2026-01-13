@@ -59,140 +59,150 @@ const mockState = {
 
 // Comprehensive mock setup
 vi.mock('../src/server/index.js', () => ({
-  ServerManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockImplementation(() => {
-      mockState.miningStatus.isRunning = false; // Start with mining stopped
-      return Promise.resolve();
-    }),
-    stop: vi.fn().mockResolvedValue(undefined),
+  ServerManager: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockImplementation(function () {
+        mockState.miningStatus.isRunning = false; // Start with mining stopped
+        return Promise.resolve();
+      }),
+      stop: vi.fn().mockResolvedValue(undefined),
 
-    startMining: vi.fn().mockImplementation(() => {
-      mockState.miningStatus.isRunning = true;
-      mockState.miningStatus.startTime = new Date();
-      return Promise.resolve();
-    }),
+      startMining: vi.fn().mockImplementation(function () {
+        mockState.miningStatus.isRunning = true;
+        mockState.miningStatus.startTime = new Date();
+        return Promise.resolve();
+      }),
 
-    stopMining: vi.fn().mockImplementation(() => {
-      mockState.miningStatus.isRunning = false;
-      mockState.miningStatus.startTime = undefined;
-      return Promise.resolve();
-    }),
+      stopMining: vi.fn().mockImplementation(function () {
+        mockState.miningStatus.isRunning = false;
+        mockState.miningStatus.startTime = undefined;
+        return Promise.resolve();
+      }),
 
-    mine: vi.fn().mockImplementation((blocks: number) => {
-      mockState.miningStatus.blocksMined += blocks;
-      return Promise.resolve();
-    }),
+      mine: vi.fn().mockImplementation(function (blocks: number) {
+        mockState.miningStatus.blocksMined += blocks;
+        return Promise.resolve();
+      }),
 
-    getMiningStatus: vi.fn(() => ({ ...mockState.miningStatus })),
-    getStatus: vi.fn().mockReturnValue('running'),
+      getMiningStatus: vi.fn(() => ({ ...mockState.miningStatus })),
+      getStatus: vi.fn().mockReturnValue('running'),
 
-    getAccounts: vi
-      .fn()
-      .mockReturnValue([
-        MOCK_ACCOUNT,
-        {
-          ...MOCK_ACCOUNT,
-          index: 1,
-          privateKey:
-            '0x1111111111111111111111111111111111111111111111111111111111111111',
-          path: "m/44'/60'/0'/0/1",
-        },
-        {
-          ...MOCK_ACCOUNT,
-          index: 2,
-          privateKey:
-            '0x2222222222222222222222222222222222222222222222222222222222222222',
-          path: "m/44'/60'/0'/0/2",
-        },
-      ]),
+      getAccounts: vi
+        .fn()
+        .mockReturnValue([
+          MOCK_ACCOUNT,
+          {
+            ...MOCK_ACCOUNT,
+            index: 1,
+            privateKey:
+              '0x1111111111111111111111111111111111111111111111111111111111111111',
+            path: "m/44'/60'/0'/0/1",
+          },
+          {
+            ...MOCK_ACCOUNT,
+            index: 2,
+            privateKey:
+              '0x2222222222222222222222222222222222222222222222222222222222222222',
+            path: "m/44'/60'/0'/0/2",
+          },
+        ]),
 
-    addAccount: vi.fn().mockResolvedValue({
-      ...MOCK_ACCOUNT,
-      index: 3,
-      privateKey:
-        '0x3333333333333333333333333333333333333333333333333333333333333333',
-      path: "m/44'/60'/0'/0/3",
-    }),
+      addAccount: vi.fn().mockResolvedValue({
+        ...MOCK_ACCOUNT,
+        index: 3,
+        privateKey:
+          '0x3333333333333333333333333333333333333333333333333333333333333333',
+        path: "m/44'/60'/0'/0/3",
+      }),
 
-    getRpcUrls: vi.fn().mockReturnValue({
-      core: 'http://localhost:12537',
-      evm: 'http://localhost:8545',
-    }),
+      getRpcUrls: vi.fn().mockReturnValue({
+        core: 'http://localhost:12537',
+        evm: 'http://localhost:8545',
+      }),
 
-    getFaucetBalances: vi.fn().mockResolvedValue({
-      coreBalance: '10000000000000000000000',
-      evmBalance: '10000000000000000000000',
-    }),
+      getFaucetBalances: vi.fn().mockResolvedValue({
+        coreBalance: '10000000000000000000000',
+        evmBalance: '10000000000000000000000',
+      }),
 
-    getFaucetAccount: vi.fn().mockReturnValue({
-      ...MOCK_ACCOUNT,
-      index: -1,
-      privateKey: '0xfaucet_key',
-      coreAddress: 'cfx:faucet_core',
-      evmAddress: '0xfaucet_evm',
-    }),
+      getFaucetAccount: vi.fn().mockReturnValue({
+        ...MOCK_ACCOUNT,
+        index: -1,
+        privateKey: '0xfaucet_key',
+        coreAddress: 'cfx:faucet_core',
+        evmAddress: '0xfaucet_evm',
+      }),
 
-    fundCoreAccount: vi.fn().mockResolvedValue('0xfund_core_tx'),
-    fundEvmAccount: vi.fn().mockResolvedValue('0xfund_evm_tx'),
-  })),
+      fundCoreAccount: vi.fn().mockResolvedValue('0xfund_core_tx'),
+      fundEvmAccount: vi.fn().mockResolvedValue('0xfund_evm_tx'),
+    };
+  }),
 }));
 
 vi.mock('../src/clients/core.js', () => ({
-  CoreClient: vi.fn().mockImplementation(() => ({
-    getBalance: vi.fn().mockResolvedValue('1000000000000000000000'), // 1000 CFX
-  })),
-  CoreWalletClient: vi.fn().mockImplementation(() => ({
-    deployContract: vi.fn().mockImplementation((_abi, _bytecodee, args) => {
-      mockState.deployedContracts.core =
-        'cfx:acc7uawf5ubtnmezvhu9dhc6sghea0403y2dgpyfjp';
-      if (args && args.length > 0) {
-        mockState.contractValues.core = args[0];
-      }
-      return Promise.resolve(mockState.deployedContracts.core);
-    }),
-    callContract: vi.fn().mockImplementation(() => {
-      return Promise.resolve(mockState.contractValues.core);
-    }),
-    writeContract: vi
-      .fn()
-      .mockImplementation((_address, _abii, functionName, args) => {
-        if (functionName === 'set' && args && args.length > 0) {
+  CoreClient: vi.fn().mockImplementation(function () {
+    return {
+      getBalance: vi.fn().mockResolvedValue('1000000000000000000000'), // 1000 CFX
+    };
+  }),
+  CoreWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      deployContract: vi.fn().mockImplementation((_abi, _bytecodee, args) => {
+        mockState.deployedContracts.core =
+          'cfx:acc7uawf5ubtnmezvhu9dhc6sghea0403y2dgpyfjp';
+        if (args && args.length > 0) {
           mockState.contractValues.core = args[0];
         }
-        return Promise.resolve('0xcore_write_tx');
+        return Promise.resolve(mockState.deployedContracts.core);
       }),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-    sendTransaction: vi.fn().mockResolvedValue('0xcore_send_tx'),
-  })),
+      callContract: vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockState.contractValues.core);
+      }),
+      writeContract: vi
+        .fn()
+        .mockImplementation((_address, _abii, functionName, args) => {
+          if (functionName === 'set' && args && args.length > 0) {
+            mockState.contractValues.core = args[0];
+          }
+          return Promise.resolve('0xcore_write_tx');
+        }),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+      sendTransaction: vi.fn().mockResolvedValue('0xcore_send_tx'),
+    };
+  }),
 }));
 
 vi.mock('../src/clients/evm.js', () => ({
-  EspaceClient: vi.fn().mockImplementation(() => ({
-    getBalance: vi.fn().mockResolvedValue('2000000000000000000000'), // 2000 CFX
-  })),
-  EspaceWalletClient: vi.fn().mockImplementation(() => ({
-    deployContract: vi.fn().mockImplementation((_abi, _bytecodee, args) => {
-      mockState.deployedContracts.evm =
-        '0x1234567890123456789012345678901234567890';
-      if (args && args.length > 0) {
-        mockState.contractValues.evm = args[0];
-      }
-      return Promise.resolve(mockState.deployedContracts.evm);
-    }),
-    callContract: vi.fn().mockImplementation(() => {
-      return Promise.resolve(mockState.contractValues.evm);
-    }),
-    writeContract: vi
-      .fn()
-      .mockImplementation((_address, _abii, functionName, args) => {
-        if (functionName === 'set' && args && args.length > 0) {
+  EspaceClient: vi.fn().mockImplementation(function () {
+    return {
+      getBalance: vi.fn().mockResolvedValue('2000000000000000000000'), // 2000 CFX
+    };
+  }),
+  EspaceWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      deployContract: vi.fn().mockImplementation((_abi, _bytecodee, args) => {
+        mockState.deployedContracts.evm =
+          '0x1234567890123456789012345678901234567890';
+        if (args && args.length > 0) {
           mockState.contractValues.evm = args[0];
         }
-        return Promise.resolve('0xevm_write_tx');
+        return Promise.resolve(mockState.deployedContracts.evm);
       }),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-    sendTransaction: vi.fn().mockResolvedValue('0xevm_send_tx'),
-  })),
+      callContract: vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockState.contractValues.evm);
+      }),
+      writeContract: vi
+        .fn()
+        .mockImplementation((_address, _abii, functionName, args) => {
+          if (functionName === 'set' && args && args.length > 0) {
+            mockState.contractValues.evm = args[0];
+          }
+          return Promise.resolve('0xevm_write_tx');
+        }),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+      sendTransaction: vi.fn().mockResolvedValue('0xevm_send_tx'),
+    };
+  }),
 }));
 
 describe('DevKit E2E Workflows', () => {

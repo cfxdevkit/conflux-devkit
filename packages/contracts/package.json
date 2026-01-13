@@ -41,7 +41,7 @@
     "build:watch": "tsup --watch",
     "type-check": "tsc --noEmit",
     "dev": "tsx src/index.ts",
-    "test": "vitest",
+    "test": "vitest run --pass-with-no-tests",
     "test:ui": "vitest --ui",
     "test:run": "vitest --run",
     "test:coverage": "vitest --run --coverage",

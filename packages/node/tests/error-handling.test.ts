@@ -10,9 +10,16 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CoreWalletClient } from '../src/clients/core.js';
+import type { EspaceWalletClient } from '../src/clients/evm.js';
 import { DevKit } from '../src/devkit.js';
 import type { NodeConfig } from '../src/types/index.js';
 import { MOCK_ACCOUNT, TEST_CONFIG } from './setup.js';
+
+const RPC_URLS = {
+  core: 'http://localhost:12537',
+  evm: 'http://localhost:8545',
+};
 
 describe('DevKit Error Handling', () => {
   describe('Configuration Errors', () => {
@@ -50,19 +57,17 @@ describe('DevKit Error Handling', () => {
   describe('Account Access Errors', () => {
     let devkit: DevKit;
 
-    beforeEach(() => {
-      // Mock server with limited accounts
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]), // Only one account
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-        })),
-      }));
+    const createAccountServerMock = (
+      accounts: Array<typeof MOCK_ACCOUNT>
+    ) => ({
+      getAccounts: vi.fn().mockReturnValue(accounts),
+      getRpcUrls: vi.fn().mockReturnValue(RPC_URLS),
+    });
 
-      devkit = new DevKit(TEST_CONFIG);
+    beforeEach(() => {
+      devkit = new DevKit(TEST_CONFIG, () =>
+        createAccountServerMock([MOCK_ACCOUNT])
+      );
     });
 
     it('should throw error when accessing non-existent account', () => {
@@ -78,18 +83,9 @@ describe('DevKit Error Handling', () => {
     });
 
     it('should handle empty account list', () => {
-      // Mock server with no accounts
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          getAccounts: vi.fn().mockReturnValue([]), // No accounts
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-        })),
-      }));
-
-      const emptyDevkit = new DevKit(TEST_CONFIG);
+      const emptyDevkit = new DevKit(TEST_CONFIG, () =>
+        createAccountServerMock([])
+      );
       expect(() => emptyDevkit.account(0)).toThrow(
         'Account 0 does not exist. Available accounts: none'
       );
@@ -99,37 +95,29 @@ describe('DevKit Error Handling', () => {
   describe('Network and Connection Errors', () => {
     let devkit: DevKit;
 
-    beforeEach(() => {
-      // Mock server that throws network errors
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          start: vi
-            .fn()
-            .mockRejectedValue(
-              new Error('Failed to start node: Port already in use')
-            ),
-          stop: vi.fn().mockRejectedValue(new Error('Node is not running')),
-          startMining: vi
-            .fn()
-            .mockRejectedValue(new Error('Node is not ready for mining')),
-          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-          getFaucetBalances: vi
-            .fn()
-            .mockRejectedValue(new Error('Connection refused')),
-          fundCoreAccount: vi
-            .fn()
-            .mockRejectedValue(new Error('Insufficient faucet balance')),
-          fundEvmAccount: vi
-            .fn()
-            .mockRejectedValue(new Error('Network timeout')),
-        })),
-      }));
+    const createNetworkErrorServer = () => ({
+      start: vi
+        .fn()
+        .mockRejectedValue(new Error('Failed to start node: Port already in use')),
+      stop: vi.fn().mockRejectedValue(new Error('Node is not running')),
+      startMining: vi
+        .fn()
+        .mockRejectedValue(new Error('Node is not ready for mining')),
+      getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+      getRpcUrls: vi.fn().mockReturnValue(RPC_URLS),
+      getFaucetBalances: vi
+        .fn()
+        .mockRejectedValue(new Error('Connection refused')),
+      fundCoreAccount: vi
+        .fn()
+        .mockRejectedValue(new Error('Insufficient faucet balance')),
+      fundEvmAccount: vi
+        .fn()
+        .mockRejectedValue(new Error('Network timeout')),
+    });
 
-      devkit = new DevKit(TEST_CONFIG);
+    beforeEach(() => {
+      devkit = new DevKit(TEST_CONFIG, () => createNetworkErrorServer());
     });
 
     it('should propagate node start errors', async () => {
@@ -169,50 +157,47 @@ describe('DevKit Error Handling', () => {
     let devkit: DevKit;
 
     beforeEach(() => {
-      // Mock failing wallet clients
-      vi.doMock('../src/clients/core.js', () => ({
-        CoreWalletClient: vi.fn().mockImplementation(() => ({
-          deployContract: vi
-            .fn()
-            .mockRejectedValue(new Error('Insufficient gas')),
-          callContract: vi
-            .fn()
-            .mockRejectedValue(new Error('Contract not found')),
-          writeContract: vi
-            .fn()
-            .mockRejectedValue(new Error('Transaction reverted')),
-          waitForTransaction: vi
-            .fn()
-            .mockRejectedValue(new Error('Transaction timeout')),
-        })),
-      }));
+      const contractServerMock = () => ({
+        getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+        getRpcUrls: vi.fn().mockReturnValue(RPC_URLS),
+      });
 
-      vi.doMock('../src/clients/evm.js', () => ({
-        EspaceWalletClient: vi.fn().mockImplementation(() => ({
-          deployContract: vi
-            .fn()
-            .mockRejectedValue(new Error('Contract creation failed')),
-          callContract: vi
-            .fn()
-            .mockRejectedValue(new Error('Execution reverted')),
-          writeContract: vi.fn().mockRejectedValue(new Error('Nonce too high')),
-          waitForTransaction: vi
-            .fn()
-            .mockRejectedValue(new Error('Block not found')),
-        })),
-      }));
+      const clientFactories = {
+        coreWalletFactory: () =>
+          ({
+            deployContract: vi
+              .fn()
+              .mockRejectedValue(new Error('Insufficient gas')),
+            callContract: vi
+              .fn()
+              .mockRejectedValue(new Error('Contract not found')),
+            writeContract: vi
+              .fn()
+              .mockRejectedValue(new Error('Transaction reverted')),
+            waitForTransaction: vi
+              .fn()
+              .mockRejectedValue(new Error('Transaction timeout')),
+          } as unknown as CoreWalletClient),
+        evmWalletFactory: () =>
+          ({
+            deployContract: vi
+              .fn()
+              .mockRejectedValue(new Error('Contract creation failed')),
+            callContract: vi
+              .fn()
+              .mockRejectedValue(new Error('Execution reverted')),
+            writeContract: vi.fn().mockRejectedValue(new Error('Nonce too high')),
+            waitForTransaction: vi
+              .fn()
+              .mockRejectedValue(new Error('Block not found')),
+          } as unknown as EspaceWalletClient),
+      };
 
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-        })),
-      }));
-
-      devkit = new DevKit(TEST_CONFIG);
+      devkit = new DevKit(
+        TEST_CONFIG,
+        () => contractServerMock(),
+        clientFactories
+      );
     });
 
     const mockAbi = [{ name: 'test', type: 'function' }];
@@ -291,17 +276,31 @@ describe('DevKit Error Handling', () => {
     let devkit: DevKit;
 
     beforeEach(() => {
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-        })),
-      }));
+      const successClients = {
+        coreWalletFactory: () =>
+          ({
+            deployContract: vi.fn().mockResolvedValue('cfx:deployed'),
+            callContract: vi.fn().mockResolvedValue('result'),
+            writeContract: vi.fn().mockResolvedValue('0x123'),
+            waitForTransaction: vi.fn().mockResolvedValue(undefined),
+          } as unknown as CoreWalletClient),
+        evmWalletFactory: () =>
+          ({
+            deployContract: vi.fn().mockResolvedValue('0x123'),
+            callContract: vi.fn().mockResolvedValue('result'),
+            writeContract: vi.fn().mockResolvedValue('0x123'),
+            waitForTransaction: vi.fn().mockResolvedValue(undefined),
+          } as unknown as EspaceWalletClient),
+      };
 
-      devkit = new DevKit(TEST_CONFIG);
+      devkit = new DevKit(
+        TEST_CONFIG,
+        () => ({
+          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+          getRpcUrls: vi.fn().mockReturnValue(RPC_URLS),
+        }),
+        successClients
+      );
     });
 
     it('should reject contract deployment without chain specification', async () => {
@@ -319,16 +318,6 @@ describe('DevKit Error Handling', () => {
     });
 
     it('should handle empty arrays in contract operations', async () => {
-      // Mock successful operations to test parameter handling
-      vi.doMock('../src/clients/core.js', () => ({
-        CoreWalletClient: vi.fn().mockImplementation(() => ({
-          deployContract: vi.fn().mockResolvedValue('cfx:deployed'),
-          callContract: vi.fn().mockResolvedValue('result'),
-          writeContract: vi.fn().mockResolvedValue('0x123'),
-          waitForTransaction: vi.fn().mockResolvedValue(undefined),
-        })),
-      }));
-
       const result = await devkit.deployContract({
         abi: [], // Empty ABI
         bytecode: '0x123',
@@ -381,20 +370,17 @@ describe('DevKit Error Handling', () => {
   describe('Cleanup and Resource Management', () => {
     let devkit: DevKit;
 
-    beforeEach(() => {
-      vi.doMock('../src/server/index.js', () => ({
-        ServerManager: vi.fn().mockImplementation(() => ({
-          start: vi.fn().mockResolvedValue(undefined),
-          stop: vi.fn().mockResolvedValue(undefined),
-          getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-          getRpcUrls: vi.fn().mockReturnValue({
-            core: 'http://localhost:12537',
-            evm: 'http://localhost:8545',
-          }),
-        })),
-      }));
+    const createCleanupServer = () => ({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      startMining: vi.fn().mockResolvedValue(undefined),
+      stopMining: vi.fn().mockResolvedValue(undefined),
+      getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+      getRpcUrls: vi.fn().mockReturnValue(RPC_URLS),
+    });
 
-      devkit = new DevKit(TEST_CONFIG);
+    beforeEach(() => {
+      devkit = new DevKit(TEST_CONFIG, () => createCleanupServer());
     });
 
     it('should handle multiple stop calls gracefully', async () => {

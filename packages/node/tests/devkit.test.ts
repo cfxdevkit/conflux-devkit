@@ -15,42 +15,44 @@ import { MOCK_ACCOUNT, TEST_CONFIG } from './setup.js';
 
 // Mock the ServerManager
 vi.mock('../src/server/index.js', () => ({
-  ServerManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    startMining: vi.fn().mockResolvedValue(undefined),
-    stopMining: vi.fn().mockResolvedValue(undefined),
-    mine: vi.fn().mockResolvedValue(undefined),
-    getStatus: vi.fn().mockReturnValue('running'),
-    getMiningStatus: vi.fn().mockReturnValue({
-      isRunning: true,
-      interval: 1000,
-      blocksMined: 5,
-      startTime: new Date(),
-    }),
-    getAccounts: vi
-      .fn()
-      .mockReturnValue([
-        MOCK_ACCOUNT,
-        {
-          ...MOCK_ACCOUNT,
-          privateKey:
-            '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        },
-      ]),
-    addAccount: vi.fn().mockResolvedValue(MOCK_ACCOUNT),
-    getRpcUrls: vi.fn().mockReturnValue({
-      core: 'http://localhost:12537',
-      evm: 'http://localhost:8545',
-    }),
-    getFaucetBalances: vi.fn().mockResolvedValue({
-      coreBalance: '1000000000000000000000',
-      evmBalance: '1000000000000000000000',
-    }),
-    getFaucetAccount: vi.fn().mockReturnValue(MOCK_ACCOUNT),
-    fundCoreAccount: vi.fn().mockResolvedValue('0x123abc'),
-    fundEvmAccount: vi.fn().mockResolvedValue('0x456def'),
-  })),
+  ServerManager: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      startMining: vi.fn().mockResolvedValue(undefined),
+      stopMining: vi.fn().mockResolvedValue(undefined),
+      mine: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn().mockReturnValue('running'),
+      getMiningStatus: vi.fn().mockReturnValue({
+        isRunning: true,
+        interval: 1000,
+        blocksMined: 5,
+        startTime: new Date(),
+      }),
+      getAccounts: vi
+        .fn()
+        .mockReturnValue([
+          MOCK_ACCOUNT,
+          {
+            ...MOCK_ACCOUNT,
+            privateKey:
+              '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          },
+        ]),
+      addAccount: vi.fn().mockResolvedValue(MOCK_ACCOUNT),
+      getRpcUrls: vi.fn().mockReturnValue({
+        core: 'http://localhost:12537',
+        evm: 'http://localhost:8545',
+      }),
+      getFaucetBalances: vi.fn().mockResolvedValue({
+        coreBalance: '1000000000000000000000',
+        evmBalance: '1000000000000000000000',
+      }),
+      getFaucetAccount: vi.fn().mockReturnValue(MOCK_ACCOUNT),
+      fundCoreAccount: vi.fn().mockResolvedValue('0x123abc'),
+      fundEvmAccount: vi.fn().mockResolvedValue('0x456def'),
+    };
+  }),
 }));
 
 describe('DevKit', () => {

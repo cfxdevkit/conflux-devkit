@@ -8,79 +8,85 @@
  * - Block mining operations
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DevKit } from '../src/devkit.js';
-import { TEST_CONFIG, MOCK_ACCOUNT } from './setup.js';
+import { MOCK_ACCOUNT, TEST_CONFIG } from './setup.js';
 
 // Mock ServerManager with faucet and mining operations
 vi.mock('../src/server/index.js', () => ({
-  ServerManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-    getRpcUrls: vi.fn().mockReturnValue({
-      core: 'http://localhost:12537',
-      evm: 'http://localhost:8545'
-    }),
-    
-    // Faucet operations
-    getFaucetBalances: vi.fn().mockResolvedValue({
-      coreBalance: '5000000000000000000000', // 5,000 CFX
-      evmBalance: '3000000000000000000000'   // 3,000 CFX
-    }),
-    getFaucetAccount: vi.fn().mockReturnValue({
-      ...MOCK_ACCOUNT,
-      index: -1, // Special faucet account
-      privateKey: '0xfaucet_private_key_here',
-      coreAddress: 'cfx:faucet_core_address',
-      evmAddress: '0xfaucet_evm_address'
-    }),
-    fundCoreAccount: vi.fn().mockImplementation((address, amount) => {
-      if (amount === '0') {
-        return Promise.reject(new Error('Cannot fund with zero amount'));
-      }
-      if (address === 'invalid_address') {
-        return Promise.reject(new Error('Invalid address format'));
-      }
-      return Promise.resolve('0xfund_core_tx_' + Math.floor(Math.random() * 1000));
-    }),
-    fundEvmAccount: vi.fn().mockImplementation((address, amount) => {
-      if (amount === '0') {
-        return Promise.reject(new Error('Cannot fund with zero amount'));
-      }
-      if (address === 'invalid_address') {
-        return Promise.reject(new Error('Invalid address format'));
-      }
-      return Promise.resolve('0xfund_evm_tx_' + Math.floor(Math.random() * 1000));
-    }),
-    
-    // Mining operations
-    startMining: vi.fn().mockImplementation(() => {
-      // Simulate already running
-      if (mockMiningStatus.isRunning) {
-        return Promise.reject(new Error('Mining is already running'));
-      }
-      mockMiningStatus.isRunning = true;
-      mockMiningStatus.startTime = new Date();
-      return Promise.resolve();
-    }),
-    stopMining: vi.fn().mockImplementation(() => {
-      if (!mockMiningStatus.isRunning) {
-        return Promise.reject(new Error('Mining is not running'));
-      }
-      mockMiningStatus.isRunning = false;
-      mockMiningStatus.startTime = undefined;
-      return Promise.resolve();
-    }),
-    mine: vi.fn().mockImplementation((blocks: number) => {
-      if (blocks <= 0) {
-        return Promise.reject(new Error('Must mine at least 1 block'));
-      }
-      mockMiningStatus.blocksMined += blocks;
-      return Promise.resolve();
-    }),
-    getMiningStatus: vi.fn(() => ({ ...mockMiningStatus }))
-  }))
+  ServerManager: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+      getRpcUrls: vi.fn().mockReturnValue({
+        core: 'http://localhost:12537',
+        evm: 'http://localhost:8545',
+      }),
+
+      // Faucet operations
+      getFaucetBalances: vi.fn().mockResolvedValue({
+        coreBalance: '5000000000000000000000', // 5,000 CFX
+        evmBalance: '3000000000000000000000', // 3,000 CFX
+      }),
+      getFaucetAccount: vi.fn().mockReturnValue({
+        ...MOCK_ACCOUNT,
+        index: -1, // Special faucet account
+        privateKey: '0xfaucet_private_key_here',
+        coreAddress: 'cfx:faucet_core_address',
+        evmAddress: '0xfaucet_evm_address',
+      }),
+      fundCoreAccount: vi.fn().mockImplementation((address, amount) => {
+        if (amount === '0') {
+          return Promise.reject(new Error('Cannot fund with zero amount'));
+        }
+        if (address === 'invalid_address') {
+          return Promise.reject(new Error('Invalid address format'));
+        }
+        return Promise.resolve(
+          '0xfund_core_tx_' + Math.floor(Math.random() * 1000)
+        );
+      }),
+      fundEvmAccount: vi.fn().mockImplementation((address, amount) => {
+        if (amount === '0') {
+          return Promise.reject(new Error('Cannot fund with zero amount'));
+        }
+        if (address === 'invalid_address') {
+          return Promise.reject(new Error('Invalid address format'));
+        }
+        return Promise.resolve(
+          '0xfund_evm_tx_' + Math.floor(Math.random() * 1000)
+        );
+      }),
+
+      // Mining operations
+      startMining: vi.fn().mockImplementation(function () {
+        // Simulate already running
+        if (mockMiningStatus.isRunning) {
+          return Promise.reject(new Error('Mining is already running'));
+        }
+        mockMiningStatus.isRunning = true;
+        mockMiningStatus.startTime = new Date();
+        return Promise.resolve();
+      }),
+      stopMining: vi.fn().mockImplementation(function () {
+        if (!mockMiningStatus.isRunning) {
+          return Promise.reject(new Error('Mining is not running'));
+        }
+        mockMiningStatus.isRunning = false;
+        mockMiningStatus.startTime = undefined;
+        return Promise.resolve();
+      }),
+      mine: vi.fn().mockImplementation(function (blocks: number) {
+        if (blocks <= 0) {
+          return Promise.reject(new Error('Must mine at least 1 block'));
+        }
+        mockMiningStatus.blocksMined += blocks;
+        return Promise.resolve();
+      }),
+      getMiningStatus: vi.fn(() => ({ ...mockMiningStatus })),
+    };
+  }),
 }));
 
 // Mock mining status that can be modified by operations

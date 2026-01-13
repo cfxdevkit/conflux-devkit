@@ -11,48 +11,54 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DevKit } from '../src/devkit.js';
 import type {
-  DeployOptions,
-  ReadOptions,
-  WriteOptions,
+    DeployOptions,
+    ReadOptions,
+    WriteOptions,
 } from '../src/types/index.js';
 import { MOCK_ACCOUNT, TEST_CONFIG } from './setup.js';
 
 // Mock wallet clients for contract operations
 vi.mock('../src/clients/core.js', () => ({
   CoreClient: vi.fn(),
-  CoreWalletClient: vi.fn().mockImplementation(() => ({
-    deployContract: vi
-      .fn()
-      .mockResolvedValue('cfx:acc7uawf5ubtnmezvhu9dhc6sghea0403y2dgpyfjp'),
-    callContract: vi.fn().mockResolvedValue(42),
-    writeContract: vi.fn().mockResolvedValue('0xcore_tx_hash'),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-  })),
+  CoreWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      deployContract: vi
+        .fn()
+        .mockResolvedValue('cfx:acc7uawf5ubtnmezvhu9dhc6sghea0403y2dgpyfjp'),
+      callContract: vi.fn().mockResolvedValue(42),
+      writeContract: vi.fn().mockResolvedValue('0xcore_tx_hash'),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock('../src/clients/evm.js', () => ({
   EspaceClient: vi.fn(),
-  EspaceWalletClient: vi.fn().mockImplementation(() => ({
-    deployContract: vi
-      .fn()
-      .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-    callContract: vi.fn().mockResolvedValue(84),
-    writeContract: vi.fn().mockResolvedValue('0xevm_tx_hash'),
-    waitForTransaction: vi.fn().mockResolvedValue(undefined),
-  })),
+  EspaceWalletClient: vi.fn().mockImplementation(function () {
+    return {
+      deployContract: vi
+        .fn()
+        .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+      callContract: vi.fn().mockResolvedValue(84),
+      writeContract: vi.fn().mockResolvedValue('0xevm_tx_hash'),
+      waitForTransaction: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 // Mock ServerManager
 vi.mock('../src/server/index.js', () => ({
-  ServerManager: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
-    getRpcUrls: vi.fn().mockReturnValue({
-      core: 'http://localhost:12537',
-      evm: 'http://localhost:8545',
-    }),
-  })),
+  ServerManager: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      getAccounts: vi.fn().mockReturnValue([MOCK_ACCOUNT]),
+      getRpcUrls: vi.fn().mockReturnValue({
+        core: 'http://localhost:12537',
+        evm: 'http://localhost:8545',
+      }),
+    };
+  }),
 }));
 
 describe('DevKit Contract Operations', () => {

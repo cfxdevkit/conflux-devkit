@@ -17,12 +17,20 @@ afterAll(() => {
 
 // Mock external dependencies if needed
 vi.mock('@xcfx/node', () => ({
-  ConfluxNode: vi.fn().mockImplementation(() => ({
-    start: vi.fn(),
-    stop: vi.fn(),
-    getAccounts: vi.fn(() => []),
-    // Add other mocked methods as needed
-  })),
+  createServer: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
+  ConfluxNode: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn(),
+      stop: vi.fn(),
+      getAccounts: vi.fn(() => []),
+      // Add other mocked methods as needed
+    };
+  }),
 }));
 
 // Export test utilities

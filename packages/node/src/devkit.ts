@@ -41,6 +41,22 @@ import type {
   WriteOptions,
 } from './types/index.js';
 
+type CoreWalletClientOptions = ConstructorParameters<
+  typeof CoreWalletClient
+>[0];
+type EspaceWalletClientOptions = ConstructorParameters<
+  typeof EspaceWalletClient
+>[0];
+type CoreWalletClientFactory = (options: CoreWalletClientOptions) => CoreWalletClient;
+type EspaceWalletClientFactory = (options: EspaceWalletClientOptions) => EspaceWalletClient;
+
+interface ClientFactories {
+  coreWalletFactory?: CoreWalletClientFactory;
+  evmWalletFactory?: EspaceWalletClientFactory;
+}
+
+type ServerManagerFactory = (config: NodeConfig) => ServerManager;
+
 /**
  * DevKitAccount - Convenient wrapper for account operations
  */
@@ -163,7 +179,7 @@ export class DevKitAccount {
     if (!this._coreWallet) {
       const rpcUrls = this.devkit.getRpcUrls();
       const config = this.devkit.getConfig();
-      this._coreWallet = new CoreWalletClient({
+      this._coreWallet = this.devkit.createCoreWalletClient({
         chainId: config.chainId || 1029,
         rpcUrl: rpcUrls.core,
         privateKey: this.privateKey,
@@ -176,7 +192,7 @@ export class DevKitAccount {
     if (!this._evmWallet) {
       const rpcUrls = this.devkit.getRpcUrls();
       const config = this.devkit.getConfig();
-      this._evmWallet = new EspaceWalletClient({
+      this._evmWallet = this.devkit.createEspaceWalletClient({
         chainId: config.evmChainId || 1030,
         rpcUrl: rpcUrls.evm,
         privateKey: this.evmPrivateKey,
@@ -193,12 +209,18 @@ export class DevKit {
   private server: ServerManager;
   private accounts: Map<number, DevKitAccount> = new Map();
   private config: NodeConfig;
+  private coreWalletFactory: CoreWalletClientFactory;
+  private evmWalletFactory: EspaceWalletClientFactory;
 
-  constructor(config: Partial<NodeConfig> = {}) {
+  constructor(
+    config: Partial<NodeConfig> = {},
+    serverFactory: ServerManagerFactory = (cfg) => new ServerManager(cfg),
+    clientFactories: ClientFactories = {}
+  ) {
     // Set sensible defaults
     this.config = {
-      chainId: 2029, // Local development Core Space chain ID
-      evmChainId: 2030, // Local development eSpace chain ID
+      chainId: 1029, // Local development Core Space chain ID
+      evmChainId: 1030, // Local development eSpace chain ID
       jsonrpcHttpPort: 12537,
       jsonrpcHttpEthPort: 8545,
       jsonrpcWsPort: 12535,
@@ -206,7 +228,14 @@ export class DevKit {
       ...config,
     };
 
-    this.server = new ServerManager(this.config);
+    this.coreWalletFactory =
+      clientFactories.coreWalletFactory ??
+      ((options) => new CoreWalletClient(options));
+    this.evmWalletFactory =
+      clientFactories.evmWalletFactory ??
+      ((options) => new EspaceWalletClient(options));
+
+    this.server = serverFactory(this.config);
   }
 
   // ===== Lifecycle Management =====
@@ -246,9 +275,12 @@ export class DevKit {
   account(index: number): DevKitAccount {
     if (!this.accounts.has(index)) {
       const serverAccounts = this.server.getAccounts();
-      if (index >= serverAccounts.length) {
+      if (index < 0 || index >= serverAccounts.length) {
+        const lastIndex = serverAccounts.length - 1;
+        const available =
+          serverAccounts.length === 0 ? 'none' : `0-${lastIndex}`;
         throw new Error(
-          `Account ${index} does not exist. Available accounts: 0-${serverAccounts.length - 1}`
+          `Account ${index} does not exist. Available accounts: ${available}`
         );
       }
 
@@ -276,7 +308,8 @@ export class DevKit {
    */
   async addAccount(): Promise<DevKitAccount> {
     const accountInfo = await this.server.addAccount();
-    const index = this.server.getAccounts().length - 1;
+    const index = accountInfo.index;
+    this.refreshAccounts();
     const devkitAccount = new DevKitAccount(accountInfo, index, this);
     this.accounts.set(index, devkitAccount);
     return devkitAccount;
@@ -486,6 +519,16 @@ export class DevKit {
     return this.server.getEthereumAdminAddress();
   }
 
+  createCoreWalletClient(options: CoreWalletClientOptions): CoreWalletClient {
+    return this.coreWalletFactory(options);
+  }
+
+  createEspaceWalletClient(
+    options: EspaceWalletClientOptions
+  ): EspaceWalletClient {
+    return this.evmWalletFactory(options);
+  }
+
   // ===== Internal Helpers =====
 
   /**
@@ -522,7 +565,7 @@ export type {
   FaucetBalances,
   MiningStatus,
   NodeConfig,
-  ReadOptions,
-  StartOptions,
-  WriteOptions,
+  ReadOptions, ServerManagerFactory, StartOptions,
+  WriteOptions
 };
+

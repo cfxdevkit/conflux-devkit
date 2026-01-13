@@ -27,7 +27,7 @@
     "build": "tsup",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "test": "vitest",
+    "test": "vitest run --pass-with-no-tests",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
