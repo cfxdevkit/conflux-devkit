@@ -28,12 +28,13 @@ import { promises as fs } from 'node:fs';
 import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import { defaultNetworkSelector } from '@conflux-devkit/core/config';
-import type {
-    AccountInfo,
-    FaucetBalances,
-    MiningStatus,
-    ServerConfig,
-    ServerStatus,
+import {
+    NodeError,
+    type AccountInfo,
+    type FaucetBalances,
+    type MiningStatus,
+    type ServerConfig,
+    type ServerStatus,
 } from './types.js';
 
 // Port configuration
@@ -617,7 +618,7 @@ export class ServerManager {
           await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocksToMine });
           this.miningStatus = {
             ...this.miningStatus,
-            blocksMined: this.miningStatus.blocksMined + blocksToMine,
+            blocksMined: (this.miningStatus.blocksMined || 0) + blocksToMine,
           };
         }
       } catch (error) {
@@ -749,7 +750,7 @@ export class ServerManager {
       await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocks });
       this.miningStatus = {
         ...this.miningStatus,
-        blocksMined: this.miningStatus.blocksMined + blocks,
+        blocksMined: (this.miningStatus.blocksMined || 0) + blocks,
       };
       console.log(`Mined ${blocks} block(s)`);
     } catch (error) {

@@ -19,6 +19,13 @@
  * Re-exports types needed from @conflux-devkit/core
  */
 
+// Mining Configuration
+export interface MiningConfig {
+  enabled?: boolean;
+  interval?: number;
+  autoStart?: boolean;
+}
+
 // Node Configuration
 export interface NodeConfig {
   chainId?: number;
@@ -38,6 +45,10 @@ export interface ServerConfig extends NodeConfig {
   jsonrpcWsPort?: number;
   jsonrpcWsEthPort?: number;
   log?: boolean;
+  accounts?: number;
+  balance?: string;
+  mining?: MiningConfig;
+  devPackTxImmediately?: boolean;
 }
 
 // Start Options
@@ -50,7 +61,9 @@ export interface StartOptions {
 export interface MiningStatus {
   isRunning: boolean;
   interval?: number;
+  blocksMined?: number;
   blocksGenerated?: number;
+  startTime?: Date;
 }
 
 // Account Info
@@ -62,6 +75,9 @@ export interface AccountInfo {
   evmPrivateKey?: string;
   coreBalance?: string;
   evmBalance?: string;
+  path?: string;
+  evmPath?: string;
+  mnemonic?: string;
 }
 
 // Faucet Balances
