@@ -19,6 +19,8 @@
     ".": "./dist/index.js",
     "./server": "./dist/server/BackendServer.js",
     "./auth": "./dist/auth/AuthService.js",
+    "./services": "./dist/services/index.js",
+    "./plugins": "./dist/plugins/index.js",
     "./package.json": "./package.json"
   },
   "scripts": {
