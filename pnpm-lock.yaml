@@ -51,7 +51,7 @@ importers:
     dependencies:
       '@conflux-devkit/node':
         specifier: ^0.1.0
-        version: link:../node
+        version: 0.1.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       compression:
         specifier: ^1.8.1
         version: 1.8.1
@@ -223,37 +223,25 @@ importers:
 
   packages/node:
     dependencies:
-      '@xcfx/node':
-        specifier: ^0.6.0
-        version: 0.6.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@conflux-devkit/core':
+        specifier: workspace:*
+        version: link:../core
       bip32:
         specifier: ^4.0.0
         version: 4.0.0
       bip39:
         specifier: ^3.1.0
         version: 3.1.0
-      chalk:
-        specifier: ^5.6.2
-        version: 5.6.2
-      cive:
-        specifier: ^0.8.1
-        version: 0.8.1(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.2
-      ora:
-        specifier: ^9.0.0
-        version: 9.0.0
       tiny-secp256k1:
         specifier: ^2.2.4
         version: 2.2.4
-      viem:
-        specifier: ^2.43.3
-        version: 2.43.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.10
         version: 2.3.10
+      '@conflux-devkit/plugin-devnode':
+        specifier: workspace:*
+        version: link:../plugin-devnode
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -525,6 +513,9 @@ packages:
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
     engines: {node: '>=0.1.90'}
+
+  '@conflux-devkit/node@0.1.0':
+    resolution: {integrity: sha512-BVY2Ga+SLLdPKQ5dYmn6gFx8JXkisBrgiN4JfzRJqRnLWliYS8nVGTVKZzhmw98BBeLtNvXmuJmigI4GKzOfMA==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -5135,6 +5126,23 @@ snapshots:
       - zod
 
   '@colors/colors@1.6.0': {}
+
+  '@conflux-devkit/node@0.1.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)':
+    dependencies:
+      '@xcfx/node': 0.6.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      bip32: 4.0.0
+      bip39: 3.1.0
+      chalk: 5.6.2
+      cive: 0.8.1(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      commander: 14.0.2
+      ora: 9.0.0
+      tiny-secp256k1: 2.2.4
+      viem: 2.43.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
