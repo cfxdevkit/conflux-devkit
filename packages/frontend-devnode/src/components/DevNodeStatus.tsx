@@ -19,6 +19,16 @@ import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
+const formatGasPrice = (value?: string | number) => {
+  if (value === undefined || value === null) return '—';
+  try {
+    const big = BigInt(value);
+    return big.toLocaleString();
+  } catch (err) {
+    return String(value);
+  }
+};
+
 export function DevNodeStatus() {
   const { status, fetchStatus } = useDevNodeStore();
 
@@ -71,7 +81,7 @@ export function DevNodeStatus() {
                 Gas Price
               </Text>
               <Text size="sm" fw={500}>
-                {status.coreSpace.gasPrice || '—'}
+                {formatGasPrice(status.coreSpace.gasPrice)}
               </Text>
             </Group>
 
@@ -116,7 +126,7 @@ export function DevNodeStatus() {
                 Gas Price
               </Text>
               <Text size="sm" fw={500}>
-                {status.eSpace.gasPrice || '—'}
+                {formatGasPrice(status.eSpace.gasPrice)}
               </Text>
             </Group>
 

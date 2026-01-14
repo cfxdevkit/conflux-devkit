@@ -16,7 +16,7 @@
 
 import { apiClient } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 
 /**
@@ -28,12 +28,29 @@ export function useWalletAuth() {
   const { disconnect: disconnectWallet } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const { isConnected: authConnected, user, setUser, logout } = useAuthStore();
+  const authInProgress = useRef(false);
 
   // Define handleAuthentication with useCallback to prevent infinite loops
   const handleAuthentication = useCallback(async () => {
     if (!address) return;
 
+    // Avoid duplicate auth flows (e.g., React strict mode double-invoke)
+    if (authInProgress.current) return;
+    authInProgress.current = true;
+
     try {
+      // Reuse existing session if present to prevent extra signatures
+      const existingSession = localStorage.getItem('sessionId');
+      if (existingSession) {
+        setUser({
+          address,
+          chainId: chainId || 1,
+          isConnected: true,
+        });
+        authInProgress.current = false;
+        return;
+      }
+
       // 1) Request challenge from backend
       const challenge = await apiClient.createChallenge(address);
 
@@ -76,6 +93,7 @@ export function useWalletAuth() {
         chainId: chainId || 1,
         isConnected: true,
       });
+      authInProgress.current = false;
     } catch (error) {
       console.warn('Authentication failed:', error);
       setUser({
@@ -83,6 +101,7 @@ export function useWalletAuth() {
         chainId: chainId || 1,
         isConnected: true,
       });
+      authInProgress.current = false;
     }
   }, [address, chainId, setUser, signMessageAsync]);
 
