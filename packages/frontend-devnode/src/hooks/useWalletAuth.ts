@@ -53,6 +53,7 @@ export function useWalletAuth() {
           isConnected: true,
         });
         authInProgress.current = false;
+        authAttemptedAddress.current = null;
         return;
       }
 

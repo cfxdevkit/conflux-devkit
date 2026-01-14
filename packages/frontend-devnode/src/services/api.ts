@@ -43,11 +43,17 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('sessionId');
-          // Notify app that session expired so stores can logout
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        const status = error.response?.status;
+        const url: string | undefined = error.config?.url;
+
+        if (status === 401) {
+          const isAuthEndpoint = url?.includes('/auth/challenge') || url?.includes('/auth/verify');
+          // For auth endpoints, just surface the error without tearing down wallet state
+          if (!isAuthEndpoint) {
+            localStorage.removeItem('sessionId');
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('auth:session-expired'));
+            }
           }
         }
         return Promise.reject(error);
