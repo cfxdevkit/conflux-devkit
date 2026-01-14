@@ -44,19 +44,6 @@ export function useWalletAuth() {
     authInProgress.current = true;
 
     try {
-      // Reuse existing session if present to prevent extra signatures
-      const existingSession = localStorage.getItem('sessionId');
-      if (existingSession) {
-        setUser({
-          address,
-          chainId: chainId || 1,
-          isConnected: true,
-        });
-        authInProgress.current = false;
-        authAttemptedAddress.current = null;
-        return;
-      }
-
       // 1) Request challenge from backend
       const challenge = await apiClient.createChallenge(address);
 
@@ -135,26 +122,35 @@ export function useWalletAuth() {
   // Restore session on mount (if wallet reconnects and sessionId is present)
   useEffect(() => {
     const sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) return;
 
-    // Restore persisted auth even if wallet has not reconnected yet
-    if (sessionId && !authConnected && user?.address) {
-      setUser({
-        address: user.address,
-        chainId: user.chainId || chainId || 1,
-        isConnected: true,
-      });
-      return;
-    }
+    // Don't restore if already connected or auth is in progress
+    if (authConnected || authInProgress.current) return;
 
-    // When wallet reconnects and we have a session, sync the store
-    if (sessionId && !authConnected && walletConnected && address) {
-      setUser({
-        address,
-        chainId: chainId || 1,
-        isConnected: true,
-      });
-    }
-  }, [address, authConnected, chainId, setUser, walletConnected, user]);
+    // Validate session by trying to fetch status - if 401, session is invalid
+    const validateAndRestore = async () => {
+      try {
+        await apiClient.getDevKitStatus();
+        // Session is valid, restore auth state
+        const addr = address || user?.address;
+        if (addr) {
+          setUser({
+            address: addr,
+            chainId: chainId || user?.chainId || 1,
+            isConnected: true,
+          });
+        }
+      } catch (error: any) {
+        // Session invalid (401 or other error), clear it
+        if (error.response?.status === 401) {
+          console.log('[Auth] Clearing invalid session');
+          localStorage.removeItem('sessionId');
+        }
+      }
+    };
+
+    validateAndRestore();
+  }, [address, authConnected, chainId, setUser, user]);
 
   // Listen for backend-forced session expiry (401)
   useEffect(() => {
