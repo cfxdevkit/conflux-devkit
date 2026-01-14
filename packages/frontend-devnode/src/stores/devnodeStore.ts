@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { create } from 'zustand';
 import { apiClient } from '@/services/api';
 import type { DevNodeAccount, DevNodeStatus, FaucetRequest, MiningConfig } from '@/types/devnode';
+import { create } from 'zustand';
 
 interface DevNodeStore {
   status: DevNodeStatus | null;

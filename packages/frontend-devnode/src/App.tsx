@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-import { AppShell, Badge, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { IconBrandGithub } from '@tabler/icons-react';
-import { useEffect } from 'react';
 import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
@@ -24,10 +21,13 @@ import { DevNodeStatus } from '@/components/DevNodeStatus';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
+import { AppShell, Badge, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { IconBrandGithub } from '@tabler/icons-react';
+import { useEffect } from 'react';
 
 function App() {
   const { isAuthenticated } = useWalletAuth();
-  const { updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
+  const { status, updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -47,22 +47,24 @@ function App() {
     // Subscribe to nodeStats broadcasts from backend
     const unsubStats = wsClient.on('nodeStats', (data) => {
       console.log('[App] Received nodeStats:', data);
-      // Backend sends block numbers and status - update store directly
-      if (data.nodeRunning) {
+      // Backend sends block numbers and status - merge with existing data to preserve RPC URLs
+      if (data.nodeRunning && status) {
         updateStatus({
           isRunning: data.nodeRunning,
           coreSpace: {
+            ...status.coreSpace,
             blockNumber: parseInt(data.coreBlockNumber || '0', 10),
             gasPrice: data.gasPrice?.core || '0',
           },
           eSpace: {
+            ...status.eSpace,
             blockNumber: parseInt(data.evmBlockNumber || '0', 10),
             gasPrice: data.gasPrice?.evm || '0',
           },
           miningMode: data.miningStatus ? 'auto' : 'manual',
         });
-      } else {
-        // Node stopped, clear block numbers
+      } else if (!data.nodeRunning) {
+        // Node stopped, only update running state
         updateStatus({
           isRunning: false,
         });

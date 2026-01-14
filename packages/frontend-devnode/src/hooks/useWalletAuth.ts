@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect } from 'react';
-import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { apiClient } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
+import { useCallback, useEffect } from 'react';
+import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 
 /**
  * Hook to synchronize Wagmi wallet connection with auth store

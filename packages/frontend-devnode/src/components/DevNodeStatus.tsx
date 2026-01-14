@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { useDevNodeStore } from '@/stores/devnodeStore';
 import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
 import { useEffect } from 'react';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function DevNodeStatus() {
   const { status, fetchStatus } = useDevNodeStore();

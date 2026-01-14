@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import { useDevNodeStore } from '@/stores/devnodeStore';
 import { ActionIcon, Button, Card, CopyButton, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconCopy, IconDroplet } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function AccountsTable() {
   const { accounts, fetchAccounts, requestFaucet } = useDevNodeStore();

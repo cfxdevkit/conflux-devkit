@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import { useDevNodeStore } from '@/stores/devnodeStore';
 import { Badge, Button, Card, Group, NumberInput, Stack, Switch, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconPick, IconPlayerPlay, IconPlayerStop, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function DevNodeControlPanel() {
   const { status, isStarting, isStopping, isRestarting, isMining, startNode, stopNode, restartNode, setMiningMode, mineBlock } =
