@@ -202,8 +202,25 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   },
 
   updateStatus: (updates: Partial<DevNodeStatus>) => {
-    set((state) => ({
-      status: state.status ? { ...state.status, ...updates } : null,
-    }));
+    set((state) => {
+      if (!state.status) return state;
+
+      const mergedCore = updates.coreSpace
+        ? { ...state.status.coreSpace, ...updates.coreSpace }
+        : state.status.coreSpace;
+
+      const mergedESpace = updates.eSpace
+        ? { ...state.status.eSpace, ...updates.eSpace }
+        : state.status.eSpace;
+
+      return {
+        status: {
+          ...state.status,
+          ...updates,
+          coreSpace: mergedCore,
+          eSpace: mergedESpace,
+        },
+      };
+    });
   },
 }));

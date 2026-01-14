@@ -47,23 +47,21 @@ function App() {
     // Subscribe to nodeStats broadcasts from backend
     const unsubStats = wsClient.on('nodeStats', (data) => {
       console.log('[App] Received nodeStats:', data);
-      // Backend sends block numbers and status - merge with existing data to preserve RPC URLs
-      if (data.nodeRunning && status) {
+      // Backend sends block numbers and status - use store merge to preserve existing fields (RPC URLs)
+      if (data.nodeRunning) {
         updateStatus({
-          isRunning: data.nodeRunning,
+          isRunning: true,
           coreSpace: {
-            ...status.coreSpace,
             blockNumber: parseInt(data.coreBlockNumber || '0', 10),
-            gasPrice: data.gasPrice?.core || '0',
+            gasPrice: data.gasPrice?.core ?? '0',
           },
           eSpace: {
-            ...status.eSpace,
             blockNumber: parseInt(data.evmBlockNumber || '0', 10),
-            gasPrice: data.gasPrice?.evm || '0',
+            gasPrice: data.gasPrice?.evm ?? '0',
           },
           miningMode: data.miningStatus ? 'auto' : 'manual',
         });
-      } else if (!data.nodeRunning) {
+      } else {
         // Node stopped, only update running state
         updateStatus({
           isRunning: false,
