@@ -52,7 +52,6 @@
   "author": "Conflux DevKit Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@xcfx/node": "^0.6.0",
     "cive": "^0.8.1"
   }
 }

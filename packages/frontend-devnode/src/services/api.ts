@@ -112,8 +112,14 @@ class ApiClient {
     };
   }
 
-  async startNode() {
-    const response = await this.client.post('/devkit/node/start');
+  async startNode(config?: {
+    chainId?: number;
+    evmChainId?: number;
+    autoMining?: boolean;
+    miningInterval?: number;
+    persistence?: boolean;
+  }) {
+    const response = await this.client.post('/devkit/node/start', config);
     return response.data;
   }
 

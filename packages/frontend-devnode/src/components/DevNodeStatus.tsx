@@ -15,11 +15,9 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { Badge, Card, Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
 import { useEffect } from 'react';
-
-const GDRIP_DENOMINATOR = 1_000_000_000n;
 
 const formatGasPriceGDrip = (value?: string | number) => {
   if (value === undefined || value === null) return '—';

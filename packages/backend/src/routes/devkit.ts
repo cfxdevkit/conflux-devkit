@@ -653,6 +653,7 @@ export function createDevKitRoutes(
   });
 
   // Node info: client versions and network ids (core + eSpace)
+  // Get version information (public endpoint - no auth required)
   router.get('/node/info', async (_req: AuthenticatedRequest, res) => {
     try {
       const rpcUrls = devkit.getRpcUrls();
@@ -935,7 +936,29 @@ export function createDevKitRoutes(
         );
       }
 
-      await devkit.start();
+      // Get configuration from request body
+      const config = req.body || {};
+      const startOptions: any = {};
+
+      // Map configuration to start options
+      if (config.chainId !== undefined) {
+        startOptions.chainId = Number(config.chainId);
+      }
+      if (config.evmChainId !== undefined) {
+        startOptions.evmChainId = Number(config.evmChainId);
+      }
+      if (config.autoMining !== undefined) {
+        startOptions.devPackTxImmediately = config.autoMining;
+      }
+      if (config.miningInterval !== undefined) {
+        startOptions.devBlockIntervalMs = Number(config.miningInterval);
+      }
+      if (config.persistence !== undefined) {
+        startOptions.persistence = config.persistence;
+      }
+
+      logger.info('Starting node with config:', startOptions);
+      await devkit.start(startOptions);
 
       // Force immediate WebSocket status update
       if (wsServer) {

@@ -109,7 +109,7 @@ export function useWalletAuth() {
 
   // Handle wallet connection and authentication
   useEffect(() => {
-    if (!walletConnected || !address || status === 'connecting') {
+    if (!walletConnected || !address || status === 'reconnecting') {
       return;
     }
 

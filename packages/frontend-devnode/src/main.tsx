@@ -55,14 +55,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               embedGoogleFonts: true,
               disclaimer: undefined,
             }}
-            onError={(error) => {
-              // Suppress WalletConnect errors in development when no project ID is set
-              if (error?.message?.includes('Unauthorized') || error?.message?.includes('invalid key')) {
-                console.warn('WalletConnect not configured (expected in development)');
-                return;
-              }
-              console.error('ConnectKit error:', error);
-            }}
           >
             <App />
           </ConnectKitProvider>

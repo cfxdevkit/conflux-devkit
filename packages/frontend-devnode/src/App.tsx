@@ -18,6 +18,7 @@ import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
+import { NodeConfigPanel } from '@/components/NodeConfigPanel';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
@@ -55,12 +56,16 @@ function App() {
         updateStatus({
           isRunning: true,
           coreSpace: {
+            chainId: status?.coreSpace.chainId ?? 2029,
+            rpcUrl: status?.coreSpace.rpcUrl ?? '',
             blockNumber: parseInt(data.coreBlockNumber || '0', 10),
-            ...(coreGas !== undefined ? { gasPrice: coreGas } : {}),
+            gasPrice: coreGas ? String(coreGas) : (status?.coreSpace.gasPrice ?? '0'),
           },
           eSpace: {
+            chainId: status?.eSpace.chainId ?? 2030,
+            rpcUrl: status?.eSpace.rpcUrl ?? '',
             blockNumber: parseInt(data.evmBlockNumber || '0', 10),
-            ...(evmGas !== undefined ? { gasPrice: evmGas } : {}),
+            gasPrice: evmGas ? String(evmGas) : (status?.eSpace.gasPrice ?? '0'),
           },
           miningMode: data.miningStatus ? 'auto' : 'manual',
         });
@@ -121,6 +126,7 @@ function App() {
             {isAuthenticated && (
               <>
                 <DevNodeControlPanel />
+                <NodeConfigPanel />
                 <DevNodeStatus />
                 <AccountsTable />
               </>

@@ -15,12 +15,13 @@
  */
 
 import { apiClient } from '@/services/api';
-import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, MiningConfig } from '@/types/devnode';
+import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, MiningConfig, NodeConfig } from '@/types/devnode';
 import { create } from 'zustand';
 
 interface DevNodeStore {
   status: DevNodeStatus | null;
   nodeInfo: DevNodeInfo | null;
+  config: NodeConfig;
   accounts: DevNodeAccount[];
   isLoading: boolean; // Deprecated - use specific flags
   isStarting: boolean;
@@ -32,7 +33,9 @@ interface DevNodeStore {
   // Actions
   fetchStatus: () => Promise<void>;
   fetchNodeInfo: () => Promise<void>;
-  startNode: () => Promise<void>;
+  startNode: (config?: Partial<NodeConfig>) => Promise<void>;
+  setConfig: (config: Partial<NodeConfig>) => void;
+  resetConfig: () => void;
   stopNode: () => Promise<void>;
   restartNode: () => Promise<void>;
   setMiningMode: (config: MiningConfig) => Promise<void>;
@@ -45,6 +48,13 @@ interface DevNodeStore {
 export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   status: null,
   nodeInfo: null,
+  config: {
+    chainId: 2029,
+    evmChainId: 2030,
+    autoMining: true,
+    miningInterval: 1000,
+    persistence: false,
+  },
   accounts: [],
   isLoading: false,
   isStarting: false,
@@ -78,11 +88,13 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     }
   },
 
-  startNode: async () => {
+  startNode: async (configOverrides?: Partial<NodeConfig>) => {
     try {
       console.log('Starting node...');
       set({ isStarting: true, error: null });
-      const result = await apiClient.startNode();
+      
+      const finalConfig = { ...get().config, ...configOverrides };
+      const result = await apiClient.startNode(finalConfig);
       console.log('Start node result:', result);
 
       // Poll status until node is running (max 30 seconds)
@@ -195,7 +207,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
 
       // Fetch balances per account index and merge
       const accountsWithBalances = await Promise.all(
-        accounts.map(async (account) => {
+        accounts.map(async (account: DevNodeAccount) => {
           try {
             const balance = await apiClient.getAccountBalance(account.index);
             return {
@@ -239,6 +251,24 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
           eSpace: mergedESpace,
         },
       };
+    });
+  },
+
+  setConfig: (updates: Partial<NodeConfig>) => {
+    set((state) => ({
+      config: { ...state.config, ...updates },
+    }));
+  },
+
+  resetConfig: () => {
+    set({
+      config: {
+        chainId: 2029,
+        evmChainId: 2030,
+        autoMining: true,
+        miningInterval: 1000,
+        persistence: false,
+      },
     });
   },
 }));

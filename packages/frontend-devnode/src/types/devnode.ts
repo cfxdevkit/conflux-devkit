@@ -55,6 +55,14 @@ export interface DevNodeInfo {
   };
 }
 
+export interface NodeConfig {
+  chainId: number;
+  evmChainId: number;
+  autoMining: boolean;
+  miningInterval: number; // in milliseconds
+  persistence: boolean;
+}
+
 export interface DevNodeAccount {
   index: number;
   addresses: {
