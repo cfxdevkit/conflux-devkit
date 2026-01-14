@@ -652,6 +652,63 @@ export function createDevKitRoutes(
     }
   });
 
+  // Node info: client versions and network ids (core + eSpace)
+  router.get('/node/info', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const rpcUrls = devkit.getRpcUrls();
+      const config = devkit.getConfig();
+
+      const callRpc = async (url: string, method: string) => {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method, params: [], id: 1 }),
+        });
+        return response.json();
+      };
+
+      const [coreVersionResp, coreStatusResp, evmVersionResp, evmNetResp, evmChainIdResp] =
+        await Promise.all([
+          callRpc(rpcUrls.core, 'cfx_clientVersion').catch(() => null),
+          callRpc(rpcUrls.core, 'cfx_getStatus').catch(() => null),
+          callRpc(rpcUrls.evm, 'web3_clientVersion').catch(() => null),
+          callRpc(rpcUrls.evm, 'net_version').catch(() => null),
+          callRpc(rpcUrls.evm, 'eth_chainId').catch(() => null),
+        ]);
+
+      const parseHex = (hex?: string) => {
+        if (!hex) return undefined;
+        try {
+          return parseInt(hex, 16);
+        } catch (err) {
+          return undefined;
+        }
+      };
+
+      const coreNetworkId = coreStatusResp?.result?.networkId;
+      const coreChainId = coreStatusResp?.result?.chainId ?? config.chainId;
+
+      const evmNetworkId = evmNetResp?.result ? Number(evmNetResp.result) : undefined;
+      const evmChainId = parseHex(evmChainIdResp?.result) ?? config.evmChainId;
+
+      res.json({
+        core: {
+          clientVersion: coreVersionResp?.result,
+          chainId: coreChainId,
+          networkId: coreNetworkId,
+        },
+        eSpace: {
+          clientVersion: evmVersionResp?.result,
+          chainId: evmChainId,
+          networkId: evmNetworkId,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to fetch node info:', error);
+      res.status(500).json({ error: 'Failed to fetch node info' });
+    }
+  });
+
   // Read contract function
   router.post('/contracts/read', async (req: AuthenticatedRequest, res) => {
     try {
