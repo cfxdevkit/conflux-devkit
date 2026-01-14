@@ -96,8 +96,8 @@ export function createDevKitRoutes(
           running: false,
           mining: { isRunning: false, interval: 0, blocksMined: 0 },
           chains: {
-            core: { connected: false, status: 'stopped' },
-            evm: { connected: false, status: 'stopped' },
+            core: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.chainId || 0 },
+            evm: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.evmChainId || 0 },
           },
           accounts: 0,
           timestamp: new Date().toISOString(),
@@ -111,11 +111,122 @@ export function createDevKitRoutes(
         chainStatus.evm.status === 'running';
       const nodeStatus = chainStatus.core.status; // Use core status as main indicator
 
+      // Fetch real-time block data if node is running
+      let coreBlockData = { blockNumber: 0, gasPrice: '0' };
+      let evmBlockData = { blockNumber: 0, gasPrice: '0' };
+
+      if (isRunning && accounts.length > 0) {
+        try {
+          logger.info('Fetching block data from RPC endpoints...', {
+            coreUrl: rpcUrls.core,
+            evmUrl: rpcUrls.evm,
+          });
+
+          // Use direct RPC calls for better reliability
+          // Get Core Space block data
+          try {
+            const coreResponses = await Promise.all([
+              fetch(rpcUrls.core, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  method: 'cfx_epochNumber',
+                  params: [],
+                  id: 1,
+                }),
+              }),
+              fetch(rpcUrls.core, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  method: 'cfx_gasPrice',
+                  params: [],
+                  id: 2,
+                }),
+              }),
+            ]);
+
+            const [epochData, gasPriceData] = await Promise.all([
+              coreResponses[0].json(),
+              coreResponses[1].json(),
+            ]);
+
+            if (epochData.result && gasPriceData.result) {
+              coreBlockData = {
+                blockNumber: parseInt(epochData.result, 16),
+                gasPrice: BigInt(gasPriceData.result).toString(),
+              };
+              logger.info('Core Space block data fetched:', coreBlockData);
+            }
+          } catch (error) {
+            logger.error('Failed to fetch Core Space block data:', error);
+          }
+
+          // Get eSpace block data
+          try {
+            const evmResponses = await Promise.all([
+              fetch(rpcUrls.evm, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  method: 'eth_blockNumber',
+                  params: [],
+                  id: 1,
+                }),
+              }),
+              fetch(rpcUrls.evm, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  method: 'eth_gasPrice',
+                  params: [],
+                  id: 2,
+                }),
+              }),
+            ]);
+
+            const [blockData, gasData] = await Promise.all([
+              evmResponses[0].json(),
+              evmResponses[1].json(),
+            ]);
+
+            if (blockData.result && gasData.result) {
+              evmBlockData = {
+                blockNumber: parseInt(blockData.result, 16),
+                gasPrice: BigInt(gasData.result).toString(),
+              };
+              logger.info('eSpace block data fetched:', evmBlockData);
+            }
+          } catch (error) {
+            logger.error('Failed to fetch eSpace block data:', error);
+          }
+        } catch (error) {
+          logger.error('Failed to fetch block data:', error);
+        }
+      }
+
       res.json({
         status: nodeStatus,
         running: isRunning,
         mining: miningStatus,
-        chains: chainStatus,
+        chains: {
+          core: {
+            ...chainStatus.core,
+            blockNumber: coreBlockData.blockNumber,
+            gasPrice: coreBlockData.gasPrice,
+            chainId: config.chainId,
+          },
+          evm: {
+            ...chainStatus.evm,
+            blockNumber: evmBlockData.blockNumber,
+            gasPrice: evmBlockData.gasPrice,
+            chainId: config.evmChainId,
+          },
+        },
         accounts: accounts.length,
         rpcUrls: rpcUrls,
         timestamp: new Date().toISOString(),
@@ -457,6 +568,49 @@ export function createDevKitRoutes(
       }
     }
   );
+
+  // Faucet: fund any address on Core or eSpace
+  router.post('/faucet', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { address, amount, chain = 'auto' } = req.body;
+
+      if (!address || !amount) {
+        return res.status(400).json({ error: 'Address and amount are required' });
+      }
+
+      // Auto-detect chain if not explicitly provided
+      const detectChainFromAddress = (addr: string): 'core' | 'evm' | null => {
+        if (addr.toLowerCase().startsWith('0x')) return 'evm';
+        if (addr.toLowerCase().startsWith('cfx')) return 'core';
+        return null;
+      };
+
+      const normalizedChainRaw = chain === 'eSpace' ? 'evm' : chain;
+      const normalizedChain =
+        normalizedChainRaw === 'auto'
+          ? detectChainFromAddress(address) || 'core'
+          : normalizedChainRaw;
+
+      if (normalizedChain !== 'core' && normalizedChain !== 'evm') {
+        return res.status(400).json({ error: 'Invalid chain. Use core or eSpace.' });
+      }
+
+      const txHash = await devkit.fundAccount(address, amount, normalizedChain);
+
+      res.json({
+        transactionHash: txHash,
+        chain: normalizedChain === 'evm' ? 'eSpace' : 'core',
+        address,
+        amount,
+      });
+    } catch (error) {
+      logger.error('Faucet funding failed:', error);
+      res.status(500).json({
+        error: 'Faucet funding failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
 
   // Deploy contract endpoint
   router.post('/deploy', async (req: AuthenticatedRequest, res) => {

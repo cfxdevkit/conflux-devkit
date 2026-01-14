@@ -1,0 +1,72 @@
+{
+  "name": "@conflux-devkit/frontend-devnode",
+  "version": "1.0.0",
+  "description": "Modern React frontend for Conflux DevKit - Auth and DevNode management with Mantine UI",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/"
+  },
+  "dependencies": {
+    "@conflux-devkit/core": "workspace:*",
+    "@conflux-devkit/ui-headless": "workspace:*",
+    "@mantine/core": "^7.15.5",
+    "@mantine/hooks": "^7.15.5",
+    "@mantine/notifications": "^7.15.5",
+    "@mantine/form": "^7.15.5",
+    "@tabler/icons-react": "^3.29.0",
+    "@tanstack/react-query": "^5.90.12",
+    "axios": "^1.13.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.1",
+    "zustand": "^5.0.3",
+    "connectkit": "^1.8.2",
+    "wagmi": "^2.12.20",
+    "viem": "^2.43.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "postcss": "^8.4.49",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  },
+  "keywords": [
+    "conflux",
+    "devkit",
+    "frontend",
+    "react",
+    "mantine",
+    "vite",
+    "devnode",
+    "authentication",
+    "blockchain",
+    "web3"
+  ],
+  "author": "Conflux DevKit Team",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.11.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conflux-devkit/conflux-devkit.git",
+    "directory": "packages/frontend-devnode"
+  },
+  "homepage": "https://github.com/conflux-devkit/conflux-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/conflux-devkit/conflux-devkit/issues"
+  }
+}
