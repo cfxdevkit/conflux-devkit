@@ -42,6 +42,19 @@ export interface DevNodeStatus {
   accounts: DevNodeAccount[];
 }
 
+export interface DevNodeInfo {
+  core: {
+    clientVersion?: string;
+    chainId?: number;
+    networkId?: number;
+  };
+  eSpace: {
+    clientVersion?: string;
+    chainId?: number;
+    networkId?: number;
+  };
+}
+
 export interface DevNodeAccount {
   index: number;
   addresses: {

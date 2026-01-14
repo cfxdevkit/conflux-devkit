@@ -158,6 +158,11 @@ class ApiClient {
     return response.data;
   }
 
+  async getNodeInfo() {
+    const response = await this.client.get('/devkit/node/info');
+    return response.data;
+  }
+
   async requestFaucet(address: string, amount: string, chain?: 'core' | 'eSpace' | 'auto') {
     const response = await this.client.post('/devkit/faucet', {
       address,

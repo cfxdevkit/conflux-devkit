@@ -15,7 +15,7 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Badge, Card, Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
@@ -39,7 +39,7 @@ const formatGasPriceGDrip = (value?: string | number) => {
 };
 
 export function DevNodeStatus() {
-  const { status, fetchStatus } = useDevNodeStore();
+  const { status, nodeInfo, fetchStatus } = useDevNodeStore();
 
   useEffect(() => {
     fetchStatus();
@@ -75,6 +75,15 @@ export function DevNodeStatus() {
             </Badge>
           </Group>
 
+          {nodeInfo?.core?.clientVersion && (
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Client Version
+              </Text>
+              <Text size="sm" fw={500}>{nodeInfo.core.clientVersion}</Text>
+            </Group>
+          )}
+
           <Stack gap="xs">
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
@@ -93,6 +102,15 @@ export function DevNodeStatus() {
                 {formatGasPriceGDrip(status.coreSpace.gasPrice)}
               </Text>
             </Group>
+
+            {nodeInfo?.core?.networkId !== undefined && (
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">
+                  Network ID
+                </Text>
+                <Text size="sm" fw={500}>{nodeInfo.core.networkId}</Text>
+              </Group>
+            )}
 
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
@@ -120,6 +138,15 @@ export function DevNodeStatus() {
             </Badge>
           </Group>
 
+          {nodeInfo?.eSpace?.clientVersion && (
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Client Version
+              </Text>
+              <Text size="sm" fw={500}>{nodeInfo.eSpace.clientVersion}</Text>
+            </Group>
+          )}
+
           <Stack gap="xs">
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
@@ -138,6 +165,15 @@ export function DevNodeStatus() {
                 {formatGasPriceGDrip(status.eSpace.gasPrice)}
               </Text>
             </Group>
+
+            {nodeInfo?.eSpace?.networkId !== undefined && (
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">
+                  Network ID
+                </Text>
+                <Text size="sm" fw={500}>{nodeInfo.eSpace.networkId}</Text>
+              </Group>
+            )}
 
             <Group justify="space-between">
               <Text size="sm" c="dimmed">

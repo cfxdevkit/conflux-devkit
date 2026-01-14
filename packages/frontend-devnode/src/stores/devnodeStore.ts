@@ -15,11 +15,12 @@
  */
 
 import { apiClient } from '@/services/api';
-import type { DevNodeAccount, DevNodeStatus, FaucetRequest, MiningConfig } from '@/types/devnode';
+import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, MiningConfig } from '@/types/devnode';
 import { create } from 'zustand';
 
 interface DevNodeStore {
   status: DevNodeStatus | null;
+  nodeInfo: DevNodeInfo | null;
   accounts: DevNodeAccount[];
   isLoading: boolean; // Deprecated - use specific flags
   isStarting: boolean;
@@ -30,6 +31,7 @@ interface DevNodeStore {
 
   // Actions
   fetchStatus: () => Promise<void>;
+  fetchNodeInfo: () => Promise<void>;
   startNode: () => Promise<void>;
   stopNode: () => Promise<void>;
   restartNode: () => Promise<void>;
@@ -42,6 +44,7 @@ interface DevNodeStore {
 
 export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   status: null,
+  nodeInfo: null,
   accounts: [],
   isLoading: false,
   isStarting: false,
@@ -55,10 +58,23 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       set({ error: null });
       const status = await apiClient.getDevKitStatus();
       set({ status });
+      if (status.isRunning && !get().nodeInfo) {
+        await get().fetchNodeInfo();
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch node status';
       console.error('Failed to fetch status:', error);
       set({ error: errorMessage });
+    }
+  },
+
+  fetchNodeInfo: async () => {
+    try {
+      set({ error: null });
+      const info = await apiClient.getNodeInfo();
+      set({ nodeInfo: info });
+    } catch (error: any) {
+      console.error('Failed to fetch node info:', error);
     }
   },
 
@@ -82,6 +98,8 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
         if (status.isRunning) {
           nodeStarted = true;
           set({ status, isStarting: false });
+          // Fetch static node info once the node is confirmed running
+          await get().fetchNodeInfo();
           console.log('Node started successfully after', attempts + 1, 'seconds');
         }
 
