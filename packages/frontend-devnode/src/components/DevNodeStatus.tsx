@@ -19,11 +19,20 @@ import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
-const formatGasPrice = (value?: string | number) => {
+const GDRIP_DENOMINATOR = 1_000_000_000n;
+
+const formatGasPriceGDrip = (value?: string | number) => {
   if (value === undefined || value === null) return '—';
   try {
     const big = BigInt(value);
-    return big.toLocaleString();
+    const gdrip = Number(big) / 1e9;
+    if (Number.isNaN(gdrip)) return `${big.toString()} drip`;
+
+    const formatted = gdrip % 1 === 0
+      ? gdrip.toFixed(0)
+      : gdrip.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+
+    return `${formatted} GDrip`;
   } catch (err) {
     return String(value);
   }
@@ -81,7 +90,7 @@ export function DevNodeStatus() {
                 Gas Price
               </Text>
               <Text size="sm" fw={500}>
-                {formatGasPrice(status.coreSpace.gasPrice)}
+                {formatGasPriceGDrip(status.coreSpace.gasPrice)}
               </Text>
             </Group>
 
@@ -126,7 +135,7 @@ export function DevNodeStatus() {
                 Gas Price
               </Text>
               <Text size="sm" fw={500}>
-                {formatGasPrice(status.eSpace.gasPrice)}
+                {formatGasPriceGDrip(status.eSpace.gasPrice)}
               </Text>
             </Group>
 
