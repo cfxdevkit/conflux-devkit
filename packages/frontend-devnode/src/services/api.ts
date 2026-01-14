@@ -45,6 +45,10 @@ class ApiClient {
       (error) => {
         if (error.response?.status === 401) {
           localStorage.removeItem('sessionId');
+          // Notify app that session expired so stores can logout
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('auth:session-expired'));
+          }
         }
         return Promise.reject(error);
       }

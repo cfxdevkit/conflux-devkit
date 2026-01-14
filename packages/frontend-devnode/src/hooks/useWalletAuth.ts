@@ -29,10 +29,15 @@ export function useWalletAuth() {
   const { signMessageAsync } = useSignMessage();
   const { isConnected: authConnected, user, setUser, logout } = useAuthStore();
   const authInProgress = useRef(false);
+  const authAttemptedAddress = useRef<string | null>(null);
 
   // Define handleAuthentication with useCallback to prevent infinite loops
   const handleAuthentication = useCallback(async () => {
     if (!address) return;
+
+    // Deduplicate per address to avoid double signing on re-renders
+    if (authAttemptedAddress.current === address) return;
+    authAttemptedAddress.current = address;
 
     // Avoid duplicate auth flows (e.g., React strict mode double-invoke)
     if (authInProgress.current) return;
@@ -94,6 +99,7 @@ export function useWalletAuth() {
         isConnected: true,
       });
       authInProgress.current = false;
+      authAttemptedAddress.current = null;
     } catch (error) {
       console.warn('Authentication failed:', error);
       setUser({
@@ -102,6 +108,7 @@ export function useWalletAuth() {
         isConnected: true,
       });
       authInProgress.current = false;
+      authAttemptedAddress.current = null;
     }
   }, [address, chainId, setUser, signMessageAsync]);
 
@@ -149,6 +156,21 @@ export function useWalletAuth() {
       });
     }
   }, [address, authConnected, chainId, setUser, walletConnected, user]);
+
+  // Listen for backend-forced session expiry (401)
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      authAttemptedAddress.current = null;
+      authInProgress.current = false;
+      logout();
+      disconnectWallet();
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('auth:session-expired', handleSessionExpired);
+    };
+  }, [logout, disconnectWallet]);
 
   // Custom logout that also disconnects wallet
   const handleLogout = () => {
