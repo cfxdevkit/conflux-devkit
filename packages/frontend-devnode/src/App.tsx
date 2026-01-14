@@ -49,15 +49,18 @@ function App() {
       console.log('[App] Received nodeStats:', data);
       // Backend sends block numbers and status - use store merge to preserve existing fields (RPC URLs)
       if (data.nodeRunning) {
+        const coreGas = data.gasPrice?.core;
+        const evmGas = data.gasPrice?.evm;
+
         updateStatus({
           isRunning: true,
           coreSpace: {
             blockNumber: parseInt(data.coreBlockNumber || '0', 10),
-            gasPrice: data.gasPrice?.core ?? '0',
+            ...(coreGas !== undefined ? { gasPrice: coreGas } : {}),
           },
           eSpace: {
             blockNumber: parseInt(data.evmBlockNumber || '0', 10),
-            gasPrice: data.gasPrice?.evm ?? '0',
+            ...(evmGas !== undefined ? { gasPrice: evmGas } : {}),
           },
           miningMode: data.miningStatus ? 'auto' : 'manual',
         });
