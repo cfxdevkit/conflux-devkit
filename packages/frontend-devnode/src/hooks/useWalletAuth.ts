@@ -103,13 +103,11 @@ export function useWalletAuth() {
       authAttemptedAddress.current = null;
     } catch (error) {
       console.warn('Authentication failed:', error);
-      setUser({
-        address,
-        chainId: chainId || 1,
-        isConnected: true,
-      });
+      // Don't set user as authenticated on signature failure
       authInProgress.current = false;
       authAttemptedAddress.current = null;
+      // Clear any stale session
+      localStorage.removeItem('sessionId');
     }
   }, [address, chainId, setUser, signMessageAsync]);
 
@@ -124,15 +122,15 @@ export function useWalletAuth() {
 
   // Handle wallet connection and authentication
   useEffect(() => {
-    if (!walletConnected || !address) {
+    if (!walletConnected || !address || status === 'connecting') {
       return;
     }
 
-    // Wallet connected but not authenticated
-    if (address && !authConnected) {
+    // Wallet connected but not authenticated and not in progress
+    if (address && !authConnected && !authInProgress.current) {
       handleAuthentication();
     }
-  }, [walletConnected, address, authConnected, handleAuthentication]);
+  }, [walletConnected, address, authConnected, status, handleAuthentication]);
 
   // Restore session on mount (if wallet reconnects and sessionId is present)
   useEffect(() => {
@@ -161,17 +159,18 @@ export function useWalletAuth() {
   // Listen for backend-forced session expiry (401)
   useEffect(() => {
     const handleSessionExpired = () => {
+      console.log('[Auth] Session expired, logging out');
       authAttemptedAddress.current = null;
       authInProgress.current = false;
       logout();
-      disconnectWallet();
+      // Don't auto-disconnect wallet - let user manually disconnect
     };
 
     window.addEventListener('auth:session-expired', handleSessionExpired);
     return () => {
       window.removeEventListener('auth:session-expired', handleSessionExpired);
     };
-  }, [logout, disconnectWallet]);
+  }, [logout]);
 
   // Custom logout that also disconnects wallet
   const handleLogout = () => {

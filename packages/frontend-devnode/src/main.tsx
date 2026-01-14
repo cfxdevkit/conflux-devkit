@@ -77,14 +77,16 @@ if (import.meta.env.DEV) {
   const originalError = console.error;
   console.error = (...args: any[]) => {
     const message = args.join(' ');
-    // Only suppress if it's specifically a WalletConnect relayer error
+    // Suppress WalletConnect errors and expected 401s during auth flow
     if (
       typeof message === 'string' &&
       (message.includes('core/relayer') ||
         message.includes('code: 3000') ||
-        (message.includes('Unauthorized') && message.includes('invalid key')))
+        (message.includes('Unauthorized') && message.includes('invalid key')) ||
+        message.includes('Failed to fetch status') ||
+        message.includes('401'))
     ) {
-      return; // Silently ignore WalletConnect errors only
+      return; // Silently ignore
     }
     originalError(...args);
   };
