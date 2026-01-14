@@ -21,7 +21,11 @@ import type { DevNodeAccount, DevNodeStatus, FaucetRequest, MiningConfig } from 
 interface DevNodeStore {
   status: DevNodeStatus | null;
   accounts: DevNodeAccount[];
-  isLoading: boolean;
+  isLoading: boolean; // Deprecated - use specific flags
+  isStarting: boolean;
+  isStopping: boolean;
+  isRestarting: boolean;
+  isMining: boolean;
   error: string | null;
 
   // Actions
@@ -40,25 +44,28 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   status: null,
   accounts: [],
   isLoading: false,
+  isStarting: false,
+  isStopping: false,
+  isRestarting: false,
+  isMining: false,
   error: null,
 
   fetchStatus: async () => {
     try {
-      set({ isLoading: true, error: null });
+      set({ error: null });
       const status = await apiClient.getDevKitStatus();
-      console.log('Transformed status:', status);
-      set({ status, isLoading: false });
+      set({ status });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch node status';
       console.error('Failed to fetch status:', error);
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage });
     }
   },
 
   startNode: async () => {
     try {
       console.log('Starting node...');
-      set({ isLoading: true, error: null });
+      set({ isStarting: true, error: null });
       const result = await apiClient.startNode();
       console.log('Start node result:', result);
 
@@ -74,7 +81,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
 
         if (status.isRunning) {
           nodeStarted = true;
-          set({ status, isLoading: false });
+          set({ status, isStarting: false });
           console.log('Node started successfully after', attempts + 1, 'seconds');
         }
 
@@ -84,88 +91,88 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       if (!nodeStarted) {
         // Timeout - fetch final status
         await get().fetchStatus();
-        set({ isLoading: false });
+        set({ isStarting: false });
         console.warn('Node start timeout after 30 seconds');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to start node';
       console.error('Failed to start node:', error);
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isStarting: false });
       throw error;
     }
   },
 
   stopNode: async () => {
     try {
-      set({ isLoading: true, error: null });
+      set({ isStopping: true, error: null });
       await apiClient.stopNode();
       set({
         status: null,
         accounts: [],
-        isLoading: false,
+        isStopping: false,
       });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to stop node';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isStopping: false });
       throw error;
     }
   },
 
   restartNode: async () => {
     try {
-      set({ isLoading: true, error: null });
+      set({ isRestarting: true, error: null });
       await apiClient.restartNode();
       await get().fetchStatus();
-      set({ isLoading: false });
+      set({ isRestarting: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to restart node';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isRestarting: false });
       throw error;
     }
   },
 
   setMiningMode: async (config: MiningConfig) => {
     try {
-      set({ isLoading: true, error: null });
+      set({ isMining: true, error: null });
       await apiClient.setMiningMode(config.autoMining ? 'auto' : 'manual', config.blockTime);
       await get().fetchStatus();
-      set({ isLoading: false });
+      set({ isMining: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to set mining mode';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isMining: false });
       throw error;
     }
   },
 
   mineBlock: async () => {
     try {
-      set({ isLoading: true, error: null });
+      set({ isMining: true, error: null });
       await apiClient.mineBlock();
       await get().fetchStatus();
-      set({ isLoading: false });
+      set({ isMining: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to mine block';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isMining: false });
       throw error;
     }
   },
 
   requestFaucet: async (request: FaucetRequest) => {
     try {
-      set({ isLoading: true, error: null });
+      // Note: Per-address loading state is managed in AccountsTable component
+      set({ error: null });
       await apiClient.requestFaucet(request.address, request.amount, request.chain);
       await get().fetchAccounts();
-      set({ isLoading: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Faucet request failed';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage });
       throw error;
     }
   },
 
   fetchAccounts: async () => {
     try {
-      set({ isLoading: true, error: null });
+      set({ error: null });
       const accounts = await apiClient.getAccounts();
 
       // Fetch balances per account index and merge
@@ -187,10 +194,10 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
         })
       );
 
-      set({ accounts: accountsWithBalances, isLoading: false });
+      set({ accounts: accountsWithBalances });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch accounts';
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage });
     }
   },
 

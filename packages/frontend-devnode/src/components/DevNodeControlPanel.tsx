@@ -21,7 +21,7 @@ import { useState } from 'react';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function DevNodeControlPanel() {
-  const { status, isLoading, startNode, stopNode, restartNode, setMiningMode, mineBlock } =
+  const { status, isStarting, isStopping, isRestarting, isMining, startNode, stopNode, restartNode, setMiningMode, mineBlock } =
     useDevNodeStore();
 
   const [autoMining, setAutoMining] = useState(status?.miningMode === 'auto');
@@ -132,7 +132,7 @@ export function DevNodeControlPanel() {
           <Button
             leftSection={<IconPlayerPlay size={16} />}
             onClick={handleStart}
-            loading={isLoading}
+            loading={isStarting}
             disabled={isRunning}
             color="green"
           >
@@ -141,7 +141,7 @@ export function DevNodeControlPanel() {
           <Button
             leftSection={<IconPlayerStop size={16} />}
             onClick={handleStop}
-            loading={isLoading}
+            loading={isStopping}
             disabled={!isRunning}
             color="red"
           >
@@ -150,7 +150,7 @@ export function DevNodeControlPanel() {
           <Button
             leftSection={<IconRefresh size={16} />}
             onClick={handleRestart}
-            loading={isLoading}
+            loading={isRestarting}
             disabled={!isRunning}
             color="blue"
           >
@@ -187,7 +187,7 @@ export function DevNodeControlPanel() {
                 <Button
                   leftSection={<IconPick size={16} />}
                   onClick={handleMineBlock}
-                  loading={isLoading}
+                  loading={isMining}
                   size="sm"
                   variant="light"
                 >

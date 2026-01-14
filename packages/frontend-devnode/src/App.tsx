@@ -37,10 +37,16 @@ function App() {
     fetchAccounts();
 
     // Connect to WebSocket for real-time updates
-    wsClient.connect();
+    console.log('[App] Connecting to WebSocket...');
+    wsClient.connect().then(() => {
+      console.log('[App] WebSocket connected successfully');
+    }).catch((err) => {
+      console.error('[App] WebSocket connection failed:', err);
+    });
 
     // Subscribe to nodeStats broadcasts from backend
     const unsubStats = wsClient.on('nodeStats', (data) => {
+      console.log('[App] Received nodeStats:', data);
       // Backend sends block numbers and status - update store directly
       if (data.nodeRunning) {
         updateStatus({
