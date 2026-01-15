@@ -488,14 +488,20 @@ export function DevNodeControlPanel() {
                 </Alert>
               )}
               
-              {/* Mining Mode Selector */}
-              <Card withBorder padding="sm" bg="gray.0">
+              {/* Unified Mining Control Card */}
+              <Card withBorder padding="sm" bg={isAutoMining ? "blue.0" : "gray.0"}>
                 <Stack gap="sm">
+                  {/* Mining Mode Toggle */}
                   <Group justify="space-between">
                     <div>
-                      <Text size="sm" fw={500}>Mining Mode</Text>
+                      <Text size="sm" fw={500}>
+                        {isAutoMining ? 'Auto Mining' : 'Manual Mining'}
+                      </Text>
                       <Text size="xs" c="dimmed">
-                        Choose automatic or manual block mining
+                        {isAutoMining 
+                          ? 'Automatically mine blocks at regular intervals'
+                          : 'Mine blocks on demand'
+                        }
                       </Text>
                     </div>
                     <Switch
@@ -507,93 +513,86 @@ export function DevNodeControlPanel() {
                       label={isAutoMining ? 'Auto' : 'Manual'}
                     />
                   </Group>
+
+                  {/* Mode-specific controls */}
+                  {isAutoMining ? (
+                    <>
+                      {/* Auto-Mining Configuration */}
+                      <Group gap="xs" align="flex-end">
+                        <NumberInput
+                          label="Interval (ms)"
+                          description="Time between auto-mined blocks"
+                          value={autoMineInterval}
+                          onChange={(val) => setAutoMineInterval(Number(val) || 500)}
+                          min={100}
+                          max={10000}
+                          step={100}
+                          size="xs"
+                          style={{ flex: 1 }}
+                          disabled={!isAdmin}
+                        />
+                        <Button
+                          size="xs"
+                          variant="light"
+                          onClick={handleSetInterval}
+                          loading={isSettingInterval}
+                          color={autoMineInterval !== currentInterval ? 'blue' : 'gray'}
+                          disabled={!isAdmin}
+                        >
+                          {autoMineInterval !== currentInterval ? 'Update' : 'Apply'}
+                        </Button>
+                      </Group>
+                      <Text size="xs" c="blue">
+                        ✓ Mining blocks every {currentInterval}ms
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      {/* Manual Mining Configuration */}
+                      <Group justify="space-between" align="flex-end">
+                        <NumberInput
+                          label="Blocks to mine"
+                          value={blocksToMine}
+                          onChange={(val) => setBlocksToMine(Number(val) || 1)}
+                          min={1}
+                          max={100}
+                          size="xs"
+                          style={{ flex: 1 }}
+                          disabled={!isAdmin}
+                        />
+                        <SegmentedControl
+                          size="xs"
+                          value={miningMode}
+                          onChange={(val) => setMiningMode(val as 'empty' | 'withTxs')}
+                          data={[
+                            { label: 'Empty', value: 'empty' },
+                            { label: 'Pack Txs', value: 'withTxs' },
+                          ]}
+                          disabled={!isAdmin}
+                        />
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {miningMode === 'empty' 
+                          ? 'Mine empty blocks (advances block height only)'
+                          : 'Mine blocks that pack pending transactions from txpool'
+                        }
+                      </Text>
+                      <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+                        <Button
+                          leftSection={<IconPick size={16} />}
+                          onClick={handleMineBlocks}
+                          loading={isMining}
+                          variant="light"
+                          fullWidth
+                          disabled={!isAdmin}
+                        >
+                          Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
+                        </Button>
+                      </Tooltip>
+                    </>
+                  )}
                 </Stack>
               </Card>
-              
-              {/* Auto-Mining Configuration */}
-              {isAutoMining && (
-                <Card withBorder padding="sm" bg="blue.0">
-                  <Stack gap="sm">
-                    <Text size="sm" fw={500} c="blue">Auto Mining Active</Text>
-                    <Group gap="xs" align="flex-end">
-                      <NumberInput
-                        label="Interval (ms)"
-                        description="Time between auto-mined blocks"
-                        value={autoMineInterval}
-                        onChange={(val) => setAutoMineInterval(Number(val) || 500)}
-                        min={100}
-                        max={10000}
-                        step={100}
-                        size="xs"
-                        style={{ flex: 1 }}
-                        disabled={!isAdmin}
-                      />
-                      <Button
-                        size="xs"
-                        variant="light"
-                        onClick={handleSetInterval}
-                        loading={isSettingInterval}
-                        color={autoMineInterval !== currentInterval ? 'blue' : 'gray'}
-                        disabled={!isAdmin}
-                      >
-                        {autoMineInterval !== currentInterval ? 'Update' : 'Apply'}
-                      </Button>
-                    </Group>
-                    <Text size="xs" c="blue">
-                      ✓ Mining blocks every {currentInterval}ms
-                    </Text>
-                  </Stack>
-                </Card>
-              )}
-
-              {/* Manual Mining - Only when auto-mining is disabled */}
-              {!isAutoMining && (
-                <Card withBorder padding="sm" bg="gray.0">
-                  <Stack gap="sm">
-                    <Text size="sm" fw={500}>Mine Blocks Manually</Text>
-                    <Group justify="space-between" align="flex-end">
-                      <NumberInput
-                        label="Blocks to mine"
-                        value={blocksToMine}
-                        onChange={(val) => setBlocksToMine(Number(val) || 1)}
-                        min={1}
-                        max={100}
-                        size="xs"
-                        style={{ flex: 1 }}
-                        disabled={!isAdmin}
-                      />
-                      <SegmentedControl
-                        size="xs"
-                        value={miningMode}
-                        onChange={(val) => setMiningMode(val as 'empty' | 'withTxs')}
-                        data={[
-                          { label: 'Empty', value: 'empty' },
-                          { label: 'Pack Txs', value: 'withTxs' },
-                        ]}
-                        disabled={!isAdmin}
-                      />
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {miningMode === 'empty' 
-                        ? 'Mine empty blocks (advances block height only)'
-                        : 'Mine blocks that pack pending transactions from txpool'
-                      }
-                    </Text>
-                    <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
-                      <Button
-                        leftSection={<IconPick size={16} />}
-                        onClick={handleMineBlocks}
-                        loading={isMining}
-                        variant="light"
-                        fullWidth
-                        disabled={!isAdmin}
-                      >
-                        Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
-                      </Button>
-                    </Tooltip>
-                  </Stack>
-                </Card>
-              )}
             </>
           )}
         </Stack>
