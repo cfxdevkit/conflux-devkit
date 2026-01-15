@@ -1210,6 +1210,37 @@ export function createDevKitRoutes(
     }
   });
 
+  // Clear blockchain data without restarting
+  router.post('/node/clear-data', async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.wallet?.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      // Check if node is running
+      const status = await devkit.getStatus();
+      if (status.core.status === 'running') {
+        return res.status(400).json({
+          error: 'Cannot clear data while node is running',
+          message: 'Please stop the node first',
+        });
+      }
+
+      logger.info('Clearing blockchain data directory...');
+      await devkit.clearData();
+
+      res.json({
+        message: 'Blockchain data deleted successfully',
+      });
+    } catch (error) {
+      logger.error('Clear data failed:', error);
+      res.status(500).json({
+        error: 'Failed to clear data',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
   // ===== MINING CONTROL ENDPOINTS =====
   // Mining is controlled via testClient following xcfx-node test patterns
   // No auto-mining configuration - everything is manual via these endpoints

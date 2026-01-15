@@ -57,6 +57,7 @@ export function DevNodeControlPanel() {
     startNode,
     stopNode,
     resetNode,
+    clearData,
     mineBlocks,
     startAutoMine,
     stopAutoMine,
@@ -76,6 +77,8 @@ export function DevNodeControlPanel() {
   // Derive auto-mining state from status
   const isAutoMining = status?.miningMode === 'auto';
   const currentInterval = status?.miningInterval || 500;
+  const isClearingData = useDevNodeStore((state) => state.isClearingData);
+  const isRunning = status?.isRunning ?? false;
 
   const handleStart = async () => {
     try {
@@ -121,7 +124,7 @@ export function DevNodeControlPanel() {
         });
         return;
       }
-      await resetNode(true);
+      await clearData();
       notifications.show({
         title: 'Data Cleared',
         message: 'All blockchain data has been deleted',
@@ -361,28 +364,28 @@ export function DevNodeControlPanel() {
                   />
                 </Group>
 
-                <NumberInput
-                  label="Genesis Accounts"
-                  description="Number of pre-funded accounts to generate (1-20)"
-                  value={config.accountsCount ?? 10}
-                  onChange={(value) => setConfig({ accountsCount: Number(value) || 10 })}
-                  disabled={isRunning}
-                  min={1}
-                  max={20}
-                  size="xs"
-                  style={{ maxWidth: '200px' }}
-                />
-
-                <TextInput
-                  label="Mining Author (Optional)"
-                  description="Core address to receive mining rewards (defaults to faucet account)"
-                  placeholder="net2029:aa..." 
-                  value={config.miningAuthor ?? ''}
-                  onChange={(e) => setConfig({ miningAuthor: e.target.value || undefined })}
-                  disabled={isRunning}
-                  size="xs"
-                  style={{ fontFamily: 'monospace' }}
-                />
+                <Group grow align="flex-start">
+                  <NumberInput
+                    label="Genesis Accounts"
+                    description="Number of pre-funded accounts to generate (1-20)"
+                    value={config.accountsCount ?? 10}
+                    onChange={(value) => setConfig({ accountsCount: Number(value) || 10 })}
+                    disabled={isRunning}
+                    min={1}
+                    max={20}
+                    size="xs"
+                  />
+                  <TextInput
+                    label="Mining Author (Optional)"
+                    description="Core address to receive mining rewards (defaults to faucet account)"
+                    placeholder="net2029:aa..." 
+                    value={config.miningAuthor ?? ''}
+                    onChange={(e) => setConfig({ miningAuthor: e.target.value || undefined })}
+                    disabled={isRunning}
+                    size="xs"
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </Group>
 
                 {/* RPC Port Configuration */}
                 <Divider my="xs" label="RPC Ports" labelPosition="left" />
@@ -441,6 +444,7 @@ export function DevNodeControlPanel() {
                   size="xs"
                   leftSection={<IconTrash size={14} />}
                   onClick={handleClearData}
+                  loading={isClearingData}
                   disabled={isRunning}
                   fullWidth
                 >

@@ -146,6 +146,14 @@ class ApiClient {
     return response.data as { message: string; dataCleared: boolean; status: unknown };
   }
 
+  async clearData() {
+    // Clear blockchain data without restarting the node
+    const response = await this.client.post('/devkit/node/clear-data', {}, {
+      timeout: 30000, // 30 second timeout
+    });
+    return response.data as { message: string };
+  }
+
   /**
    * Mine blocks using the test client
    * @param blocks Number of blocks to mine

@@ -30,6 +30,7 @@ interface DevNodeStore {
   isRestarting: boolean;
   isResetting: boolean;
   isMining: boolean;
+  isClearingData: boolean;
   error: string | null;
 
   // Actions
@@ -41,6 +42,7 @@ interface DevNodeStore {
   stopNode: () => Promise<void>;
   restartNode: () => Promise<void>;
   resetNode: (clearData?: boolean) => Promise<void>;
+  clearData: () => Promise<void>;
   mineBlocks: (blocks: number, numTxs?: number) => Promise<void>;
   startAutoMine: (interval?: number) => Promise<void>;
   stopAutoMine: () => Promise<void>;
@@ -70,6 +72,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   isRestarting: false,
   isResetting: false,
   isMining: false,
+  isClearingData: false,
   error: null,
 
   fetchStatus: async () => {
@@ -195,6 +198,18 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to reset node';
       set({ error: errorMessage, isResetting: false });
+      throw error;
+    }
+  },
+
+  clearData: async () => {
+    try {
+      set({ isClearingData: true, error: null });
+      await apiClient.clearData();
+      set({ isClearingData: false });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to clear data';
+      set({ error: errorMessage, isClearingData: false });
       throw error;
     }
   },
