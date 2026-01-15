@@ -69,13 +69,9 @@ export class ServerManager {
       accounts: config.accounts || 10,
       balance: config.balance || '1000000',
       mnemonic: config.mnemonic,
-      mining: config.mining || {
-        enabled: false,
-        interval: 500, // 0.5 seconds default for faster response
-        autoStart: false,
-      },
-      devBlockIntervalMs: config.devBlockIntervalMs ?? 500, // Default 500ms for auto block generation
-      devPackTxImmediately: config.devPackTxImmediately ?? true, // Default to pack transactions immediately
+      // Following xcfx-node test pattern: devPackTxImmediately should be false
+      // All mining is managed via testClient.mine() calls
+      devPackTxImmediately: false,
     };
 
     // Initialize mining status
@@ -151,8 +147,9 @@ export class ServerManager {
         ),
         // Mining configuration - use dedicated mining account
         miningAuthor: this.miningAccount?.coreAddress,
-        devPackTxImmediately: this.config.devPackTxImmediately ?? true, // Pack transactions immediately for UI responsiveness
-        devBlockIntervalMs: this.config.devBlockIntervalMs, // Auto block generation interval (undefined = disabled)
+        // Following xcfx-node test pattern: no auto block generation
+        // All mining is done via testClient.mine() for full control
+        devPackTxImmediately: false,
         log: this.config.logging || false,
       });
 
@@ -172,15 +169,8 @@ export class ServerManager {
       // Set up cleanup handlers
       this.setupCleanupHandlers();
 
-      // Auto-start mining if configured
-      if (this.config.mining?.enabled && this.config.mining?.autoStart) {
-        try {
-          await this.startMining();
-        } catch (error) {
-          console.warn('Failed to auto-start mining:', error);
-          // Don't fail server startup if mining fails to start
-        }
-      }
+      // Note: Mining is fully manual via testClient.mine()
+      // Call startMining() to enable automatic mining if needed
     } catch (error) {
       this.status = 'error';
       throw new NodeError(
@@ -574,7 +564,9 @@ export class ServerManager {
   // ===== MINING METHODS =====
 
   /**
-   * Start automatic block mining
+   * Start automatic block mining using testClient
+   * This creates an interval that mines blocks automatically
+   * @param interval Mining interval in milliseconds (default: 2000ms)
    */
   async startMining(interval?: number): Promise<void> {
     if (!this.isRunning()) {
@@ -599,7 +591,7 @@ export class ServerManager {
       });
     }
 
-    const miningInterval = interval || this.config.mining?.interval || 2000;
+    const miningInterval = interval || 2000; // Default 2 seconds
 
     this.miningStatus = {
       ...this.miningStatus,
@@ -612,10 +604,9 @@ export class ServerManager {
     this.miningTimer = setInterval(async () => {
       try {
         if (this.testClient) {
-          // Use generateEmptyLocalNodeBlocks for proper EVM transaction processing
-          const blocksToMine = 2;
-          const { generateEmptyLocalNodeBlocks } = await import('cive');
-          await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocksToMine });
+          // Following xcfx-node test pattern: use testClient.mine({ blocks })
+          const blocksToMine = 1;
+          await this.testClient.mine({ blocks: blocksToMine });
           this.miningStatus = {
             ...this.miningStatus,
             blocksMined: (this.miningStatus.blocksMined || 0) + blocksToMine,
@@ -669,61 +660,17 @@ export class ServerManager {
       await this.stopMining();
     }
 
-    // Update config
-    this.config = {
-      ...this.config,
-      mining: {
-        ...(this.config.mining || { enabled: false, autoStart: false }),
-        interval,
-      },
+    // Update the status interval
+    this.miningStatus = {
+      ...this.miningStatus,
+      interval,
     };
 
     if (wasRunning) {
       await this.startMining(interval);
-    } else {
-      // Just update the status interval
-      this.miningStatus = {
-        ...this.miningStatus,
-        interval,
-      };
     }
 
     console.log(`Mining interval set to ${interval}ms`);
-  }
-
-  /**
-   * Update development settings (pre-start configuration)
-   * These settings are applied when the server starts, not at runtime
-   */
-  async updateDevSettings(settings: {
-    devBlockIntervalMs?: number;
-    devPackTxImmediately?: boolean;
-  }): Promise<void> {
-    if (this.isRunning()) {
-      throw new NodeError(
-        'Development settings can only be changed when the node is stopped. These are pre-start configuration settings.',
-        'SERVER_RUNNING'
-      );
-    }
-
-    if (settings.devBlockIntervalMs !== undefined && settings.devBlockIntervalMs < 100) {
-      throw new NodeError(
-        'Development block interval must be at least 100ms',
-        'INVALID_INTERVAL'
-      );
-    }
-
-    // Update config for next startup
-    this.config = {
-      ...this.config,
-      devBlockIntervalMs: settings.devBlockIntervalMs,
-      devPackTxImmediately: settings.devPackTxImmediately ?? this.config.devPackTxImmediately,
-    };
-
-    console.log('Development settings saved for next startup:', {
-      devBlockIntervalMs: this.config.devBlockIntervalMs,
-      devPackTxImmediately: this.config.devPackTxImmediately,
-    });
   }
 
   /**
@@ -745,14 +692,14 @@ export class ServerManager {
     }
 
     try {
-      // Use generateEmptyLocalNodeBlocks for proper EVM transaction processing
-      const { generateEmptyLocalNodeBlocks } = await import('cive');
-      await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocks });
+      // Following xcfx-node test pattern: use testClient.mine({ blocks })
+      // This mines empty blocks that advance the chain height
+      await this.testClient.mine({ blocks });
       this.miningStatus = {
         ...this.miningStatus,
         blocksMined: (this.miningStatus.blocksMined || 0) + blocks,
       };
-      console.log(`Mined ${blocks} block(s)`);
+      console.log(`Mined ${blocks} empty block(s)`);
     } catch (error) {
       throw new NodeError(
         `Failed to mine blocks: ${error instanceof Error ? error.message : String(error)}`,

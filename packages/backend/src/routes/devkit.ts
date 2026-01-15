@@ -20,7 +20,7 @@
  * REST endpoints that expose DevKit functionality
  */
 
-import type { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
 import { Router } from 'express';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
 import type { DevKitWebSocketServer } from '../server/WebSocketServer.js';
@@ -64,7 +64,7 @@ function getNetworkConfig(network: NetworkType) {
 }
 
 export function createDevKitRoutes(
-  devkit: DevKit,
+  devkit: DevKitCompat,
   wsServer?: DevKitWebSocketServer
 ): Router {
   const router = Router();
@@ -149,8 +149,8 @@ export function createDevKitRoutes(
             ]);
 
             const [epochData, gasPriceData] = await Promise.all([
-              coreResponses[0].json(),
-              coreResponses[1].json(),
+              coreResponses[0].json() as Promise<any>,
+              coreResponses[1].json() as Promise<any>,
             ]);
 
             if (epochData.result && gasPriceData.result) {
@@ -190,8 +190,8 @@ export function createDevKitRoutes(
             ]);
 
             const [blockData, gasData] = await Promise.all([
-              evmResponses[0].json(),
-              evmResponses[1].json(),
+              evmResponses[0].json() as Promise<any>,
+              evmResponses[1].json() as Promise<any>,
             ]);
 
             if (blockData.result && gasData.result) {
@@ -233,11 +233,10 @@ export function createDevKitRoutes(
         config: {
           chainId: config.chainId,
           evmChainId: config.evmChainId,
-          ports: {
-            jsonrpcHttp: config.jsonrpcHttpPort,
-            jsonrpcHttpEth: config.jsonrpcHttpEthPort,
-            jsonrpcWs: config.jsonrpcWsPort,
-          },
+          jsonrpcHttpPort: config.jsonrpcHttpPort,
+          jsonrpcWsPort: config.jsonrpcWsPort,
+          jsonrpcHttpEthPort: config.jsonrpcHttpEthPort,
+          jsonrpcWsEthPort: config.jsonrpcWsEthPort,
         },
       });
     } catch (error) {
@@ -268,6 +267,10 @@ export function createDevKitRoutes(
       const devkitAccounts = devkit.getAccounts();
       const accountsData: any[] = [];
       
+      const requesterAddress = Array.isArray(req.wallet?.address)
+        ? req.wallet?.address[0]
+        : req.wallet?.address;
+
       if (network === 'local') {
         // Use local DevKit accounts as-is for local network
         devkitAccounts.forEach((account) => {
@@ -278,7 +281,7 @@ export function createDevKitRoutes(
               evm: account.address.evm,
             },
             isAdmin:
-              req.wallet?.address?.toLowerCase() ===
+              requesterAddress?.toLowerCase() ===
               account.address.evm.toLowerCase(),
           });
         });
@@ -312,7 +315,9 @@ export function createDevKitRoutes(
               core: coreAccount.address,
               evm: evmAccount.address,
             },
-            isAdmin: req.wallet?.address?.toLowerCase() === evmAccount.address.toLowerCase(),
+            isAdmin:
+              requesterAddress?.toLowerCase() ===
+              evmAccount.address.toLowerCase(),
           });
         });
       }
@@ -376,7 +381,10 @@ export function createDevKitRoutes(
   // Get account information
   router.get('/accounts/:index', async (req: AuthenticatedRequest, res) => {
     try {
-      const index = parseInt(req.params.index, 10);
+      const indexParam = Array.isArray(req.params.index)
+        ? req.params.index[0]
+        : req.params.index;
+      const index = parseInt(indexParam ?? '', 10);
       if (Number.isNaN(index) || index < 0 || index >= 10) {
         return res.status(400).json({ error: 'Invalid account index (0-9)' });
       }
@@ -384,6 +392,9 @@ export function createDevKitRoutes(
       const network = currentNetwork;
       const networkConfig = getNetworkConfig(network);
       const devkitAccount = devkit.account(index);
+      const requesterAddress = Array.isArray(req.wallet?.address)
+        ? req.wallet?.address[0]
+        : req.wallet?.address;
       
       if (network === 'local') {
         // Use local DevKit account as-is
@@ -394,7 +405,7 @@ export function createDevKitRoutes(
             evm: devkitAccount.address.evm,
           },
           isAdmin:
-            req.wallet?.address?.toLowerCase() ===
+            requesterAddress?.toLowerCase() ===
             devkitAccount.address.evm.toLowerCase(),
         });
       } else {
@@ -422,7 +433,9 @@ export function createDevKitRoutes(
             core: coreAccount.address,
             evm: evmAccount.address,
           },
-          isAdmin: req.wallet?.address?.toLowerCase() === evmAccount.address.toLowerCase(),
+          isAdmin:
+            requesterAddress?.toLowerCase() ===
+            evmAccount.address.toLowerCase(),
         });
       }
     } catch (error) {
@@ -435,8 +448,11 @@ export function createDevKitRoutes(
   router.get(
     '/accounts/:index/balance',
     async (req: AuthenticatedRequest, res) => {
+      const indexParam = Array.isArray(req.params.index)
+        ? req.params.index[0]
+        : req.params.index;
       try {
-        const index = parseInt(req.params.index, 10);
+        const index = parseInt(indexParam ?? '', 10);
         if (Number.isNaN(index) || index < 0 || index >= 10) {
           return res.status(400).json({ error: 'Invalid account index (0-9)' });
         }
@@ -555,7 +571,7 @@ export function createDevKitRoutes(
 
         // Return graceful error instead of 500
         res.json({
-          index: parseInt(req.params.index, 10) || 0,
+          index: parseInt(indexParam ?? '', 10) || 0,
           balances: {
             core: '0',
             evm: '0',
@@ -572,9 +588,11 @@ export function createDevKitRoutes(
   // Faucet: fund any address on Core or eSpace
   router.post('/faucet', async (req: AuthenticatedRequest, res) => {
     try {
-      const { address, amount, chain = 'auto' } = req.body;
+      const { address, amount, chain = 'auto' } = req.body as { address?: string | string[]; amount?: string | string[]; chain?: string | string[] };
+      const addressValue = Array.isArray(address) ? address[0] : address;
+      const amountValue = Array.isArray(amount) ? amount[0] : amount;
 
-      if (!address || !amount) {
+      if (!addressValue || !amountValue) {
         return res.status(400).json({ error: 'Address and amount are required' });
       }
 
@@ -585,23 +603,24 @@ export function createDevKitRoutes(
         return null;
       };
 
-      const normalizedChainRaw = chain === 'eSpace' ? 'evm' : chain;
+      const chainValue = Array.isArray(chain) ? chain[0] : chain;
+      const normalizedChainRaw = chainValue === 'eSpace' ? 'evm' : chainValue;
       const normalizedChain =
         normalizedChainRaw === 'auto'
-          ? detectChainFromAddress(address) || 'core'
+          ? detectChainFromAddress(addressValue) || 'core'
           : normalizedChainRaw;
 
       if (normalizedChain !== 'core' && normalizedChain !== 'evm') {
         return res.status(400).json({ error: 'Invalid chain. Use core or eSpace.' });
       }
 
-      const txHash = await devkit.fundAccount(address, amount, normalizedChain);
+      const txHash = await devkit.fundAccount(addressValue, amountValue, normalizedChain);
 
       res.json({
         transactionHash: txHash,
         chain: normalizedChain === 'evm' ? 'eSpace' : 'core',
-        address,
-        amount,
+        address: addressValue,
+        amount: amountValue,
       });
     } catch (error) {
       logger.error('Faucet funding failed:', error);
@@ -659,13 +678,13 @@ export function createDevKitRoutes(
       const rpcUrls = devkit.getRpcUrls();
       const config = devkit.getConfig();
 
-      const callRpc = async (url: string, method: string) => {
+      const callRpc = async (url: string, method: string): Promise<any> => {
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', method, params: [], id: 1 }),
         });
-        return response.json();
+        return response.json() as Promise<any>;
       };
 
       const [coreVersionResp, coreStatusResp, evmVersionResp, evmNetResp, evmChainIdResp] =
@@ -686,11 +705,15 @@ export function createDevKitRoutes(
         }
       };
 
-      const coreNetworkId = coreStatusResp?.result?.networkId;
-      const coreChainId = coreStatusResp?.result?.chainId ?? config.chainId;
+      const coreNetworkId = coreStatusResp?.result?.networkId
+        ? parseHex(coreStatusResp.result.networkId as string)
+        : undefined;
+      const coreChainId = coreStatusResp?.result?.chainId
+        ? parseHex(coreStatusResp.result.chainId as string)
+        : config.chainId;
 
-      const evmNetworkId = evmNetResp?.result ? Number(evmNetResp.result) : undefined;
-      const evmChainId = parseHex(evmChainIdResp?.result) ?? config.evmChainId;
+      const evmNetworkId = evmNetResp?.result ? Number(evmNetResp.result as string) : undefined;
+      const evmChainId = parseHex(evmChainIdResp?.result as string) ?? config.evmChainId;
 
       res.json({
         core: {
@@ -824,7 +847,8 @@ export function createDevKitRoutes(
   router.get('/contracts/:address', async (req, res) => {
     try {
       const { address } = req.params;
-      const { chain = 'core' } = req.query;
+      const chainParam = Array.isArray(req.query.chain) ? req.query.chain[0] : req.query.chain;
+      const chain = (chainParam ?? 'core') as string;
 
       // For now, just return basic info
       // In a real implementation, you might want to store contract metadata
@@ -875,10 +899,14 @@ export function createDevKitRoutes(
     '/accounts/:index/sign',
     async (req: AuthenticatedRequest, res) => {
       try {
-        const accountIndex = parseInt(req.params.index, 10);
-        const { message, chain = 'core' } = req.body;
+          const indexParam = Array.isArray(req.params.index)
+            ? req.params.index[0]
+            : req.params.index;
+          const accountIndex = parseInt(indexParam ?? '', 10);
+        const { message, chain = 'core' } = req.body as { message?: string | string[]; chain?: string | string[] };
+        const messageValue = Array.isArray(message) ? message[0] : message;
 
-        if (!message) {
+        if (!messageValue) {
           return res.status(400).json({ error: 'Message is required' });
         }
 
@@ -886,19 +914,20 @@ export function createDevKitRoutes(
           return res.status(400).json({ error: 'Invalid account index' });
         }
 
-        const chainType = chain as 'core' | 'evm';
+        const chainValue = Array.isArray(chain) ? chain[0] : chain;
+        const chainType = chainValue as 'core' | 'evm';
         const account = devkit.account(accountIndex);
 
         let signature: string;
         if (chainType === 'core') {
-          signature = await account.core.signMessage(message);
+          signature = await account.core.signMessage(messageValue);
         } else {
-          signature = await account.evm.signMessage(message);
+          signature = await account.evm.signMessage(messageValue);
         }
 
         res.json({
           signature,
-          message,
+          message: messageValue,
           address: account.address[chainType],
           chain: chainType,
           accountIndex,
@@ -947,14 +976,13 @@ export function createDevKitRoutes(
       if (config.evmChainId !== undefined) {
         startOptions.evmChainId = Number(config.evmChainId);
       }
-      if (config.autoMining !== undefined) {
-        startOptions.devPackTxImmediately = config.autoMining;
-      }
-      if (config.miningInterval !== undefined) {
-        startOptions.devBlockIntervalMs = Number(config.miningInterval);
-      }
+      // Note: autoMining and miningInterval are deprecated
+      // Mining is controlled via testClient - use /mining/start and /mining/stop endpoints
       if (config.persistence !== undefined) {
         startOptions.persistence = config.persistence;
+      }
+      if (config.configChanged) {
+        startOptions.configChanged = true;
       }
 
       logger.info('Starting node with config:', startOptions);
@@ -1007,63 +1035,57 @@ export function createDevKitRoutes(
     }
   });
 
-  // Update development settings (only when node is stopped)
-  router.post('/node/dev-settings', async (req: AuthenticatedRequest, res) => {
+  // Reset node (stop, optionally clear data, restart)
+  router.post('/node/reset', async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
       }
 
-      // Check if node is running - these are pre-start configuration settings
+      const { clearData = false } = req.body;
+
+      // Stop the node first
       try {
         const status = await devkit.getStatus();
-        if (status.core.status === 'running' || status.evm.status === 'running') {
-          return res.status(409).json({
-            error: 'Development settings can only be changed when the node is stopped. These are pre-start configuration settings.'
-          });
+        if (status.core.status === 'running') {
+          await devkit.stop();
         }
       } catch (error) {
-        // If status check fails, assume node is stopped and continue
+        // Node might already be stopped
+        logger.info('Node was not running, proceeding with reset');
       }
 
-      const { devBlockIntervalMs, devPackTxImmediately } = req.body;
-
-      // Validate inputs
-      if (devBlockIntervalMs !== undefined && (typeof devBlockIntervalMs !== 'number' || devBlockIntervalMs < 100)) {
-        return res.status(400).json({
-          error: 'devBlockIntervalMs must be a number >= 100 or undefined to disable'
-        });
+      // Clear data if requested
+      if (clearData) {
+        logger.info('Clearing blockchain data directory...');
+        await devkit.clearData();
       }
 
-      if (devPackTxImmediately !== undefined && typeof devPackTxImmediately !== 'boolean') {
-        return res.status(400).json({
-          error: 'devPackTxImmediately must be a boolean'
-        });
-      }
+      // Start the node
+      await devkit.start();
 
-      // TODO: Implement updateDevSettings method on DevKit
-      // await devkit.updateDevSettings({
-      //   devBlockIntervalMs,
-      //   devPackTxImmediately,
-      // });
+      // Force immediate WebSocket status update
+      if (wsServer) {
+        await wsServer.forceStatusUpdate();
+      }
 
       res.json({
-        message: 'Development settings saved successfully. Settings will be applied when the node starts.',
-        settings: {
-          devBlockIntervalMs,
-          devPackTxImmediately,
-        },
+        message: clearData ? 'Node reset with fresh data' : 'Node restarted',
+        dataCleared: clearData,
+        status: await devkit.getStatus(),
       });
     } catch (error) {
-      logger.error('Dev settings update failed:', error);
+      logger.error('Node reset failed:', error);
       res.status(500).json({
-        error: 'Failed to save development settings',
+        error: 'Failed to reset node',
         details: error instanceof Error ? error.message : String(error),
       });
     }
   });
 
   // ===== MINING CONTROL ENDPOINTS =====
+  // Mining is controlled via testClient following xcfx-node test patterns
+  // No auto-mining configuration - everything is manual via these endpoints
 
   // Start mining
   router.post('/mining/start', async (req: AuthenticatedRequest, res) => {
@@ -1199,14 +1221,15 @@ export function createDevKitRoutes(
         return res.status(403).json({ error: 'Admin access required' });
       }
 
-      const { blocks = 1 } = req.body;
+      const { blocks = 1, numTxs } = req.body;
       if (blocks < 1 || blocks > 100) {
         return res.status(400).json({
           error: 'Block count must be between 1 and 100',
         });
       }
 
-      await devkit.mine(blocks);
+      // Use mineBlocks for better control over mining mode
+      await devkit.mineBlocks(blocks, numTxs);
 
       // Force immediate WebSocket status update
       if (wsServer) {
@@ -1215,8 +1238,11 @@ export function createDevKitRoutes(
 
       const miningStatus = devkit.getMiningStatus();
       res.json({
-        message: `Mined ${blocks} blocks successfully`,
+        message: numTxs !== undefined
+          ? `Mined blocks with transaction packing (numTxs=${numTxs})`
+          : `Mined ${blocks} empty blocks`,
         blocks,
+        numTxs,
         status: miningStatus,
       });
     } catch (error) {

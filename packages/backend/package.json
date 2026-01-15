@@ -50,7 +50,8 @@
     "url": "https://github.com/conflux-devkit/conflux-devkit/issues"
   },
   "dependencies": {
-    "@conflux-devkit/node": "^0.1.0",
+    "@conflux-devkit/node": "^0.2.0",
+    "@conflux-devkit/plugin-devnode": "workspace:*",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

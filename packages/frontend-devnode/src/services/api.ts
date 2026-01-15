@@ -15,8 +15,14 @@
  */
 
 import axios, { type AxiosInstance } from 'axios';
+import type { NodeConfig } from '@/types/devnode';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+type StartNodeConfig = Partial<NodeConfig> & {
+  persistence?: boolean;
+  configChanged?: boolean;
+};
 
 class ApiClient {
   private client: AxiosInstance;
@@ -112,14 +118,11 @@ class ApiClient {
     };
   }
 
-  async startNode(config?: {
-    chainId?: number;
-    evmChainId?: number;
-    autoMining?: boolean;
-    miningInterval?: number;
-    persistence?: boolean;
-  }) {
-    const response = await this.client.post('/devkit/node/start', config);
+  async startNode(config?: StartNodeConfig) {
+    // Node startup can take 30+ seconds, use longer timeout
+    const response = await this.client.post('/devkit/node/start', config, {
+      timeout: 60000, // 60 second timeout for node startup
+    });
     return response.data;
   }
 
@@ -135,20 +138,47 @@ class ApiClient {
     return await this.startNode();
   }
 
-  async setMiningMode(mode: 'auto' | 'manual', interval?: number) {
-    if (mode === 'auto') {
-      await this.client.post('/devkit/mining/start');
-      if (interval) {
-        await this.client.post('/devkit/mining/interval', { interval });
-      }
-    } else {
-      await this.client.post('/devkit/mining/stop');
-    }
-    return { success: true };
+  async resetNode(clearData: boolean = false) {
+    // Node reset can take time, especially if clearing data
+    const response = await this.client.post('/devkit/node/reset', { clearData }, {
+      timeout: 60000, // 60 second timeout
+    });
+    return response.data as { message: string; dataCleared: boolean; status: unknown };
   }
 
-  async mineBlock() {
-    const response = await this.client.post('/devkit/mine');
+  /**
+   * Mine blocks using the test client
+   * @param blocks Number of blocks to mine
+   * @param numTxs If provided, mine blocks that pack transactions from txpool
+   */
+  async mineBlocks(blocks: number = 1, numTxs?: number) {
+    const response = await this.client.post('/devkit/mining/mine', { blocks, numTxs });
+    return response.data;
+  }
+
+  /**
+   * Start auto-mining with optional interval
+   * @param interval Mining interval in milliseconds (default 500ms)
+   */
+  async startAutoMine(interval?: number) {
+    const response = await this.client.post('/devkit/mining/start', { interval });
+    return response.data;
+  }
+
+  /**
+   * Stop auto-mining
+   */
+  async stopAutoMine() {
+    const response = await this.client.post('/devkit/mining/stop');
+    return response.data;
+  }
+
+  /**
+   * Set auto-mining interval
+   * @param interval Mining interval in milliseconds (minimum 100ms)
+   */
+  async setMiningInterval(interval: number) {
+    const response = await this.client.post('/devkit/mining/interval', { interval });
     return response.data;
   }
 

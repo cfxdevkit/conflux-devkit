@@ -20,7 +20,7 @@
  * Provides backend swap operations using server wallet for development convenience
  */
 
-import type { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { parseUnits, formatUnits, type Address } from 'viem';
@@ -196,7 +196,7 @@ const ERC20_ABI = [
   },
 ] as const;
 
-export function createSwapRoutes(devkit: DevKit): Router {
+export function createSwapRoutes(devkit: DevKitCompat): Router {
   const router = Router();
 
   /**

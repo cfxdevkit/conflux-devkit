@@ -30,15 +30,7 @@ export interface DevNodeStatus {
   };
   miningMode: 'auto' | 'manual';
   miningInterval?: number;
-  config?: {
-    chainId?: number;
-    evmChainId?: number;
-    ports?: {
-      jsonrpcHttp?: number;
-      jsonrpcHttpEth?: number;
-      jsonrpcWs?: number;
-    };
-  };
+  config?: NodeConfig;
   accounts: DevNodeAccount[];
 }
 
@@ -58,9 +50,10 @@ export interface DevNodeInfo {
 export interface NodeConfig {
   chainId: number;
   evmChainId: number;
-  autoMining: boolean;
-  miningInterval: number; // in milliseconds
-  persistence: boolean;
+  jsonrpcHttpPort?: number;
+  jsonrpcWsPort?: number;
+  jsonrpcHttpEthPort?: number;
+  jsonrpcWsEthPort?: number;
 }
 
 export interface DevNodeAccount {
@@ -74,11 +67,6 @@ export interface DevNodeAccount {
     core: string;
     eSpace: string;
   };
-}
-
-export interface MiningConfig {
-  autoMining: boolean;
-  blockTime?: number;
 }
 
 export interface FaucetRequest {

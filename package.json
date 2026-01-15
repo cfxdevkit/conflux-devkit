@@ -12,6 +12,11 @@
     "test": "turbo run test",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean",
+    "clean:all": "pnpm clean:cache && pnpm clean:builds && pnpm clean:modules",
+    "clean:cache": "rm -rf .turbo packages/*/.turbo ~/.cache/turbo 2>/dev/null; rm -rf node_modules/.cache node_modules/.vite packages/*/node_modules/.cache packages/*/node_modules/.vite 2>/dev/null; echo 'Cache cleaned'",
+    "clean:modules": "rm -rf packages/*/node_modules pnpm-lock.yaml 2>/dev/null; rm -rf node_modules 2>/dev/null || echo 'Note: root node_modules may be in use - close IDE/processes and retry'; echo 'Modules cleaned'",
+    "clean:builds": "rm -rf packages/*/dist packages/*/.next packages/*/.nuxt packages/*/build packages/*/*.tsbuildinfo 2>/dev/null; echo 'Builds cleaned'",
+    "reset": "pnpm clean:all && pnpm install && pnpm build",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "turbo run format",
@@ -52,6 +57,6 @@
   "author": "Conflux DevKit Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "cive": "^0.8.1"
+     "cive": "^0.8.1"
   }
 }

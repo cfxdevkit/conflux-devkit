@@ -23,7 +23,7 @@
  * - No conditional code complexity - just environment-based configuration
  */
 
-import type { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
 import type { NextFunction, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { verifyMessage } from 'viem';
@@ -58,9 +58,9 @@ export class DevelopmentAuthService {
   private challenges = new Map<string, AuthChallenge>();
   private sessions = new Map<string, AuthUser>();
   private config: AuthConfig;
-  private devkit: DevKit;
+  private devkit: DevKitCompat;
 
-  constructor(devkit: DevKit) {
+  constructor(devkit: DevKitCompat) {
     this.devkit = devkit;
 
     // Environment-based configuration
@@ -103,7 +103,7 @@ export class DevelopmentAuthService {
         // This uses the standard Ethereum derivation path: m/44'/60'/0'/0/0
         try {
           const ethereumAdminAddress = this.devkit.getEthereumAdminAddress();
-          this.adminAddress = ethereumAdminAddress;
+          this.adminAddress = ethereumAdminAddress.toLowerCase();
           logger.info('✅ Admin address derived from Ethereum path (m/44\'/60\'/0\'/0/0):', this.adminAddress);
         } catch (error) {
           // Fallback to legacy test address (deprecated)

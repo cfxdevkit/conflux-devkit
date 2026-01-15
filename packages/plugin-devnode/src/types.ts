@@ -19,13 +19,6 @@
  * Re-exports types needed from @conflux-devkit/core
  */
 
-// Mining Configuration
-export interface MiningConfig {
-  enabled?: boolean;
-  interval?: number;
-  autoStart?: boolean;
-}
-
 // Node Configuration
 export interface NodeConfig {
   chainId?: number;
@@ -36,7 +29,6 @@ export interface NodeConfig {
   dataDir?: string;
   mnemonic?: string;
   logging?: boolean;
-  devBlockIntervalMs?: number;
 }
 
 export interface ServerConfig extends NodeConfig {
@@ -47,7 +39,7 @@ export interface ServerConfig extends NodeConfig {
   log?: boolean;
   accounts?: number;
   balance?: string;
-  mining?: MiningConfig;
+  // devPackTxImmediately should always be false - mining is managed via testClient
   devPackTxImmediately?: boolean;
 }
 

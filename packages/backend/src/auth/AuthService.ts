@@ -21,7 +21,7 @@
  * a message to prove wallet ownership. No private keys reach the frontend.
  */
 
-import type { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
 import crypto from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { verifyMessage } from 'viem';
@@ -44,14 +44,14 @@ export interface AuthChallenge {
 }
 
 export class AuthService {
-  private devkit: DevKit;
+  private devkit: DevKitCompat;
   private adminAddress?: string;
   private challenges = new Map<string, AuthChallenge>();
   private sessions = new Map<string, AuthUser>();
   private readonly CHALLENGE_EXPIRY = 5 * 60 * 1000; // 5 minutes
   private readonly SESSION_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
-  constructor(devkit: DevKit) {
+  constructor(devkit: DevKitCompat) {
     this.devkit = devkit;
 
     // Cleanup expired challenges and sessions every 10 minutes

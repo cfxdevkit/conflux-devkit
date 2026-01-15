@@ -15,17 +15,66 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { Badge, Button, Card, Group, NumberInput, Stack, Switch, Text } from '@mantine/core';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Card,
+  Collapse,
+  Divider,
+  Group,
+  Modal,
+  NumberInput,
+  SegmentedControl,
+  Stack,
+  Switch,
+  Text,
+  Tooltip,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconPick, IconPlayerPlay, IconPlayerStop, IconRefresh } from '@tabler/icons-react';
+import {
+  IconChevronUp,
+  IconPick,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconRefresh,
+  IconSettings,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 
 export function DevNodeControlPanel() {
-  const { status, isStarting, isStopping, isRestarting, isMining, startNode, stopNode, restartNode, setMiningMode, mineBlock } =
-    useDevNodeStore();
+  const {
+    status,
+    config,
+    setConfig,
+    isStarting,
+    isStopping,
+    isResetting,
+    isMining,
+    startNode,
+    stopNode,
+    resetNode,
+    mineBlocks,
+    startAutoMine,
+    stopAutoMine,
+    setMiningInterval,
+  } = useDevNodeStore();
 
-  const [autoMining, setAutoMining] = useState(status?.miningMode === 'auto');
-  const [blockTime, setBlockTime] = useState(1000);
+  const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
+  const [configOpened, { toggle: toggleConfig }] = useDisclosure(false);
+  
+  // Mining controls
+  const [blocksToMine, setBlocksToMine] = useState(1);
+  const [miningMode, setMiningMode] = useState<'empty' | 'withTxs'>('empty');
+  const [autoMineInterval, setAutoMineInterval] = useState(status?.miningInterval || 500);
+  const [isTogglingAutoMine, setIsTogglingAutoMine] = useState(false);
+  const [isSettingInterval, setIsSettingInterval] = useState(false);
+
+  // Derive auto-mining state from status
+  const isAutoMining = status?.miningMode === 'auto';
+  const currentInterval = status?.miningInterval || 500;
 
   const handleStart = async () => {
     try {
@@ -61,143 +110,367 @@ export function DevNodeControlPanel() {
     }
   };
 
-  const handleRestart = async () => {
+  const handleRestart = () => {
+    openResetModal();
+  };
+
+  const handleResetConfirm = async (clearData: boolean) => {
+    closeResetModal();
     try {
-      await restartNode();
+      await resetNode(clearData);
       notifications.show({
-        title: 'Node Restarted',
-        message: 'Development node has been restarted',
-        color: 'blue',
+        title: clearData ? 'Node Reset' : 'Node Restarted',
+        message: clearData
+          ? 'Development node has been reset with fresh blockchain data'
+          : 'Development node has been restarted (data preserved)',
+        color: clearData ? 'orange' : 'blue',
       });
     } catch (error: any) {
       notifications.show({
-        title: 'Restart Failed',
-        message: error.message || 'Failed to restart development node',
+        title: 'Reset Failed',
+        message: error.message || 'Failed to reset development node',
         color: 'red',
       });
     }
   };
 
-  const handleMiningToggle = async (checked: boolean) => {
-    setAutoMining(checked);
+  const handleMineBlocks = async () => {
     try {
-      await setMiningMode({ autoMining: checked, blockTime: checked ? blockTime : undefined });
+      const numTxs = miningMode === 'withTxs' ? 1 : undefined;
+      await mineBlocks(blocksToMine, numTxs);
       notifications.show({
-        title: 'Mining Mode Updated',
-        message: `Auto-mining ${checked ? 'enabled' : 'disabled'}`,
-        color: 'blue',
-      });
-    } catch (error: any) {
-      notifications.show({
-        title: 'Update Failed',
-        message: error.message || 'Failed to update mining mode',
-        color: 'red',
-      });
-      setAutoMining(!checked);
-    }
-  };
-
-  const handleMineBlock = async () => {
-    try {
-      await mineBlock();
-      notifications.show({
-        title: 'Block Mined',
-        message: 'Successfully mined a new block',
+        title: 'Mining Complete',
+        message: miningMode === 'withTxs' 
+          ? `Mined ${blocksToMine} block(s) with pending transactions`
+          : `Mined ${blocksToMine} empty block(s)`,
         color: 'green',
       });
     } catch (error: any) {
       notifications.show({
         title: 'Mining Failed',
-        message: error.message || 'Failed to mine block',
+        message: error.message || 'Failed to mine blocks',
         color: 'red',
       });
+    }
+  };
+
+  const handleToggleAutoMine = async (enabled: boolean) => {
+    setIsTogglingAutoMine(true);
+    try {
+      if (enabled) {
+        await startAutoMine(autoMineInterval);
+        notifications.show({
+          title: 'Auto-Mining Started',
+          message: `Blocks will be mined every ${autoMineInterval}ms`,
+          color: 'green',
+        });
+      } else {
+        await stopAutoMine();
+        notifications.show({
+          title: 'Auto-Mining Stopped',
+          message: 'Switched to manual mining mode',
+          color: 'blue',
+        });
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Failed',
+        message: error.message || 'Failed to toggle auto-mining',
+        color: 'red',
+      });
+    } finally {
+      setIsTogglingAutoMine(false);
+    }
+  };
+
+  const handleSetInterval = async () => {
+    setIsSettingInterval(true);
+    try {
+      await setMiningInterval(autoMineInterval);
+      notifications.show({
+        title: 'Interval Updated',
+        message: `Mining interval set to ${autoMineInterval}ms`,
+        color: 'green',
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Failed',
+        message: error.message || 'Failed to update mining interval',
+        color: 'red',
+      });
+    } finally {
+      setIsSettingInterval(false);
     }
   };
 
   const isRunning = status?.isRunning || false;
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack gap="md">
-        <Group justify="space-between">
-          <Text size="lg" fw={600}>
-            DevNode Control
+    <>
+      {/* Reset Confirmation Modal */}
+      <Modal
+        opened={resetModalOpened}
+        onClose={closeResetModal}
+        title="Reset Development Node"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">How would you like to restart the node?</Text>
+          <Group grow>
+            <Button
+              variant="light"
+              color="blue"
+              onClick={() => handleResetConfirm(false)}
+              loading={isResetting}
+              leftSection={<IconRefresh size={16} />}
+            >
+              Keep Data
+            </Button>
+            <Button
+              variant="light"
+              color="orange"
+              onClick={() => handleResetConfirm(true)}
+              loading={isResetting}
+              leftSection={<IconTrash size={16} />}
+            >
+              Clear Data
+            </Button>
+          </Group>
+          <Text size="xs" c="dimmed">
+            <strong>Keep Data:</strong> Restart preserving blockchain state.
           </Text>
-          <Badge color={isRunning ? 'green' : 'gray'} variant="filled">
-            {isRunning ? 'Running' : 'Stopped'}
-          </Badge>
-        </Group>
+          <Text size="xs" c="dimmed">
+            <strong>Clear Data:</strong> Delete <code>.conflux-dev</code> and start fresh from block 0.
+          </Text>
+        </Stack>
+      </Modal>
 
-        <Group grow>
-          <Button
-            leftSection={<IconPlayerPlay size={16} />}
-            onClick={handleStart}
-            loading={isStarting}
-            disabled={isRunning}
-            color="green"
-          >
-            Start Node
-          </Button>
-          <Button
-            leftSection={<IconPlayerStop size={16} />}
-            onClick={handleStop}
-            loading={isStopping}
-            disabled={!isRunning}
-            color="red"
-          >
-            Stop Node
-          </Button>
-          <Button
-            leftSection={<IconRefresh size={16} />}
-            onClick={handleRestart}
-            loading={isRestarting}
-            disabled={!isRunning}
-            color="blue"
-          >
-            Restart
-          </Button>
-        </Group>
-
-        {isRunning && (
-          <Card withBorder padding="sm" bg="gray.0">
-            <Stack gap="xs">
-              <Group justify="space-between">
-                <Text size="sm" fw={500}>
-                  Auto Mining
-                </Text>
-                <Switch
-                  checked={autoMining}
-                  onChange={(e) => handleMiningToggle(e.target.checked)}
-                />
-              </Group>
-
-              {autoMining && (
-                <NumberInput
-                  label="Block Time (ms)"
-                  value={blockTime}
-                  onChange={(val) => setBlockTime(Number(val))}
-                  min={100}
-                  max={10000}
-                  step={100}
-                  size="xs"
-                />
-              )}
-
-              {!autoMining && (
-                <Button
-                  leftSection={<IconPick size={16} />}
-                  onClick={handleMineBlock}
-                  loading={isMining}
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Stack gap="md">
+          {/* Header */}
+          <Group justify="space-between">
+            <Group gap="xs">
+              <Text size="lg" fw={600}>
+                DevNode Control
+              </Text>
+              <Tooltip label={configOpened ? 'Hide configuration' : 'Show configuration'}>
+                <ActionIcon 
+                  variant="subtle" 
+                  color="gray" 
+                  onClick={toggleConfig}
                   size="sm"
-                  variant="light"
                 >
-                  Mine Block
-                </Button>
-              )}
-            </Stack>
-          </Card>
-        )}
-      </Stack>
-    </Card>
+                  {configOpened ? <IconChevronUp size={16} /> : <IconSettings size={16} />}
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+            <Badge color={isRunning ? 'green' : 'gray'} variant="filled">
+              {isRunning ? 'Running' : 'Stopped'}
+            </Badge>
+          </Group>
+
+          {/* Node Control Buttons */}
+          <Group grow>
+            <Button
+              leftSection={<IconPlayerPlay size={16} />}
+              onClick={handleStart}
+              loading={isStarting}
+              disabled={isRunning}
+              color="green"
+            >
+              Start
+            </Button>
+            <Button
+              leftSection={<IconPlayerStop size={16} />}
+              onClick={handleStop}
+              loading={isStopping}
+              disabled={!isRunning}
+              color="red"
+            >
+              Stop
+            </Button>
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              onClick={handleRestart}
+              loading={isResetting}
+              disabled={!isRunning}
+              color="blue"
+            >
+              Restart
+            </Button>
+          </Group>
+
+          {/* Collapsible Configuration Section */}
+          <Collapse in={configOpened}>
+            <Card withBorder padding="sm" bg="gray.0" mt="xs">
+              <Stack gap="sm">
+                <Text size="sm" fw={500} c="dimmed">
+                  Node Configuration
+                </Text>
+                {isRunning && (
+                  <Text size="xs" c="orange">
+                    ⚠️ Stop the node to change configuration
+                  </Text>
+                )}
+                <Group grow>
+                  <NumberInput
+                    label="Core Chain ID"
+                    description="Core space chain ID"
+                    value={config.chainId}
+                    onChange={(value) => setConfig({ chainId: Number(value) || 2029 })}
+                    disabled={isRunning}
+                    min={1}
+                    max={999999}
+                    size="xs"
+                  />
+                  <NumberInput
+                    label="eSpace Chain ID"
+                    description="EVM space chain ID"
+                    value={config.evmChainId}
+                    onChange={(value) => setConfig({ evmChainId: Number(value) || 2030 })}
+                    disabled={isRunning}
+                    min={1}
+                    max={999999}
+                    size="xs"
+                  />
+                </Group>
+
+                {/* Port Configuration Display (read-only when running) */}
+                {isRunning && status?.config && (
+                  <>
+                    <Divider my="xs" />
+                    <Text size="sm" fw={500} c="dimmed">
+                      RPC Ports
+                    </Text>
+                    <Stack gap="xs">
+                      <Group grow>
+                        <div>
+                          <Text size="xs" c="dimmed">Core HTTP RPC Port</Text>
+                          <Text size="sm" fw={600}>{status.config.jsonrpcHttpPort || 12537}</Text>
+                        </div>
+                        <div>
+                          <Text size="xs" c="dimmed">Core WebSocket Port</Text>
+                          <Text size="sm" fw={600}>{status.config.jsonrpcWsPort || 12535}</Text>
+                        </div>
+                      </Group>
+                      <Group grow>
+                        <div>
+                          <Text size="xs" c="dimmed">eSpace HTTP RPC Port</Text>
+                          <Text size="sm" fw={600}>{status.config.jsonrpcHttpEthPort || 8545}</Text>
+                        </div>
+                        <div>
+                          <Text size="xs" c="dimmed">eSpace WebSocket Port</Text>
+                          <Text size="sm" fw={600}>{status.config.jsonrpcWsEthPort || 8546}</Text>
+                        </div>
+                      </Group>
+                    </Stack>
+                  </>
+                )}
+              </Stack>
+            </Card>
+          </Collapse>
+
+          {/* Mining Controls - Only when node is running */}
+          {isRunning && (
+            <>
+              <Divider label="Mining Control" labelPosition="center" />
+              
+              {/* Auto-Mining Toggle */}
+              <Card withBorder padding="sm" bg="gray.0">
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <div>
+                      <Text size="sm" fw={500}>Auto Mining</Text>
+                      <Text size="xs" c="dimmed">
+                        Automatically mine blocks at regular intervals
+                      </Text>
+                    </div>
+                    <Switch
+                      checked={isAutoMining}
+                      onChange={(e) => handleToggleAutoMine(e.currentTarget.checked)}
+                      disabled={isTogglingAutoMine}
+                      color="green"
+                      size="md"
+                    />
+                  </Group>
+                  
+                  {/* Interval control - show when auto-mining is on or when configuring */}
+                  <Group gap="xs" align="flex-end">
+                    <NumberInput
+                      label="Interval (ms)"
+                      description="Time between auto-mined blocks"
+                      value={autoMineInterval}
+                      onChange={(val) => setAutoMineInterval(Number(val) || 500)}
+                      min={100}
+                      max={10000}
+                      step={100}
+                      size="xs"
+                      style={{ flex: 1 }}
+                    />
+                    {isAutoMining && autoMineInterval !== currentInterval && (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        onClick={handleSetInterval}
+                        loading={isSettingInterval}
+                      >
+                        Apply
+                      </Button>
+                    )}
+                  </Group>
+                  {isAutoMining && (
+                    <Text size="xs" c="green">
+                      ✓ Mining blocks every {currentInterval}ms
+                    </Text>
+                  )}
+                </Stack>
+              </Card>
+
+              {/* Manual Mining */}
+              <Card withBorder padding="sm" bg="gray.0">
+                <Stack gap="sm">
+                  <Text size="sm" fw={500}>Manual Mining</Text>
+                  <Group justify="space-between" align="flex-end">
+                    <NumberInput
+                      label="Blocks to mine"
+                      value={blocksToMine}
+                      onChange={(val) => setBlocksToMine(Number(val) || 1)}
+                      min={1}
+                      max={100}
+                      size="xs"
+                      style={{ flex: 1 }}
+                    />
+                    <SegmentedControl
+                      size="xs"
+                      value={miningMode}
+                      onChange={(val) => setMiningMode(val as 'empty' | 'withTxs')}
+                      data={[
+                        { label: 'Empty', value: 'empty' },
+                        { label: 'Pack Txs', value: 'withTxs' },
+                      ]}
+                    />
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    {miningMode === 'empty' 
+                      ? 'Mine empty blocks (advances block height only)'
+                      : 'Mine blocks that pack pending transactions from txpool'
+                    }
+                  </Text>
+                  <Button
+                    leftSection={<IconPick size={16} />}
+                    onClick={handleMineBlocks}
+                    loading={isMining}
+                    variant="light"
+                    fullWidth
+                  >
+                    Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
+                  </Button>
+                </Stack>
+              </Card>
+            </>
+          )}
+        </Stack>
+      </Card>
+    </>
   );
 }

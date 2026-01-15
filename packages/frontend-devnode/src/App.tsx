@@ -18,7 +18,6 @@ import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
-import { NodeConfigPanel } from '@/components/NodeConfigPanel';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
@@ -126,7 +125,6 @@ function App() {
             {isAuthenticated && (
               <>
                 <DevNodeControlPanel />
-                <NodeConfigPanel />
                 <DevNodeStatus />
                 <AccountsTable />
               </>

@@ -18,7 +18,8 @@
  * WebSocket Server for real-time DevKit updates
  */
 
-import type { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
+import type { BackendServerConfig } from './BackendServer.js';
 import { WebSocket, WebSocketServer } from 'ws';
 import { logger } from '../utils/logger.js';
 
@@ -30,13 +31,13 @@ export interface WebSocketMessage {
 
 export class DevKitWebSocketServer {
   private wss: WebSocketServer;
-  private devkit: DevKit;
+  private devkit: DevKitCompat;
   private clients: Set<WebSocket> = new Set();
   private statsInterval: NodeJS.Timeout | null = null;
   private lastKnownNodeStatus: boolean = false;
   private lastMiningStatus: boolean = false;
 
-  constructor(port: number, devkit: DevKit) {
+  constructor(port: number, devkit: DevKitCompat) {
     this.devkit = devkit;
     this.wss = new WebSocketServer({
       port,
@@ -271,7 +272,10 @@ export class DevKitWebSocketServer {
    */
   private async broadcastNodeStats() {
     try {
-      let status, config, rpcUrls, miningStatus;
+      let status;
+      let config: BackendServerConfig['devkitConfig'];
+      let rpcUrls;
+      let miningStatus;
 
       // Check if DevKit is accessible first
       try {

@@ -21,7 +21,8 @@
  * with DevKit integration
  */
 
-import { DevKit } from '@conflux-devkit/node';
+import type { DevKitCompat } from '../devkit-compat.js';
+import { DevKitCompat as DevKitCompatClass } from '../devkit-compat.js';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
@@ -51,7 +52,7 @@ export class BackendServer {
   private app: express.Application;
   private server?: any;
   private wsServer?: DevKitWebSocketServer;
-  private devkit?: DevKit;
+  private devkit?: DevKitCompat;
   private authService?: DevelopmentAuthService;
   private config: BackendServerConfig;
 
@@ -86,7 +87,7 @@ export class BackendServer {
 
   async start() {
     try {
-      // Initialize DevKit instance but don't start the node yet
+      // Initialize DevKit compatibility layer
       logger.info(
         'Initializing DevKit instance (node will start on-demand)...'
       );
@@ -99,7 +100,7 @@ export class BackendServer {
         safeDevKitConfig.mnemonic = '[REDACTED]';
       }
       logger.info('DevKit config:', JSON.stringify(safeDevKitConfig, null, 2));
-      this.devkit = new DevKit(this.config.devkitConfig);
+      this.devkit = new DevKitCompatClass(this.config.devkitConfig);
       // Note: Not calling devkit.start() here - UI will control node startup
       logger.success('DevKit instance created (node stopped by default)');
 

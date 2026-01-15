@@ -15,7 +15,7 @@
  */
 
 import { apiClient } from '@/services/api';
-import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, MiningConfig, NodeConfig } from '@/types/devnode';
+import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, NodeConfig } from '@/types/devnode';
 import { create } from 'zustand';
 
 interface DevNodeStore {
@@ -27,6 +27,7 @@ interface DevNodeStore {
   isStarting: boolean;
   isStopping: boolean;
   isRestarting: boolean;
+  isResetting: boolean;
   isMining: boolean;
   error: string | null;
 
@@ -38,8 +39,11 @@ interface DevNodeStore {
   resetConfig: () => void;
   stopNode: () => Promise<void>;
   restartNode: () => Promise<void>;
-  setMiningMode: (config: MiningConfig) => Promise<void>;
-  mineBlock: () => Promise<void>;
+  resetNode: (clearData?: boolean) => Promise<void>;
+  mineBlocks: (blocks: number, numTxs?: number) => Promise<void>;
+  startAutoMine: (interval?: number) => Promise<void>;
+  stopAutoMine: () => Promise<void>;
+  setMiningInterval: (interval: number) => Promise<void>;
   requestFaucet: (request: FaucetRequest) => Promise<void>;
   fetchAccounts: () => Promise<void>;
   updateStatus: (status: Partial<DevNodeStatus>) => void;
@@ -51,15 +55,17 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   config: {
     chainId: 2029,
     evmChainId: 2030,
-    autoMining: true,
-    miningInterval: 1000,
-    persistence: false,
+    jsonrpcHttpPort: 12537,
+    jsonrpcWsPort: 12535,
+    jsonrpcHttpEthPort: 8545,
+    jsonrpcWsEthPort: 8546,
   },
   accounts: [],
   isLoading: false,
   isStarting: false,
   isStopping: false,
   isRestarting: false,
+  isResetting: false,
   isMining: false,
   error: null,
 
@@ -94,8 +100,21 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       set({ isStarting: true, error: null });
       
       const finalConfig = { ...get().config, ...configOverrides };
-      const result = await apiClient.startNode(finalConfig);
+      
+      // Check if configuration has changed from the last start
+      const lastConfigStr = localStorage.getItem('lastNodeConfig');
+      const lastConfig = lastConfigStr ? JSON.parse(lastConfigStr) : null;
+      const configChanged = !lastConfig || JSON.stringify(lastConfig) !== JSON.stringify(finalConfig);
+      
+      if (configChanged) {
+        console.log('Configuration changed, requesting data cleanup...');
+      }
+      
+      const result = await apiClient.startNode({ ...finalConfig, configChanged });
       console.log('Start node result:', result);
+
+      // Store the current configuration as the last successful config
+      localStorage.setItem('lastNodeConfig', JSON.stringify(finalConfig));
 
       // Poll status until node is running (max 30 seconds)
       const maxAttempts = 30;
@@ -161,28 +180,67 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     }
   },
 
-  setMiningMode: async (config: MiningConfig) => {
+  resetNode: async (clearData = false) => {
+    try {
+      set({ isResetting: true, error: null });
+      await apiClient.resetNode(clearData);
+      // Clear nodeInfo so it gets refetched with fresh data
+      set({ nodeInfo: null });
+      await get().fetchStatus();
+      await get().fetchNodeInfo();
+      set({ isResetting: false });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to reset node';
+      set({ error: errorMessage, isResetting: false });
+      throw error;
+    }
+  },
+
+  mineBlocks: async (blocks: number, numTxs?: number) => {
     try {
       set({ isMining: true, error: null });
-      await apiClient.setMiningMode(config.autoMining ? 'auto' : 'manual', config.blockTime);
+      await apiClient.mineBlocks(blocks, numTxs);
       await get().fetchStatus();
       set({ isMining: false });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to set mining mode';
+      const errorMessage = error.response?.data?.message || 'Failed to mine blocks';
       set({ error: errorMessage, isMining: false });
       throw error;
     }
   },
 
-  mineBlock: async () => {
+  startAutoMine: async (interval?: number) => {
     try {
-      set({ isMining: true, error: null });
-      await apiClient.mineBlock();
+      set({ error: null });
+      await apiClient.startAutoMine(interval);
       await get().fetchStatus();
-      set({ isMining: false });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to mine block';
-      set({ error: errorMessage, isMining: false });
+      const errorMessage = error.response?.data?.message || 'Failed to start auto-mining';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  stopAutoMine: async () => {
+    try {
+      set({ error: null });
+      await apiClient.stopAutoMine();
+      await get().fetchStatus();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to stop auto-mining';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  setMiningInterval: async (interval: number) => {
+    try {
+      set({ error: null });
+      await apiClient.setMiningInterval(interval);
+      await get().fetchStatus();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to set mining interval';
+      set({ error: errorMessage });
       throw error;
     }
   },
@@ -265,9 +323,10 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       config: {
         chainId: 2029,
         evmChainId: 2030,
-        autoMining: true,
-        miningInterval: 1000,
-        persistence: false,
+        jsonrpcHttpPort: 12537,
+        jsonrpcWsPort: 12535,
+        jsonrpcHttpEthPort: 8545,
+        jsonrpcWsEthPort: 8546,
       },
     });
   },

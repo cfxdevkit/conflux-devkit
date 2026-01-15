@@ -101,21 +101,12 @@ export function DevNodeStatus() {
               </Text>
             </Group>
 
-            {nodeInfo?.core?.networkId !== undefined && (
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">
-                  Network ID
-                </Text>
-                <Text size="sm" fw={500}>{nodeInfo.core.networkId}</Text>
-              </Group>
-            )}
-
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
                 RPC URL
               </Text>
               <Text size="xs" c="blue" style={{ fontFamily: 'monospace' }}>
-                {status.coreSpace.rpcUrl}
+                {status.coreSpace.rpcUrl || 'http://localhost:12537'}
               </Text>
             </Group>
           </Stack>
@@ -164,21 +155,12 @@ export function DevNodeStatus() {
               </Text>
             </Group>
 
-            {nodeInfo?.eSpace?.networkId !== undefined && (
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">
-                  Network ID
-                </Text>
-                <Text size="sm" fw={500}>{nodeInfo.eSpace.networkId}</Text>
-              </Group>
-            )}
-
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
                 RPC URL
               </Text>
               <Text size="xs" c="purple" style={{ fontFamily: 'monospace' }}>
-                {status.eSpace.rpcUrl}
+                {status.eSpace.rpcUrl || 'http://localhost:8545'}
               </Text>
             </Group>
           </Stack>
