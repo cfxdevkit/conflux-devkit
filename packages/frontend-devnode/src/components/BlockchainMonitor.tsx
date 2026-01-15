@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Card,
   Stack,
@@ -36,6 +36,8 @@ import {
   IconCoin,
   IconActivity,
   IconBooks,
+  IconPlayerPause,
+  IconPlayerPlay,
 } from '@tabler/icons-react';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
@@ -44,6 +46,7 @@ interface BlockInfo {
   blockNumber: string;
   timestamp: number;
   chainType: 'core' | 'evm';
+  transactionCount: number;
 }
 
 interface TransactionInfo {
@@ -53,7 +56,7 @@ interface TransactionInfo {
   value: string;
   blockNumber: string;
   timestamp: number;
-  chainType?: string;
+  chainType: 'core' | 'evm';
 }
 
 interface MonitorStats {
@@ -61,117 +64,247 @@ interface MonitorStats {
   evmBlockNumber: string;
   coreBlocksPerSecond: number;
   evmBlocksPerSecond: number;
+  totalBlocks: number;
+  totalTransactions: number;
+}
+
+// RPC endpoints for the local dev node
+const CORE_RPC_URL = 'http://localhost:12537';
+const EVM_RPC_URL = 'http://localhost:8545';
+
+// Fetch block by number from eSpace (EVM)
+async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
+  try {
+    const response = await fetch(EVM_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getBlockByNumber',
+        params: [`0x${blockNumber.toString(16)}`, true], // true = include transactions
+        id: 1,
+      }),
+    });
+    const data = await response.json();
+    return data.result;
+  } catch (error) {
+    console.warn('Failed to fetch EVM block:', error);
+    return null;
+  }
+}
+
+// Fetch block by epoch from Core space
+async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
+  try {
+    const response = await fetch(CORE_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'cfx_getBlockByEpochNumber',
+        params: [`0x${epochNumber.toString(16)}`, true], // true = include transactions
+        id: 1,
+      }),
+    });
+    const data = await response.json();
+    return data.result;
+  } catch (error) {
+    console.warn('Failed to fetch Core block:', error);
+    return null;
+  }
 }
 
 export function BlockchainMonitor() {
   const { status } = useDevNodeStore();
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [transactions, setTransactions] = useState<TransactionInfo[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
   const [stats, setStats] = useState<MonitorStats>({
     coreBlockNumber: '0',
     evmBlockNumber: '0',
     coreBlocksPerSecond: 0,
     evmBlocksPerSecond: 0,
+    totalBlocks: 0,
+    totalTransactions: 0,
   });
 
-  const [prevCoreBlock, setPrevCoreBlock] = useState<string>('0');
-  const [prevEvmBlock, setPrevEvmBlock] = useState<string>('0');
-  const [prevTimestamp, setPrevTimestamp] = useState<number>(Date.now());
+  // Track previous block numbers to detect new blocks
+  const prevCoreBlockRef = useRef<number>(0);
+  const prevEvmBlockRef = useRef<number>(0);
+  const prevTimestampRef = useRef<number>(Date.now());
+  const isProcessingRef = useRef<boolean>(false);
 
   const isNodeRunning = status?.isRunning ?? false;
 
-  useEffect(() => {
-    // Subscribe to block events
-    const unsubBlock = wsClient.on('devnode:block', (data: any) => {
-      const blockInfo: BlockInfo = {
-        blockNumber: data.blockNumber || data.evmBlockNumber || '0',
-        timestamp: Date.now(),
-        chainType: data.chainType || 'evm',
-      };
+  // Process new blocks detected from nodeStats
+  const processNewBlocks = useCallback(async (
+    newCoreBlock: number,
+    newEvmBlock: number
+  ) => {
+    if (isPaused || isProcessingRef.current) return;
+    isProcessingRef.current = true;
 
-      setBlocks((prev) => {
-        const updated = [blockInfo, ...prev].slice(0, 50); // Keep last 50 blocks
-        return updated;
-      });
+    try {
+      const newBlocks: BlockInfo[] = [];
+      const newTxs: TransactionInfo[] = [];
 
-      // Update stats based on block data
-      if (data.chainType === 'core') {
-        setStats((prev) => ({ ...prev, coreBlockNumber: data.blockNumber || prev.coreBlockNumber }));
-      } else {
-        setStats((prev) => ({ ...prev, evmBlockNumber: data.blockNumber || prev.evmBlockNumber }));
+      // Check for new eSpace blocks
+      if (newEvmBlock > prevEvmBlockRef.current && prevEvmBlockRef.current > 0) {
+        // Fetch new blocks (limit to last 5 to avoid flooding)
+        const startBlock = Math.max(prevEvmBlockRef.current + 1, newEvmBlock - 4);
+        for (let i = startBlock; i <= newEvmBlock; i++) {
+          const block = await fetchEvmBlock(i);
+          if (block) {
+            const txCount = block.transactions?.length || 0;
+            newBlocks.push({
+              blockNumber: String(i),
+              timestamp: Date.now(),
+              chainType: 'evm',
+              transactionCount: txCount,
+            });
+
+            // Extract transactions from the block
+            if (block.transactions && Array.isArray(block.transactions)) {
+              for (const tx of block.transactions) {
+                if (typeof tx === 'object') {
+                  newTxs.push({
+                    hash: tx.hash || '',
+                    from: tx.from || '',
+                    to: tx.to || undefined,
+                    value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+                    blockNumber: String(i),
+                    timestamp: Date.now(),
+                    chainType: 'evm',
+                  });
+                }
+              }
+            }
+          }
+        }
       }
-    });
 
-    // Subscribe to transaction events
-    const unsubTx = wsClient.on('devnode:transaction', (data: any) => {
-      const txInfo: TransactionInfo = {
-        hash: data.hash || '',
-        from: data.from || '',
-        to: data.to,
-        value: data.value || '0',
-        blockNumber: data.blockNumber || '0',
-        timestamp: Date.now(),
-        chainType: data.chainType,
-      };
+      // Check for new Core blocks
+      if (newCoreBlock > prevCoreBlockRef.current && prevCoreBlockRef.current > 0) {
+        // Fetch new blocks (limit to last 5 to avoid flooding)
+        const startBlock = Math.max(prevCoreBlockRef.current + 1, newCoreBlock - 4);
+        for (let i = startBlock; i <= newCoreBlock; i++) {
+          const block = await fetchCoreBlock(i);
+          if (block) {
+            const txCount = block.transactions?.length || 0;
+            newBlocks.push({
+              blockNumber: String(i),
+              timestamp: Date.now(),
+              chainType: 'core',
+              transactionCount: txCount,
+            });
 
-      setTransactions((prev) => {
-        const updated = [txInfo, ...prev].slice(0, 50); // Keep last 50 transactions
-        return updated;
-      });
-    });
+            // Extract transactions from the block
+            if (block.transactions && Array.isArray(block.transactions)) {
+              for (const tx of block.transactions) {
+                if (typeof tx === 'object') {
+                  newTxs.push({
+                    hash: tx.hash || '',
+                    from: tx.from || '',
+                    to: tx.to || undefined,
+                    value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+                    blockNumber: String(i),
+                    timestamp: Date.now(),
+                    chainType: 'core',
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Update state with new blocks and transactions
+      if (newBlocks.length > 0) {
+        setBlocks((prev) => [...newBlocks.reverse(), ...prev].slice(0, 100));
+        setStats((prev) => ({
+          ...prev,
+          totalBlocks: prev.totalBlocks + newBlocks.length,
+        }));
+      }
+
+      if (newTxs.length > 0) {
+        setTransactions((prev) => [...newTxs.reverse(), ...prev].slice(0, 100));
+        setStats((prev) => ({
+          ...prev,
+          totalTransactions: prev.totalTransactions + newTxs.length,
+        }));
+      }
+    } finally {
+      isProcessingRef.current = false;
+    }
+  }, [isPaused]);
+
+  useEffect(() => {
+    if (!isNodeRunning) return;
 
     // Subscribe to node stats for block numbers
     const unsubStats = wsClient.on('nodeStats', (data: any) => {
       const now = Date.now();
-      const timeDiff = (now - prevTimestamp) / 1000; // in seconds
+      const timeDiff = (now - prevTimestampRef.current) / 1000;
+
+      const coreBlockNum = parseInt(data.coreBlockNumber || '0');
+      const evmBlockNum = parseInt(data.evmBlockNumber || '0');
 
       // Calculate blocks per second
-      const coreBlockNum = data.coreBlockNumber || '0';
-      const evmBlockNum = data.evmBlockNumber || '0';
-
       let coreBlocksPerSec = 0;
       let evmBlocksPerSec = 0;
 
-      if (timeDiff > 0) {
-        const coreBlockDiff = parseInt(coreBlockNum) - parseInt(prevCoreBlock);
-        const evmBlockDiff = parseInt(evmBlockNum) - parseInt(prevEvmBlock);
+      if (timeDiff > 0 && prevCoreBlockRef.current > 0) {
+        const coreBlockDiff = coreBlockNum - prevCoreBlockRef.current;
+        const evmBlockDiff = evmBlockNum - prevEvmBlockRef.current;
 
         coreBlocksPerSec = Math.max(0, coreBlockDiff / timeDiff);
         evmBlocksPerSec = Math.max(0, evmBlockDiff / timeDiff);
       }
 
-      setStats({
-        coreBlockNumber: coreBlockNum,
-        evmBlockNumber: evmBlockNum,
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        coreBlockNumber: String(coreBlockNum),
+        evmBlockNumber: String(evmBlockNum),
         coreBlocksPerSecond: Math.round(coreBlocksPerSec * 100) / 100,
         evmBlocksPerSecond: Math.round(evmBlocksPerSec * 100) / 100,
-      });
+      }));
 
-      setPrevCoreBlock(coreBlockNum);
-      setPrevEvmBlock(evmBlockNum);
-      setPrevTimestamp(now);
+      // Process new blocks if there are any
+      if (coreBlockNum > prevCoreBlockRef.current || evmBlockNum > prevEvmBlockRef.current) {
+        processNewBlocks(coreBlockNum, evmBlockNum);
+      }
+
+      // Update previous values
+      prevCoreBlockRef.current = coreBlockNum;
+      prevEvmBlockRef.current = evmBlockNum;
+      prevTimestampRef.current = now;
     });
 
     return () => {
-      unsubBlock();
-      unsubTx();
       unsubStats();
     };
-  }, [prevCoreBlock, prevEvmBlock, prevTimestamp]);
+  }, [isNodeRunning, processNewBlocks]);
 
   const clearHistory = () => {
     setBlocks([]);
     setTransactions([]);
+    setStats((prev) => ({
+      ...prev,
+      totalBlocks: 0,
+      totalTransactions: 0,
+    }));
   };
 
   const formatHash = (hash: string) => {
     if (!hash) return 'Unknown';
-    return hash.length > 16 ? `${hash.slice(0, 8)}...${hash.slice(-8)}` : hash;
+    return hash.length > 16 ? `${hash.slice(0, 8)}...${hash.slice(-6)}` : hash;
   };
 
   const formatAddress = (address: string) => {
     if (!address) return 'N/A';
-    return address.length > 16 ? `${address.slice(0, 8)}...${address.slice(-8)}` : address;
+    return address.length > 16 ? `${address.slice(0, 8)}...${address.slice(-6)}` : address;
   };
 
   return (
@@ -187,6 +320,7 @@ export function BlockchainMonitor() {
         </Card>
       )}
 
+      {/* Stats Grid */}
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
         <Card withBorder padding="md" radius="md">
           <Stack gap="xs" align="center">
@@ -194,7 +328,7 @@ export function BlockchainMonitor() {
               <IconBooks size={20} />
             </ThemeIcon>
             <Text size="xs" c="dimmed" fw={500}>
-              Core Block Height
+              Core Epoch
             </Text>
             <Text size="xl" fw={700}>
               {stats.coreBlockNumber}
@@ -211,7 +345,7 @@ export function BlockchainMonitor() {
               <IconCoin size={20} />
             </ThemeIcon>
             <Text size="xs" c="dimmed" fw={500}>
-              eSpace Block Height
+              eSpace Block
             </Text>
             <Text size="xl" fw={700}>
               {stats.evmBlockNumber}
@@ -228,13 +362,13 @@ export function BlockchainMonitor() {
               <IconFileText size={20} />
             </ThemeIcon>
             <Text size="xs" c="dimmed" fw={500}>
-              Total Blocks
+              Blocks Captured
             </Text>
             <Text size="xl" fw={700}>
-              {blocks.length}
+              {stats.totalBlocks}
             </Text>
             <Text size="xs" c="dimmed">
-              In monitor
+              {blocks.length} in view
             </Text>
           </Stack>
         </Card>
@@ -245,13 +379,13 @@ export function BlockchainMonitor() {
               <IconActivity size={20} />
             </ThemeIcon>
             <Text size="xs" c="dimmed" fw={500}>
-              Total Transactions
+              Transactions
             </Text>
             <Text size="xl" fw={700}>
-              {transactions.length}
+              {stats.totalTransactions}
             </Text>
             <Text size="xs" c="dimmed">
-              In monitor
+              {transactions.length} in view
             </Text>
           </Stack>
         </Card>
@@ -264,24 +398,41 @@ export function BlockchainMonitor() {
             <Group gap="xs">
               <IconBooks size={20} />
               <Text fw={600}>Recent Blocks</Text>
+              <Badge size="sm" color={isPaused ? 'orange' : 'green'} variant="light">
+                {isPaused ? 'Paused' : 'Live'}
+              </Badge>
             </Group>
-            <Tooltip label="Clear history">
-              <ActionIcon
-                variant="light"
-                size="sm"
-                onClick={clearHistory}
-                disabled={blocks.length === 0}
-              >
-                <IconTrash size={16} />
-              </ActionIcon>
-            </Tooltip>
+            <Group gap="xs">
+              <Tooltip label={isPaused ? 'Resume monitoring' : 'Pause monitoring'}>
+                <ActionIcon
+                  variant="light"
+                  size="sm"
+                  color={isPaused ? 'green' : 'orange'}
+                  onClick={() => setIsPaused(!isPaused)}
+                >
+                  {isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Clear history">
+                <ActionIcon
+                  variant="light"
+                  size="sm"
+                  onClick={clearHistory}
+                  disabled={blocks.length === 0}
+                >
+                  <IconTrash size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
           </Group>
         </Card.Section>
 
         {blocks.length === 0 ? (
           <Stack align="center" gap="md" py="xl">
             <Text size="sm" c="dimmed">
-              No blocks mined yet. Start mining to see blocks appear here.
+              {isNodeRunning
+                ? 'Waiting for new blocks... Mine blocks or use the faucet to see activity.'
+                : 'Start the node and mine blocks to see them here.'}
             </Text>
           </Stack>
         ) : (
@@ -290,14 +441,15 @@ export function BlockchainMonitor() {
               <Table.Tr>
                 <Table.Th>Block #</Table.Th>
                 <Table.Th>Chain</Table.Th>
+                <Table.Th>Txs</Table.Th>
                 <Table.Th>Time</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {blocks.map((block, idx) => (
-                <Table.Tr key={`${block.blockNumber}-${idx}`}>
+              {blocks.slice(0, 20).map((block, idx) => (
+                <Table.Tr key={`${block.chainType}-${block.blockNumber}-${idx}`}>
                   <Table.Td>
-                    <Text fw={500} ff="monospace">
+                    <Text fw={500} ff="monospace" size="sm">
                       {block.blockNumber}
                     </Text>
                   </Table.Td>
@@ -307,7 +459,12 @@ export function BlockchainMonitor() {
                       color={block.chainType === 'core' ? 'blue' : 'green'}
                       variant="light"
                     >
-                      {block.chainType.toUpperCase()}
+                      {block.chainType === 'core' ? 'Core' : 'eSpace'}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge size="sm" color={block.transactionCount > 0 ? 'cyan' : 'gray'} variant="light">
+                      {block.transactionCount}
                     </Badge>
                   </Table.Td>
                   <Table.Td>
@@ -330,23 +487,15 @@ export function BlockchainMonitor() {
               <IconFileText size={20} />
               <Text fw={600}>Recent Transactions</Text>
             </Group>
-            <Tooltip label="Clear history">
-              <ActionIcon
-                variant="light"
-                size="sm"
-                onClick={clearHistory}
-                disabled={transactions.length === 0}
-              >
-                <IconTrash size={16} />
-              </ActionIcon>
-            </Tooltip>
           </Group>
         </Card.Section>
 
         {transactions.length === 0 ? (
           <Stack align="center" gap="md" py="xl">
             <Text size="sm" c="dimmed">
-              No transactions captured yet. Use the faucet or send transactions to see them here.
+              {isNodeRunning
+                ? 'No transactions yet. Use the faucet to send test tokens.'
+                : 'Start the node and send transactions to see them here.'}
             </Text>
           </Stack>
         ) : (
@@ -354,14 +503,14 @@ export function BlockchainMonitor() {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Hash</Table.Th>
+                <Table.Th>Chain</Table.Th>
                 <Table.Th>From</Table.Th>
                 <Table.Th>To</Table.Th>
                 <Table.Th>Value</Table.Th>
-                <Table.Th>Block</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {transactions.map((tx, idx) => (
+              {transactions.slice(0, 20).map((tx, idx) => (
                 <Table.Tr key={`${tx.hash}-${idx}`}>
                   <Table.Td>
                     <Group gap="xs">
@@ -388,6 +537,15 @@ export function BlockchainMonitor() {
                     </Group>
                   </Table.Td>
                   <Table.Td>
+                    <Badge
+                      size="sm"
+                      color={tx.chainType === 'core' ? 'blue' : 'green'}
+                      variant="light"
+                    >
+                      {tx.chainType === 'core' ? 'Core' : 'eSpace'}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
                     <Tooltip label={tx.from} multiline maw={200}>
                       <Text ff="monospace" size="sm">
                         {formatAddress(tx.from)}
@@ -404,11 +562,6 @@ export function BlockchainMonitor() {
                   <Table.Td>
                     <Text size="sm" fw={500}>
                       {tx.value}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text ff="monospace" size="sm">
-                      {tx.blockNumber}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
