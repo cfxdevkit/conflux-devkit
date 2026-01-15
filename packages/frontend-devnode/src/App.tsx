@@ -18,15 +18,19 @@ import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
+import { FaucetControl } from '@/components/FaucetControl';
+import { NetworkSwitcher } from '@/components/NetworkSwitcher';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
+import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { AppShell, Badge, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { IconBrandGithub } from '@tabler/icons-react';
+import { AppShell, Badge, Button, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { IconBrandGithub, IconLogout } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
 function App() {
-  const { isAuthenticated } = useWalletAuth();
+  const { isAuthenticated, logout } = useWalletAuth();
+  const { user } = useAuthStore();
   const { status, updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
 
   useEffect(() => {
@@ -104,6 +108,34 @@ function App() {
               </Badge>
             </Group>
             <Group>
+              {isAuthenticated && user ? (
+                <Group gap="md">
+                  <Stack gap={4}>
+                    <Text size="sm" fw={500}>
+                      {user.address.slice(0, 6)}...{user.address.slice(-4)}
+                    </Text>
+                    <Group gap={6}>
+                      {user.isAdmin && (
+                        <Badge size="xs" variant="filled" color="green">
+                          Admin
+                        </Badge>
+                      )}
+                      <Badge size="xs" variant="light" color="green">
+                        Connected
+                      </Badge>
+                    </Group>
+                  </Stack>
+                  <Button
+                    leftSection={<IconLogout size={16} />}
+                    variant="light"
+                    color="red"
+                    size="xs"
+                    onClick={logout}
+                  >
+                    Disconnect
+                  </Button>
+                </Group>
+              ) : null}
               <a
                 href="https://github.com/conflux-devkit/conflux-devkit"
                 target="_blank"
@@ -126,6 +158,8 @@ function App() {
               <>
                 <DevNodeControlPanel />
                 <DevNodeStatus />
+                <NetworkSwitcher />
+                <FaucetControl />
                 <AccountsTable />
               </>
             )}

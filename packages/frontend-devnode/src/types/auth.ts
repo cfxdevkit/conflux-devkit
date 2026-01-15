@@ -18,6 +18,7 @@ export interface AuthUser {
   address: string;
   chainId: number;
   isConnected: boolean;
+  isAdmin?: boolean;
 }
 
 export interface AuthState {

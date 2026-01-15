@@ -15,8 +15,10 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
+import { useAuthStore } from '@/stores/authStore';
 import {
     ActionIcon,
+    Alert,
     Badge,
     Button,
     Card,
@@ -35,6 +37,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+    IconAlertCircle,
     IconChevronUp,
     IconPick,
     IconPlayerPlay,
@@ -46,6 +49,9 @@ import {
 import { useState } from 'react';
 
 export function DevNodeControlPanel() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.isAdmin ?? false;
+  
   const {
     status,
     config,
@@ -274,12 +280,23 @@ export function DevNodeControlPanel() {
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
+          {!isAdmin && (
+            <Alert icon={<IconAlertCircle size={16} />} color="yellow" title="Read-Only Mode">
+              Only admin users can control the development node. Advanced features are disabled.
+            </Alert>
+          )}
+          
           {/* Header */}
           <Group justify="space-between">
             <Group gap="xs">
               <Text size="lg" fw={600}>
                 DevNode Control
               </Text>
+              {isAdmin && (
+                <Badge size="xs" variant="filled" color="green">
+                  Admin
+                </Badge>
+              )}
               <Tooltip label={configOpened ? 'Hide configuration' : 'Show configuration'}>
                 <ActionIcon 
                   variant="subtle" 
@@ -298,33 +315,39 @@ export function DevNodeControlPanel() {
 
           {/* Node Control Buttons */}
           <Group grow>
-            <Button
-              leftSection={<IconPlayerPlay size={16} />}
-              onClick={handleStart}
-              loading={isStarting}
-              disabled={isRunning}
-              color="green"
-            >
-              Start
-            </Button>
-            <Button
-              leftSection={<IconPlayerStop size={16} />}
-              onClick={handleStop}
-              loading={isStopping}
-              disabled={!isRunning}
-              color="red"
-            >
-              Stop
-            </Button>
-            <Button
-              leftSection={<IconRefresh size={16} />}
-              onClick={handleRestart}
-              loading={isResetting}
-              disabled={!isRunning}
-              color="blue"
-            >
-              Restart
-            </Button>
+            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+              <Button
+                leftSection={<IconPlayerPlay size={16} />}
+                onClick={handleStart}
+                loading={isStarting}
+                disabled={isRunning || !isAdmin}
+                color="green"
+              >
+                Start
+              </Button>
+            </Tooltip>
+            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+              <Button
+                leftSection={<IconPlayerStop size={16} />}
+                onClick={handleStop}
+                loading={isStopping}
+                disabled={!isRunning || !isAdmin}
+                color="red"
+              >
+                Stop
+              </Button>
+            </Tooltip>
+            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+              <Button
+                leftSection={<IconRefresh size={16} />}
+                onClick={handleRestart}
+                loading={isResetting}
+                disabled={!isRunning || !isAdmin}
+                color="blue"
+              >
+                Restart
+              </Button>
+            </Tooltip>
           </Group>
 
           {/* Collapsible Configuration Section */}
@@ -436,26 +459,34 @@ export function DevNodeControlPanel() {
 
                 {/* Data Management */}
                 <Divider my="xs" />
-                <Button
-                  variant="light"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconTrash size={14} />}
-                  onClick={handleClearData}
-                  loading={isClearingData}
-                  disabled={isRunning}
-                  fullWidth
-                >
-                  Delete Configuration Data
-                </Button>
+                <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+                  <Button
+                    variant="light"
+                    color="red"
+                    size="xs"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={handleClearData}
+                    loading={isClearingData}
+                    disabled={isRunning || !isAdmin}
+                    fullWidth
+                  >
+                    Delete Configuration Data
+                  </Button>
+                </Tooltip>
               </Stack>
             </Card>
           </Collapse>
 
-          {/* Mining Controls - Only when node is running */}
+          {/* Mining Controls - Only when node is running and user is admin */}
           {isRunning && (
             <>
               <Divider label="Mining Control" labelPosition="center" />
+              
+              {!isAdmin && (
+                <Alert icon={<IconAlertCircle size={16} />} color="yellow" title="Admin Only">
+                  Mining controls are only available to admin users.
+                </Alert>
+              )}
               
               {/* Mining Mode Selector */}
               <Card withBorder padding="sm" bg="gray.0">
@@ -470,7 +501,7 @@ export function DevNodeControlPanel() {
                     <Switch
                       checked={isAutoMining}
                       onChange={(e) => handleToggleAutoMine(e.currentTarget.checked)}
-                      disabled={isTogglingAutoMine}
+                      disabled={isTogglingAutoMine || !isAdmin}
                       color="green"
                       size="md"
                       label={isAutoMining ? 'Auto' : 'Manual'}
@@ -495,6 +526,7 @@ export function DevNodeControlPanel() {
                         step={100}
                         size="xs"
                         style={{ flex: 1 }}
+                        disabled={!isAdmin}
                       />
                       <Button
                         size="xs"
@@ -502,6 +534,7 @@ export function DevNodeControlPanel() {
                         onClick={handleSetInterval}
                         loading={isSettingInterval}
                         color={autoMineInterval !== currentInterval ? 'blue' : 'gray'}
+                        disabled={!isAdmin}
                       >
                         {autoMineInterval !== currentInterval ? 'Update' : 'Apply'}
                       </Button>
@@ -527,6 +560,7 @@ export function DevNodeControlPanel() {
                         max={100}
                         size="xs"
                         style={{ flex: 1 }}
+                        disabled={!isAdmin}
                       />
                       <SegmentedControl
                         size="xs"
@@ -536,6 +570,7 @@ export function DevNodeControlPanel() {
                           { label: 'Empty', value: 'empty' },
                           { label: 'Pack Txs', value: 'withTxs' },
                         ]}
+                        disabled={!isAdmin}
                       />
                     </Group>
                     <Text size="xs" c="dimmed">
@@ -544,15 +579,18 @@ export function DevNodeControlPanel() {
                         : 'Mine blocks that pack pending transactions from txpool'
                       }
                     </Text>
-                    <Button
-                      leftSection={<IconPick size={16} />}
-                      onClick={handleMineBlocks}
-                      loading={isMining}
-                      variant="light"
-                      fullWidth
-                    >
-                      Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
-                    </Button>
+                    <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+                      <Button
+                        leftSection={<IconPick size={16} />}
+                        onClick={handleMineBlocks}
+                        loading={isMining}
+                        variant="light"
+                        fullWidth
+                        disabled={!isAdmin}
+                      >
+                        Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
+                      </Button>
+                    </Tooltip>
                   </Stack>
                 </Card>
               )}

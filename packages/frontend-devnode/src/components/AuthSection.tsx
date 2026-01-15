@@ -14,57 +14,32 @@
  * limitations under the License.
  */
 
-import { Avatar, Badge, Button, Card, Group, Stack, Text } from '@mantine/core';
-import { IconLogout, IconWallet } from '@tabler/icons-react';
+import { Card, Stack, Text } from '@mantine/core';
+import { IconWallet } from '@tabler/icons-react';
 import { ConnectKitButton } from 'connectkit';
-import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { useAuthStore } from '@/stores/authStore';
 
 export function AuthSection() {
-  const { user, isConnected } = useAuthStore();
-  const { logout } = useWalletAuth();
+  const { isConnected } = useAuthStore();
 
-  if (!isConnected || !user) {
-    return (
-      <Card shadow="sm" padding="xl" radius="md" withBorder>
-        <Stack align="center" gap="md">
-          <IconWallet size={48} stroke={1.5} />
-          <Text size="xl" fw={600}>
-            Welcome to Conflux DevKit
-          </Text>
-          <Text size="sm" c="dimmed" ta="center">
-            Connect your wallet to access the development node management dashboard
-          </Text>
-          <ConnectKitButton />
-        </Stack>
-      </Card>
-    );
+  // If connected, show nothing (navbar handles display)
+  if (isConnected) {
+    return null;
   }
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
+  // Show connection prompt when not connected
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Group justify="space-between">
-        <Group>
-          <Avatar color="blue" radius="xl">
-            {user.address.slice(2, 4).toUpperCase()}
-          </Avatar>
-          <Stack gap={4}>
-            <Text size="sm" fw={500}>
-              {formatAddress(user.address)}
-            </Text>
-            <Badge size="xs" variant="light" color="green">
-              Connected
-            </Badge>
-          </Stack>
-        </Group>
-        <Button leftSection={<IconLogout size={16} />} variant="light" color="red" onClick={logout}>
-          Disconnect
-        </Button>
-      </Group>
+    <Card shadow="sm" padding="xl" radius="md" withBorder>
+      <Stack align="center" gap="md">
+        <IconWallet size={48} stroke={1.5} />
+        <Text size="xl" fw={600}>
+          Welcome to Conflux DevKit
+        </Text>
+        <Text size="sm" c="dimmed" ta="center">
+          Connect your wallet to access the development node management dashboard
+        </Text>
+        <ConnectKitButton />
+      </Stack>
     </Card>
   );
 }

@@ -322,47 +322,45 @@ export function createDevKitRoutes(
         });
       }
 
-      // Get faucet account info (admin only)
+      // Get faucet account info (available to all users)
       let faucetAccount = null;
-      if (req.wallet?.isAdmin) {
-        try {
-          if (network === 'local') {
-            const faucet = await devkit.getFaucetAccount();
-            faucetAccount = {
-              addresses: {
-                core: faucet.address.core,
-                evm: faucet.address.evm,
-              },
-            };
-          } else {
-            // For external networks, regenerate faucet addresses
-            const faucet = await devkit.getFaucetAccount();
-            const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
-              'cive/accounts'
-            );
-            const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
-              'viem/accounts'
-            );
-            
-            const faucetCorePrivateKey = faucet.privateKey as `0x${string}`;
-            const faucetEvmPrivateKey = faucet.evmPrivateKey as `0x${string}`;
-            
-            const faucetCoreAccount = corePrivateKeyToAccount(faucetCorePrivateKey, {
-              networkId: networkConfig.coreNetworkId,
-            });
-            
-            const faucetEvmAccount = evmPrivateKeyToAccount(faucetEvmPrivateKey);
-            
-            faucetAccount = {
-              addresses: {
-                core: faucetCoreAccount.address,
-                evm: faucetEvmAccount.address,
-              },
-            };
-          }
-        } catch (error) {
-          console.warn('Faucet account not available:', error);
+      try {
+        if (network === 'local') {
+          const faucet = await devkit.getFaucetAccount();
+          faucetAccount = {
+            addresses: {
+              core: faucet.address.core,
+              evm: faucet.address.evm,
+            },
+          };
+        } else {
+          // For external networks, regenerate faucet addresses
+          const faucet = await devkit.getFaucetAccount();
+          const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+            'cive/accounts'
+          );
+          const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
+            'viem/accounts'
+          );
+          
+          const faucetCorePrivateKey = faucet.privateKey as `0x${string}`;
+          const faucetEvmPrivateKey = faucet.evmPrivateKey as `0x${string}`;
+          
+          const faucetCoreAccount = corePrivateKeyToAccount(faucetCorePrivateKey, {
+            networkId: networkConfig.coreNetworkId,
+          });
+          
+          const faucetEvmAccount = evmPrivateKeyToAccount(faucetEvmPrivateKey);
+          
+          faucetAccount = {
+            addresses: {
+              core: faucetCoreAccount.address,
+              evm: faucetEvmAccount.address,
+            },
+          };
         }
+      } catch (error) {
+        console.warn('Faucet account not available:', error);
       }
 
       res.json({

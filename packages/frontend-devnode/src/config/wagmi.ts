@@ -19,7 +19,7 @@ import { createConfig, http } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
 
 // Define Conflux chains
-const confluxCore = {
+export const confluxCore = {
   id: 1029,
   name: 'Conflux Core',
   network: 'conflux-core',
@@ -41,7 +41,7 @@ const confluxCore = {
   },
 } as const;
 
-const confluxESpace = {
+export const confluxESpace = {
   id: 1030,
   name: 'Conflux eSpace',
   network: 'conflux-espace',
@@ -63,7 +63,7 @@ const confluxESpace = {
   },
 } as const;
 
-const confluxCoreTestnet = {
+export const confluxCoreTestnet = {
   id: 1001,
   name: 'Conflux Core Testnet',
   network: 'conflux-core-testnet',
@@ -85,7 +85,7 @@ const confluxCoreTestnet = {
   },
 } as const;
 
-const confluxESpaceTestnet = {
+export const confluxESpaceTestnet = {
   id: 71,
   name: 'Conflux eSpace Testnet',
   network: 'conflux-espace-testnet',
@@ -107,8 +107,7 @@ const confluxESpaceTestnet = {
   },
 } as const;
 
-// Local development chains
-const confluxLocalCore = {
+export const confluxLocalCore = {
   id: 2029,
   name: 'Conflux Local Core',
   network: 'conflux-local-core',
@@ -127,7 +126,7 @@ const confluxLocalCore = {
   },
 } as const;
 
-const confluxLocalESpace = {
+export const confluxLocalESpace = {
   id: 2030,
   name: 'Conflux Local eSpace',
   network: 'conflux-local-espace',
@@ -148,22 +147,20 @@ const confluxLocalESpace = {
 
 export const wagmiConfig = createConfig(
   getDefaultConfig({
+    // Prioritize EVM-compatible chains (most wallets support these)
+    // Conflux eSpace uses standard EVM wallet infrastructure
     chains: [
-      confluxLocalCore,
-      confluxLocalESpace,
-      confluxCore,
-      confluxESpace,
-      confluxCoreTestnet,
-      confluxESpaceTestnet,
-      mainnet,
-      sepolia,
+      confluxESpace,           // Conflux eSpace Mainnet (primary - EVM compatible)
+      confluxLocalESpace,      // Local dev node eSpace
+      confluxESpaceTestnet,    // Testnet eSpace
+      mainnet,                 // Ethereum mainnet
+      sepolia,                 // Ethereum testnet
+      // Note: Core chains removed from default list as few wallets support non-EVM chains
+      // Users can manually add confluxCore via network settings if their wallet supports it
     ],
     transports: {
-      [confluxLocalCore.id]: http(),
-      [confluxLocalESpace.id]: http(),
-      [confluxCore.id]: http(),
       [confluxESpace.id]: http(),
-      [confluxCoreTestnet.id]: http(),
+      [confluxLocalESpace.id]: http(),
       [confluxESpaceTestnet.id]: http(),
       [mainnet.id]: http(),
       [sepolia.id]: http(),

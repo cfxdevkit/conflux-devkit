@@ -59,6 +59,7 @@ export function useWalletAuth() {
           address: session.address || address,
           chainId: chainId || 1,
           isConnected: true,
+          isAdmin: session.isAdmin,
         });
         console.log('✅ Authenticated via signature', {
           address: session.address,
@@ -75,16 +76,20 @@ export function useWalletAuth() {
           address: devSession.address || address,
           chainId: chainId || 1,
           isConnected: true,
+          isAdmin: devSession.isAdmin,
         });
-        console.log('🔧 Development session activated as fallback');
+        console.log('🔧 Development session activated as fallback', {
+          isAdmin: devSession.isAdmin,
+        });
         return;
       }
 
-      // Last resort: keep wallet-connected state only
+      // Last resort: keep wallet-connected state only (no admin access)
       setUser({
         address,
         chainId: chainId || 1,
         isConnected: true,
+        isAdmin: false,
       });
       authInProgress.current = false;
       authAttemptedAddress.current = null;
@@ -138,6 +143,7 @@ export function useWalletAuth() {
             address: addr,
             chainId: chainId || user?.chainId || 1,
             isConnected: true,
+            isAdmin: user?.isAdmin,
           });
         }
       } catch (error: any) {
