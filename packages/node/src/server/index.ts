@@ -143,13 +143,17 @@ export class ServerManager {
         evmChainId: this.config.evmChainId,
         // Specify data directory to avoid permission issues
         confluxDataDir: dataDir,
-        // Genesis accounts configuration
-        genesisSecrets: this.accounts.map((acc) => acc.privateKey),
-        genesisEvmSecrets: this.accounts.map(
-          (acc) => acc.evmPrivateKey || acc.privateKey
-        ),
-        // Mining configuration - use dedicated mining account
-        miningAuthor: this.miningAccount?.coreAddress,
+        // Genesis accounts configuration - include mining account for initial funding
+        genesisSecrets: [
+          ...this.accounts.map((acc) => acc.privateKey),
+          this.miningAccount!.privateKey, // Add mining account to get initial funds
+        ],
+        genesisEvmSecrets: [
+          ...this.accounts.map((acc) => acc.evmPrivateKey || acc.privateKey),
+          this.miningAccount!.evmPrivateKey || this.miningAccount!.privateKey, // Add mining account EVM key
+        ],
+        // Mining configuration - use config value or default to mining account address
+        miningAuthor: this.config.miningAuthor || this.miningAccount?.coreAddress,
         devPackTxImmediately: this.config.devPackTxImmediately ?? true, // Pack transactions immediately for UI responsiveness
         devBlockIntervalMs: this.config.devBlockIntervalMs, // Auto block generation interval (undefined = disabled)
         log: this.config.logging || false,
@@ -545,32 +549,40 @@ export class ServerManager {
     const seed = mnemonicToSeedSync(this.mnemonic);
     const root = bip32.fromSeed(seed);
 
-    // Use a different derivation path for mining account (m/44'/503'/1'/0/0)
-    // This separates it from genesis accounts (m/44'/503'/0'/0/i)
-    const child = root.derivePath(`m/44'/503'/1'/0/0`);
+    // Use different derivation paths for Core and EVM mining accounts
+    // Core: m/44'/503'/1'/0/0 (Conflux path)
+    // EVM: m/44'/60'/1'/0/0 (Ethereum path)
+    const confluxChild = root.derivePath(`m/44'/503'/1'/0/0`);
+    const ethereumChild = root.derivePath(`m/44'/60'/1'/0/0`);
 
-    if (!child.privateKey) {
+    if (!confluxChild.privateKey || !ethereumChild.privateKey) {
       throw new NodeError(
-        'Failed to derive private key for mining account',
+        'Failed to derive private keys for mining account',
         'KEY_DERIVATION_ERROR'
       );
     }
 
-    const privateKey = `0x${child.privateKey.toString('hex')}`;
+    const confluxPrivateKey = `0x${confluxChild.privateKey.toString('hex')}`;
+    const ethereumPrivateKey = `0x${ethereumChild.privateKey.toString('hex')}`;
 
-    // Create both Core and EVM accounts from the same private key
-    const coreAccount = privateKeyToAccount(privateKey as `0x${string}`, {
+    // Create Core account using Conflux-derived private key
+    const coreAccount = privateKeyToAccount(confluxPrivateKey as `0x${string}`, {
       networkId: this.config.chainId || 1,
     });
-    const evmAccount = privateKeyToEvmAccount(privateKey as `0x${string}`);
+    
+    // Create EVM account using Ethereum-derived private key
+    const evmAccount = privateKeyToEvmAccount(ethereumPrivateKey as `0x${string}`);
 
     this.miningAccount = {
       index: -1, // Special index for mining account
-      privateKey,
+      privateKey: confluxPrivateKey, // Core/Conflux private key
       coreAddress: coreAccount.address,
       evmAddress: evmAccount.address,
       mnemonic: this.mnemonic,
-      path: `m/44'/503'/1'/0/0`,
+      path: `m/44'/503'/1'/0/0`, // Core path
+      // Store additional EVM-specific info
+      evmPrivateKey: ethereumPrivateKey,
+      evmPath: `m/44'/60'/1'/0/0`,
     };
 
     console.log(
@@ -780,17 +792,18 @@ export class ServerManager {
   // ===== FAUCET METHODS =====
 
   /**
-   * Get the faucet account (first genesis account)
-   * This account is automatically funded by @xcfx/node on both chains
+   * Get the faucet/mining account (dedicated mining account with separate derivation path)
+   * This account receives mining rewards and serves as the faucet
+   * Derivation path: m/44'/503'/1'/0/0 (different from genesis accounts)
    */
   getFaucetAccount(): AccountInfo {
-    if (this.accounts.length === 0) {
+    if (!this.miningAccount) {
       throw new NodeError(
-        'No accounts available. Server must be started first.',
-        'NO_ACCOUNTS'
+        'Mining account not available. Server must be started first.',
+        'NO_MINING_ACCOUNT'
       );
     }
-    return this.accounts[0]; // First account is the faucet
+    return this.miningAccount;
   }
 
   /**

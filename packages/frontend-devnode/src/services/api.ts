@@ -199,6 +199,14 @@ class ApiClient {
     };
   }
 
+  async getBalanceByAddress(address: string) {
+    const response = await this.client.get(`/devkit/balance/address/${address}`);
+    return response.data as {
+      balances: { core: string; evm: string };
+      error?: string;
+    };
+  }
+
   async getBalance(address: string, chain: 'core' | 'eSpace') {
     const response = await this.client.get(`/devkit/accounts/balance/${address}`, {
       params: { chain },

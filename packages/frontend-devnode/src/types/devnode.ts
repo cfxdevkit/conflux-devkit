@@ -50,6 +50,8 @@ export interface DevNodeInfo {
 export interface NodeConfig {
   chainId: number;
   evmChainId: number;
+  accountsCount?: number; // Number of accounts to generate from mnemonic (1-20)
+  miningAuthor?: string; // Core address to receive mining rewards
   jsonrpcHttpPort?: number;
   jsonrpcWsPort?: number;
   jsonrpcHttpEthPort?: number;

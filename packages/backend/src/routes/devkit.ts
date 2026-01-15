@@ -444,6 +444,111 @@ export function createDevKitRoutes(
     }
   });
 
+  // Get balance by address (Core or eSpace)
+  router.get(
+    '/balance/address/:address',
+    async (req: AuthenticatedRequest, res) => {
+      const address = Array.isArray(req.params.address)
+        ? req.params.address[0]
+        : req.params.address;
+      
+      try {
+        const network = currentNetwork;
+        const networkConfig = getNetworkConfig(network);
+
+        // Determine if it's a Core or eSpace address
+        const isEvmAddress = address?.startsWith('0x') && address.length === 42;
+        const isCoreAddress = address?.startsWith('cfx') || address?.startsWith('cfxtest') || address?.startsWith('net');
+
+        if (!isEvmAddress && !isCoreAddress) {
+          return res.status(400).json({ error: 'Invalid address format' });
+        }
+
+        // Check if node is running for local network
+        if (network === 'local') {
+          try {
+            const status = await devkit.getStatus();
+            if (status.core.status !== 'running' && status.evm.status !== 'running') {
+              return res.json({
+                address,
+                balances: { core: '0', evm: '0' },
+                error: 'Node is not running',
+                nodeStatus: 'stopped',
+                network,
+                config: networkConfig,
+              });
+            }
+          } catch {
+            return res.json({
+              address,
+              balances: { core: '0', evm: '0' },
+              error: 'Node is not running',
+              nodeStatus: 'stopped',
+              network,
+              config: networkConfig,
+            });
+          }
+        }
+
+        let coreBalance = '0';
+        let evmBalance = '0';
+
+        // Query balances based on address type
+        if (isCoreAddress) {
+          const { createPublicClient: createCoreClient } = await import('cive');
+          const { http: coreHttp } = await import('cive');
+          const { formatCFX } = await import('cive');
+
+          const coreClient = createCoreClient({
+            transport: coreHttp(networkConfig.coreRpcUrl),
+          });
+
+          const coreBalanceDrip = await coreClient.getBalance({
+            address: address as any,
+          });
+          coreBalance = formatCFX(coreBalanceDrip);
+        } else if (isEvmAddress) {
+          const { createPublicClient: createViemClient } = await import('viem');
+          const { http: viemHttp } = await import('viem');
+          const { formatUnits } = await import('viem');
+
+          const evmClient = createViemClient({
+            transport: viemHttp(networkConfig.rpcUrl),
+          });
+
+          const evmBalanceWei = await evmClient.getBalance({
+            address: address as `0x${string}`,
+          });
+          evmBalance = formatUnits(evmBalanceWei, 18);
+        }
+
+        res.json({
+          address,
+          balances: {
+            core: coreBalance,
+            evm: evmBalance,
+          },
+          network,
+          config: networkConfig,
+        });
+      } catch (error) {
+        logger.error('Address balance check failed:', error);
+
+        res.json({
+          address,
+          balances: {
+            core: '0',
+            evm: '0',
+          },
+          error: 'Failed to fetch balance',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          network: currentNetwork,
+          config: getNetworkConfig(currentNetwork),
+        });
+      }
+    }
+  );
+
   // Get balance
   router.get(
     '/accounts/:index/balance',
@@ -588,11 +693,13 @@ export function createDevKitRoutes(
   // Faucet: fund any address on Core or eSpace
   router.post('/faucet', async (req: AuthenticatedRequest, res) => {
     try {
+      logger.info('Faucet request received:', req.body);
       const { address, amount, chain = 'auto' } = req.body as { address?: string | string[]; amount?: string | string[]; chain?: string | string[] };
       const addressValue = Array.isArray(address) ? address[0] : address;
       const amountValue = Array.isArray(amount) ? amount[0] : amount;
 
       if (!addressValue || !amountValue) {
+        logger.error('Faucet request missing address or amount');
         return res.status(400).json({ error: 'Address and amount are required' });
       }
 
@@ -611,19 +718,25 @@ export function createDevKitRoutes(
           : normalizedChainRaw;
 
       if (normalizedChain !== 'core' && normalizedChain !== 'evm') {
+        logger.error('Invalid chain value:', normalizedChain);
         return res.status(400).json({ error: 'Invalid chain. Use core or eSpace.' });
       }
 
+      logger.info(`Funding account ${addressValue} with ${amountValue} on ${normalizedChain} chain`);
       const txHash = await devkit.fundAccount(addressValue, amountValue, normalizedChain);
+      logger.info('Faucet transaction hash:', txHash);
       
       // Mine a block to ensure the faucet transaction is included in the blockchain
       try {
+        logger.info('Mining block to include faucet transaction');
         await devkit.mineBlocks(1);
+        logger.info('Block mined successfully');
       } catch (mineError) {
-        console.warn('Failed to mine block after faucet transfer:', mineError);
+        logger.warn('Failed to mine block after faucet transfer:', mineError);
         // Don't fail the request if mining fails - the transfer was sent
       }
 
+      logger.info('Faucet request completed successfully');
       res.json({
         transactionHash: txHash,
         chain: normalizedChain === 'evm' ? 'eSpace' : 'core',
@@ -983,6 +1096,12 @@ export function createDevKitRoutes(
       }
       if (config.evmChainId !== undefined) {
         startOptions.evmChainId = Number(config.evmChainId);
+      }
+      if (config.accountsCount !== undefined) {
+        startOptions.accountsCount = Number(config.accountsCount);
+      }
+      if (config.miningAuthor !== undefined && config.miningAuthor !== '') {
+        startOptions.miningAuthor = config.miningAuthor;
       }
       // Note: autoMining and miningInterval are deprecated
       // Mining is controlled via testClient - use /mining/start and /mining/stop endpoints

@@ -75,6 +75,8 @@ export interface DevKitAccount {
 export class DevKitCompat {
   private serverManager: ServerManager;
   private _config: DevKitConfig;
+  private accountsCount: number = 10; // Default accounts count
+  private miningAuthor?: string; // Custom mining rewards address
 
   constructor(config: DevKitConfig) {
     this._config = config;
@@ -90,8 +92,9 @@ export class DevKitCompat {
       wsPort: config.jsonrpcWsPort,
       mnemonic: config.mnemonic,
       logging: config.log,
-      accounts: 10, // Default 10 accounts
+      accounts: this.accountsCount, // Use configurable accounts count
       balance: '10000', // Default balance in CFX
+      miningAuthor: this.miningAuthor, // Mining rewards address (optional)
       // devPackTxImmediately is always false - mining is via testClient
     };
 
@@ -117,6 +120,8 @@ export class DevKitCompat {
   async start(options?: {
     chainId?: number;
     evmChainId?: number;
+    accountsCount?: number;
+    miningAuthor?: string;
     persistence?: boolean;
     configChanged?: boolean;
   }): Promise<void> {
@@ -130,6 +135,50 @@ export class DevKitCompat {
         console.warn('Failed to clear data on config change:', error);
         // Don't throw - continue with start anyway
       }
+    }
+
+    // Update miningAuthor if provided
+    if (options?.miningAuthor !== undefined) {
+      this.miningAuthor = options.miningAuthor;
+    }
+
+    // If accountsCount changed, need to recreate ServerManager
+    if (options?.accountsCount !== undefined && options.accountsCount !== this.accountsCount) {
+      console.log(`Updating accounts count from ${this.accountsCount} to ${options.accountsCount}`);
+      this.accountsCount = Math.max(1, Math.min(20, options.accountsCount)); // Clamp 1-20
+
+      // Recreate ServerManager with new accounts count
+      const serverConfig: ServerConfig = {
+        chainId: this._config.chainId,
+        evmChainId: this._config.evmChainId,
+        coreRpcPort: this._config.jsonrpcHttpPort,
+        evmRpcPort: this._config.jsonrpcHttpEthPort,
+        wsPort: this._config.jsonrpcWsPort,
+        mnemonic: this._config.mnemonic,
+        logging: this._config.log,
+        accounts: this.accountsCount,
+        balance: '10000',
+        miningAuthor: this.miningAuthor,
+      };
+      
+      this.serverManager = new ServerManager(serverConfig);
+    } else if (this.miningAuthor) {
+      // If only miningAuthor changed, recreate ServerManager
+      console.log(`Setting mining author to: ${this.miningAuthor}`);
+      const serverConfig: ServerConfig = {
+        chainId: this._config.chainId,
+        evmChainId: this._config.evmChainId,
+        coreRpcPort: this._config.jsonrpcHttpPort,
+        evmRpcPort: this._config.jsonrpcHttpEthPort,
+        wsPort: this._config.jsonrpcWsPort,
+        mnemonic: this._config.mnemonic,
+        logging: this._config.log,
+        accounts: this.accountsCount,
+        balance: '10000',
+        miningAuthor: this.miningAuthor,
+      };
+      
+      this.serverManager = new ServerManager(serverConfig);
     }
 
     // Note: ServerManager doesn't support changing config after construction
@@ -340,31 +389,71 @@ export class DevKitCompat {
   // ===== FAUCET OPERATIONS =====
 
   /**
-   * Get faucet/mining account
+   * Get faucet/mining account (dedicated mining account with derivation path m/44'/503'/1'/0/0)
+   * This is separate from genesis accounts and receives all mining rewards
    */
   async getFaucetAccount(): Promise<AccountInfo & { address: { core: string; evm: string } }> {
-    // Use the first account as faucet for simplicity
-    // The ServerManager uses a dedicated mining account but we'll use genesis[0] for faucet
-    const accounts = this.serverManager.getAccounts();
-    if (accounts.length === 0) {
-      throw new Error('No accounts available');
-    }
-    const acc = accounts[0];
+    // Get the actual mining account from ServerManager
+    const miningAcc = this.serverManager.getFaucetAccount();
     return {
-      ...acc,
+      ...miningAcc,
       address: {
-        core: acc.coreAddress,
-        evm: acc.evmAddress,
+        core: miningAcc.coreAddress,
+        evm: miningAcc.evmAddress,
       },
     };
   }
 
   /**
-   * Fund an account from faucet
+   * Fund an account from faucet (uses mining account, not genesis account 0)
    */
   async fundAccount(address: string, amount: string, chain: 'core' | 'evm'): Promise<string> {
-    const faucetAccount = this.account(0); // Use first account as faucet
-    return await faucetAccount.transfer(address, amount, chain);
+    // Get the actual mining/faucet account
+    const faucet = await this.getFaucetAccount();
+    console.log('fundAccount called:', { address, amount, chain, faucetAddress: chain === 'core' ? faucet.address.core : faucet.address.evm });
+    
+    // Create a wallet client for the faucet account
+    const rpcUrls = this.getRpcUrls();
+    
+    if (chain === 'core') {
+      const { createWalletClient: createCoreWalletClient, parseCFX, http: coreHttp } = await import('cive');
+      const { privateKeyToAccount: corePrivateKeyToAccount } = await import('cive/accounts');
+      
+      const faucetCoreAccount = corePrivateKeyToAccount(faucet.privateKey as `0x${string}`, {
+        networkId: this._config.chainId || 2029,
+      });
+      
+      const walletClient = createCoreWalletClient({
+        account: faucetCoreAccount,
+        transport: coreHttp(rpcUrls.core),
+      });
+      
+      const hash = await walletClient.sendTransaction({
+        to: address as any,
+        value: parseCFX(amount),
+        chain: null,
+      });
+      
+      return hash;
+    } else {
+      const { createWalletClient, http: viemHttp, parseEther } = await import('viem');
+      const { privateKeyToAccount: evmPrivateKeyToAccount } = await import('viem/accounts');
+      
+      const faucetEvmAccount = evmPrivateKeyToAccount(faucet.evmPrivateKey as `0x${string}`);
+      
+      const walletClient = createWalletClient({
+        account: faucetEvmAccount,
+        transport: viemHttp(rpcUrls.evm),
+      });
+      
+      const hash = await walletClient.sendTransaction({
+        to: address as `0x${string}`,
+        value: parseEther(amount),
+        chain: null,
+      });
+      
+      return hash;
+    }
   }
 
   /**

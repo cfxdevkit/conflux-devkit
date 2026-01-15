@@ -221,6 +221,7 @@ export interface ServerConfig {
   readonly accounts?: number;
   readonly balance?: string;
   readonly mnemonic?: string;
+  readonly miningAuthor?: string; // Mining rewards recipient (Core address)
   readonly logging?: boolean;
   readonly detached?: boolean;
   readonly mining?: MiningConfig;

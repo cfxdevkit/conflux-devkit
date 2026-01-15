@@ -56,6 +56,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   config: {
     chainId: 2029,
     evmChainId: 2030,
+    accountsCount: 10, // Default: generate 10 accounts from mnemonic
     jsonrpcHttpPort: 12537,
     jsonrpcWsPort: 12535,
     jsonrpcHttpEthPort: 8545,
@@ -288,21 +289,29 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       let faucetAccountWithBalance: DevNodeAccount | null = null;
       if (faucetAccount) {
         try {
-          // Faucet is always account index 0
-          const balance = await apiClient.getAccountBalance(0);
-          faucetAccountWithBalance = {
-            ...faucetAccount,
-            index: 0,
-            balance: {
-              core: balance.balances.core,
-              eSpace: balance.balances.evm,
-            },
-          };
+          // Query faucet balance using Core address (since faucet is mining account)
+          const coreAddress = faucetAccount.addresses?.core;
+          if (coreAddress) {
+            const balance = await apiClient.getBalanceByAddress(coreAddress);
+            faucetAccountWithBalance = {
+              ...faucetAccount,
+              index: -1, // Mining account has special index -1
+              balance: {
+                core: balance.balances.core,
+                eSpace: balance.balances.evm,
+              },
+            };
+          } else {
+            faucetAccountWithBalance = {
+              ...faucetAccount,
+              index: -1,
+            };
+          }
         } catch (error) {
           console.warn('Balance fetch failed for faucet account', error);
           faucetAccountWithBalance = {
             ...faucetAccount,
-            index: 0,
+            index: -1,
           };
         }
       }

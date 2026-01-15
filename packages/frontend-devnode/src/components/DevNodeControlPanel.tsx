@@ -29,6 +29,7 @@ import {
   Stack,
   Switch,
   Text,
+  TextInput,
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -334,6 +335,29 @@ export function DevNodeControlPanel() {
                     size="xs"
                   />
                 </Group>
+
+                <NumberInput
+                  label="Genesis Accounts"
+                  description="Number of pre-funded accounts to generate (1-20)"
+                  value={config.accountsCount ?? 10}
+                  onChange={(value) => setConfig({ accountsCount: Number(value) || 10 })}
+                  disabled={isRunning}
+                  min={1}
+                  max={20}
+                  size="xs"
+                  style={{ maxWidth: '200px' }}
+                />
+
+                <TextInput
+                  label="Mining Author (Optional)"
+                  description="Core address to receive mining rewards (defaults to faucet account)"
+                  placeholder="net2029:aa..." 
+                  value={config.miningAuthor ?? ''}
+                  onChange={(e) => setConfig({ miningAuthor: e.target.value || undefined })}
+                  disabled={isRunning}
+                  size="xs"
+                  style={{ fontFamily: 'monospace' }}
+                />
 
                 {/* Port Configuration Display (read-only when running) */}
                 {isRunning && status?.config && (

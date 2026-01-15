@@ -39,6 +39,7 @@ export interface ServerConfig extends NodeConfig {
   log?: boolean;
   accounts?: number;
   balance?: string;
+  miningAuthor?: string; // Mining rewards recipient (Core address)
   // devPackTxImmediately should always be false - mining is managed via testClient
   devPackTxImmediately?: boolean;
 }
