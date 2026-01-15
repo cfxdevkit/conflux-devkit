@@ -232,8 +232,6 @@ export function DevNodeControlPanel() {
     }
   };
 
-  const isRunning = status?.isRunning || false;
-
   return (
     <>
       {/* Reset Confirmation Modal */}
