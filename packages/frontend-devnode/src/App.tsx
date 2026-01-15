@@ -24,8 +24,8 @@ import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { AppShell, Badge, Button, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { IconBrandGithub, IconLogout } from '@tabler/icons-react';
+import { AppShell, Badge, Button, Container, Group, Stack, Tabs, Text, Title } from '@mantine/core';
+import { IconBrandGithub, IconDatabase, IconLogout, IconNetwork, IconSettings } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
 function App() {
@@ -156,11 +156,50 @@ function App() {
 
             {isAuthenticated && (
               <>
-                <DevNodeControlPanel />
                 <DevNodeStatus />
-                <NetworkSwitcher />
-                <FaucetControl />
-                <AccountsTable />
+
+                <Tabs defaultValue="dashboard" orientation="horizontal">
+                  <Tabs.List>
+                    <Tabs.Tab value="dashboard" leftSection={<IconSettings size={14} />}>
+                      Dashboard
+                    </Tabs.Tab>
+                    <Tabs.Tab value="networks" leftSection={<IconNetwork size={14} />}>
+                      Networks
+                    </Tabs.Tab>
+                    <Tabs.Tab value="accounts" leftSection={<IconDatabase size={14} />}>
+                      Accounts
+                    </Tabs.Tab>
+                    <Tabs.Tab value="monitor" leftSection={<IconDatabase size={14} />}>
+                      Monitor
+                    </Tabs.Tab>
+                  </Tabs.List>
+
+                  <Tabs.Panel value="dashboard" pt="md">
+                    <Stack gap="lg">
+                      <DevNodeControlPanel />
+                      <FaucetControl />
+                    </Stack>
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="networks" pt="md">
+                    <NetworkSwitcher />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="accounts" pt="md">
+                    <AccountsTable />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="monitor" pt="md">
+                    <Stack align="center" gap="md" py="xl">
+                      <Text size="lg" fw={600}>
+                        Blockchain Monitor
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Coming soon - Real-time blockchain monitoring and analytics
+                      </Text>
+                    </Stack>
+                  </Tabs.Panel>
+                </Tabs>
               </>
             )}
 
