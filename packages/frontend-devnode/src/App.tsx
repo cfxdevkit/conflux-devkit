@@ -159,29 +159,39 @@ function App() {
 
             {isAuthenticated && (
               <>
-                <DevNodeStatus />
-
-                <Tabs defaultValue="dashboard" orientation="horizontal">
+                <Tabs defaultValue="devnode" orientation="horizontal">
                   <Tabs.List>
-                    <Tabs.Tab value="dashboard" leftSection={<IconSettings size={14} />}>
-                      Dashboard
+                    <Tabs.Tab value="devnode" leftSection={<IconSettings size={14} />}>
+                      DevNode
                     </Tabs.Tab>
                     <Tabs.Tab value="accounts" leftSection={<IconDatabase size={14} />}>
                       Accounts
+                    </Tabs.Tab>
+                    <Tabs.Tab value="deployments" leftSection={<IconDatabase size={14} />}>
+                      Deployments
                     </Tabs.Tab>
                     <Tabs.Tab value="monitor" leftSection={<IconDatabase size={14} />}>
                       Monitor
                     </Tabs.Tab>
                   </Tabs.List>
 
-                  <Tabs.Panel value="dashboard" pt="md">
+                  <Tabs.Panel value="devnode" pt="md">
                     <Stack gap="lg">
+                      <DevNodeStatus />
                       <DevNodeControlPanel />
                     </Stack>
                   </Tabs.Panel>
 
                   <Tabs.Panel value="accounts" pt="md">
                     <AccountsTable />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="deployments" pt="md">
+                    <Stack align="center" gap="md" py="xl">
+                      <Text size="lg" c="dimmed">
+                        Contract deployments coming soon...
+                      </Text>
+                    </Stack>
                   </Tabs.Panel>
 
                   <Tabs.Panel value="monitor" pt="md">
