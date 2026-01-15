@@ -17,11 +17,11 @@
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import { ActionIcon, Button, Card, CopyButton, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconCopy, IconDroplet } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconDroplet, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 
 export function AccountsTable() {
-  const { accounts, fetchAccounts, requestFaucet } = useDevNodeStore();
+  const { accounts, faucetAccount, fetchAccounts, requestFaucet } = useDevNodeStore();
   const [loadingFaucet, setLoadingFaucet] = useState<string | null>(null);
   const [faucetAddress, setFaucetAddress] = useState('');
   const [faucetAmount, setFaucetAmount] = useState('10');
@@ -75,9 +75,19 @@ export function AccountsTable() {
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Stack gap="md">
-        <Text size="lg" fw={600}>
-          Development Accounts
-        </Text>
+        <Group justify="space-between" align="center">
+          <Text size="lg" fw={600}>
+            Development Accounts
+          </Text>
+          <Button
+            variant="light"
+            size="xs"
+            leftSection={<IconRefresh size={14} />}
+            onClick={() => fetchAccounts()}
+          >
+            Refresh
+          </Button>
+        </Group>
 
         <Stack gap="xs">
           <Text size="sm" fw={500}>
@@ -129,6 +139,66 @@ export function AccountsTable() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
+            {faucetAccount && (
+              <Table.Tr key="faucet" style={{ backgroundColor: '#fff3bf' }}>
+                <Table.Td>
+                  <Group gap="xs">
+                    <Text size="sm" style={{ fontFamily: 'monospace' }} fw={500}>
+                      {formatAddress(faucetAccount.addresses.core)}
+                    </Text>
+                    <CopyButton value={faucetAccount.addresses.core}>
+                      {({ copied, copy }) => (
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color={copied ? 'teal' : 'gray'}
+                          onClick={copy}
+                        >
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        </ActionIcon>
+                      )}
+                    </CopyButton>
+                  </Group>
+                  <Text size="xs" c="dimmed" mt={4}>
+                    Faucet Account
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm" fw={600} c="green">
+                    {faucetAccount.balance?.core || '—'}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs">
+                    <Text size="sm" style={{ fontFamily: 'monospace' }} fw={500}>
+                      {formatAddress(faucetAccount.addresses.evm)}
+                    </Text>
+                    <CopyButton value={faucetAccount.addresses.evm}>
+                      {({ copied, copy }) => (
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color={copied ? 'teal' : 'gray'}
+                          onClick={copy}
+                        >
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        </ActionIcon>
+                      )}
+                    </CopyButton>
+                  </Group>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm" fw={600} c="green">
+                    {faucetAccount.balance?.eSpace || '—'}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" c="dimmed">
+                    Rewards only
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            )}
             {accounts.map((account) => (
               <Table.Tr key={account.index}>
                 <Table.Td>

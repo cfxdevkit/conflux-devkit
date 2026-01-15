@@ -184,9 +184,11 @@ class ApiClient {
 
   async getAccounts() {
     const response = await this.client.get('/devkit/accounts');
-    // Backend returns { accounts: [...], total: N }
-    // Return just the accounts array for consistency
-    return response.data.accounts || [];
+    // Backend returns { accounts: [...], total: N, faucetAccount: {...} }
+    return {
+      accounts: response.data.accounts || [],
+      faucetAccount: response.data.faucetAccount || null,
+    };
   }
 
   async getAccountBalance(index: number) {

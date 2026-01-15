@@ -375,14 +375,14 @@ export function DevNodeControlPanel() {
             <>
               <Divider label="Mining Control" labelPosition="center" />
               
-              {/* Auto-Mining Toggle */}
+              {/* Mining Mode Selector */}
               <Card withBorder padding="sm" bg="gray.0">
                 <Stack gap="sm">
                   <Group justify="space-between">
                     <div>
-                      <Text size="sm" fw={500}>Auto Mining</Text>
+                      <Text size="sm" fw={500}>Mining Mode</Text>
                       <Text size="xs" c="dimmed">
-                        Automatically mine blocks at regular intervals
+                        Choose automatic or manual block mining
                       </Text>
                     </div>
                     <Switch
@@ -391,82 +391,89 @@ export function DevNodeControlPanel() {
                       disabled={isTogglingAutoMine}
                       color="green"
                       size="md"
+                      label={isAutoMining ? 'Auto' : 'Manual'}
                     />
                   </Group>
-                  
-                  {/* Interval control - show when auto-mining is on or when configuring */}
-                  <Group gap="xs" align="flex-end">
-                    <NumberInput
-                      label="Interval (ms)"
-                      description="Time between auto-mined blocks"
-                      value={autoMineInterval}
-                      onChange={(val) => setAutoMineInterval(Number(val) || 500)}
-                      min={100}
-                      max={10000}
-                      step={100}
-                      size="xs"
-                      style={{ flex: 1 }}
-                    />
-                    {isAutoMining && autoMineInterval !== currentInterval && (
+                </Stack>
+              </Card>
+              
+              {/* Auto-Mining Configuration */}
+              {isAutoMining && (
+                <Card withBorder padding="sm" bg="blue.0">
+                  <Stack gap="sm">
+                    <Text size="sm" fw={500} c="blue">Auto Mining Active</Text>
+                    <Group gap="xs" align="flex-end">
+                      <NumberInput
+                        label="Interval (ms)"
+                        description="Time between auto-mined blocks"
+                        value={autoMineInterval}
+                        onChange={(val) => setAutoMineInterval(Number(val) || 500)}
+                        min={100}
+                        max={10000}
+                        step={100}
+                        size="xs"
+                        style={{ flex: 1 }}
+                      />
                       <Button
                         size="xs"
                         variant="light"
                         onClick={handleSetInterval}
                         loading={isSettingInterval}
+                        color={autoMineInterval !== currentInterval ? 'blue' : 'gray'}
                       >
-                        Apply
+                        {autoMineInterval !== currentInterval ? 'Update' : 'Apply'}
                       </Button>
-                    )}
-                  </Group>
-                  {isAutoMining && (
-                    <Text size="xs" c="green">
+                    </Group>
+                    <Text size="xs" c="blue">
                       ✓ Mining blocks every {currentInterval}ms
                     </Text>
-                  )}
-                </Stack>
-              </Card>
+                  </Stack>
+                </Card>
+              )}
 
-              {/* Manual Mining */}
-              <Card withBorder padding="sm" bg="gray.0">
-                <Stack gap="sm">
-                  <Text size="sm" fw={500}>Manual Mining</Text>
-                  <Group justify="space-between" align="flex-end">
-                    <NumberInput
-                      label="Blocks to mine"
-                      value={blocksToMine}
-                      onChange={(val) => setBlocksToMine(Number(val) || 1)}
-                      min={1}
-                      max={100}
-                      size="xs"
-                      style={{ flex: 1 }}
-                    />
-                    <SegmentedControl
-                      size="xs"
-                      value={miningMode}
-                      onChange={(val) => setMiningMode(val as 'empty' | 'withTxs')}
-                      data={[
-                        { label: 'Empty', value: 'empty' },
-                        { label: 'Pack Txs', value: 'withTxs' },
-                      ]}
-                    />
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    {miningMode === 'empty' 
-                      ? 'Mine empty blocks (advances block height only)'
-                      : 'Mine blocks that pack pending transactions from txpool'
-                    }
-                  </Text>
-                  <Button
-                    leftSection={<IconPick size={16} />}
-                    onClick={handleMineBlocks}
-                    loading={isMining}
-                    variant="light"
-                    fullWidth
-                  >
-                    Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
-                  </Button>
-                </Stack>
-              </Card>
+              {/* Manual Mining - Only when auto-mining is disabled */}
+              {!isAutoMining && (
+                <Card withBorder padding="sm" bg="gray.0">
+                  <Stack gap="sm">
+                    <Text size="sm" fw={500}>Mine Blocks Manually</Text>
+                    <Group justify="space-between" align="flex-end">
+                      <NumberInput
+                        label="Blocks to mine"
+                        value={blocksToMine}
+                        onChange={(val) => setBlocksToMine(Number(val) || 1)}
+                        min={1}
+                        max={100}
+                        size="xs"
+                        style={{ flex: 1 }}
+                      />
+                      <SegmentedControl
+                        size="xs"
+                        value={miningMode}
+                        onChange={(val) => setMiningMode(val as 'empty' | 'withTxs')}
+                        data={[
+                          { label: 'Empty', value: 'empty' },
+                          { label: 'Pack Txs', value: 'withTxs' },
+                        ]}
+                      />
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      {miningMode === 'empty' 
+                        ? 'Mine empty blocks (advances block height only)'
+                        : 'Mine blocks that pack pending transactions from txpool'
+                      }
+                    </Text>
+                    <Button
+                      leftSection={<IconPick size={16} />}
+                      onClick={handleMineBlocks}
+                      loading={isMining}
+                      variant="light"
+                      fullWidth
+                    >
+                      Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
+                    </Button>
+                  </Stack>
+                </Card>
+              )}
             </>
           )}
         </Stack>

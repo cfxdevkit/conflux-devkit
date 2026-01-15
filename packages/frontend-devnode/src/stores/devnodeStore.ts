@@ -23,6 +23,7 @@ interface DevNodeStore {
   nodeInfo: DevNodeInfo | null;
   config: NodeConfig;
   accounts: DevNodeAccount[];
+  faucetAccount: DevNodeAccount | null;
   isLoading: boolean; // Deprecated - use specific flags
   isStarting: boolean;
   isStopping: boolean;
@@ -61,6 +62,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     jsonrpcWsEthPort: 8546,
   },
   accounts: [],
+  faucetAccount: null,
   isLoading: false,
   isStarting: false,
   isStopping: false,
@@ -261,7 +263,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   fetchAccounts: async () => {
     try {
       set({ error: null });
-      const accounts = await apiClient.getAccounts();
+      const { accounts, faucetAccount } = await apiClient.getAccounts();
 
       // Fetch balances per account index and merge
       const accountsWithBalances = await Promise.all(
@@ -282,7 +284,30 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
         })
       );
 
-      set({ accounts: accountsWithBalances });
+      // Fetch faucet account balance if available
+      let faucetAccountWithBalance: DevNodeAccount | null = null;
+      if (faucetAccount) {
+        try {
+          // Faucet is always account index 0
+          const balance = await apiClient.getAccountBalance(0);
+          faucetAccountWithBalance = {
+            ...faucetAccount,
+            index: 0,
+            balance: {
+              core: balance.balances.core,
+              eSpace: balance.balances.evm,
+            },
+          };
+        } catch (error) {
+          console.warn('Balance fetch failed for faucet account', error);
+          faucetAccountWithBalance = {
+            ...faucetAccount,
+            index: 0,
+          };
+        }
+      }
+
+      set({ accounts: accountsWithBalances, faucetAccount: faucetAccountWithBalance });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch accounts';
       set({ error: errorMessage });

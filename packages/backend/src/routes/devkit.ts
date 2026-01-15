@@ -615,6 +615,14 @@ export function createDevKitRoutes(
       }
 
       const txHash = await devkit.fundAccount(addressValue, amountValue, normalizedChain);
+      
+      // Mine a block to ensure the faucet transaction is included in the blockchain
+      try {
+        await devkit.mineBlocks(1);
+      } catch (mineError) {
+        console.warn('Failed to mine block after faucet transfer:', mineError);
+        // Don't fail the request if mining fails - the transfer was sent
+      }
 
       res.json({
         transactionHash: txHash,
