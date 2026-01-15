@@ -1,13 +1,11 @@
 # @conflux-devkit/node
 
-A fresh Conflux Development Kit Node with clean implementation and unified dual-chain support (Conflux Core and eSpace).
+> **Note:** This package is a lightweight wrapper that re-exports `@conflux-devkit/core`.  
+> For local development with `@xcfx/node`, use `@conflux-devkit/plugin-devnode`.
 
-## Features
+## Purpose
 
-- **Dual-Chain Support**: Unified interface for both Conflux Core and eSpace
-- **Modern Architecture**: Built with TypeScript and modern tooling
-- **Extensible Design**: Clean abstractions for easy customization
-- **Developer-Friendly**: Rich TypeScript types and excellent DX
+This package provides a convenient production-ready entry point for Conflux blockchain interaction by re-exporting the entire `@conflux-devkit/core` package. It exists to maintain backwards compatibility and provide a familiar package name for users.
 
 ## Installation
 
@@ -22,32 +20,54 @@ pnpm add @conflux-devkit/node
 ## Quick Start
 
 ```typescript
-import { ConfluxDevKit } from '@conflux-devkit/node';
+// Everything is re-exported from @conflux-devkit/core
+import { CoreClient, EspaceClient, createCoreClient } from '@conflux-devkit/node';
 
-// Initialize the devkit
-const devkit = new ConfluxDevKit({
-  // Configuration options
+// Create a Core Space client
+const coreClient = await createCoreClient({
+  chainId: 1029, // Conflux Core Mainnet
+  rpcUrl: 'https://main.confluxrpc.com',
 });
 
-// Use dual-chain clients
-const coreClient = devkit.core;
-const evmClient = devkit.evm;
+// Use the client
+const balance = await coreClient.publicClient.getBalance(address);
 ```
 
-## API Reference
+## What's Included
 
-### Main Exports
+All exports from `@conflux-devkit/core`:
+- Chain clients (Core Space & eSpace)
+- Network configuration
+- Type definitions
+- Utility functions
 
-- `ConfluxDevKit` - Main devkit class
-- `CoreClient` - Conflux Core client
-- `EvmClient` - eSpace (EVM) client
-- Types and interfaces from `@conflux-devkit/node/types`
+## For Local Development
 
-### Sub-exports
+If you need local development node functionality with `@xcfx/node`:
 
-- `@conflux-devkit/node/types` - TypeScript type definitions
-- `@conflux-devkit/node/clients` - Client implementations
-- `@conflux-devkit/node/server` - Server utilities
+```bash
+npm install @conflux-devkit/plugin-devnode
+```
+
+See [@conflux-devkit/plugin-devnode](../plugin-devnode/README.md) for local development node features.
+
+## Migration Guide
+
+If you were using the old `@conflux-devkit/node` with ServerManager:
+
+**Before:**
+```typescript
+import { ServerManager } from '@conflux-devkit/node';
+```
+
+**After:**
+```typescript
+import { ServerManager } from '@conflux-devkit/plugin-devnode';
+```
+
+## License
+
+Apache-2.0
 
 ## Development
 

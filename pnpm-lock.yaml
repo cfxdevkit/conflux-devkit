@@ -46,9 +46,6 @@ importers:
 
   packages/backend:
     dependencies:
-      '@conflux-devkit/node':
-        specifier: ^0.2.0
-        version: link:../node
       '@conflux-devkit/plugin-devnode':
         specifier: workspace:*
         version: link:../plugin-devnode
@@ -266,18 +263,6 @@ importers:
       '@conflux-devkit/core':
         specifier: workspace:*
         version: link:../core
-      bip32:
-        specifier: ^4.0.0
-        version: 4.0.0
-      bip39:
-        specifier: ^3.1.0
-        version: 3.1.0
-      tiny-secp256k1:
-        specifier: ^2.2.4
-        version: 2.2.4
-      viem:
-        specifier: ^2.43.3
-        version: 2.44.2(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.3.5)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.10

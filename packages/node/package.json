@@ -1,7 +1,7 @@
 {
   "name": "@conflux-devkit/node",
   "version": "0.2.0",
-  "description": "Conflux DevKit Node - Unified blockchain interaction library (production-ready, @xcfx/node optional via plugin)",
+  "description": "Conflux DevKit Node - Re-exports @conflux-devkit/core for production blockchain interaction (lightweight wrapper)",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -41,19 +41,7 @@
     "check:fix": "biome check --write src/"
   },
   "dependencies": {
-    "@conflux-devkit/core": "workspace:*",
-    "bip32": "^4.0.0",
-    "bip39": "^3.1.0",
-    "tiny-secp256k1": "^2.2.4",
-    "viem": "^2.43.3"
-  },
-  "peerDependencies": {
-    "@conflux-devkit/plugin-devnode": "^0.1.0"
-  },
-  "peerDependenciesMeta": {
-    "@conflux-devkit/plugin-devnode": {
-      "optional": true
-    }
+    "@conflux-devkit/core": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
