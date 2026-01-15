@@ -5,6 +5,26 @@
 ### Summary
 Major refactoring of the monorepo architecture, creating a modular package structure with clear separation of concerns. Added comprehensive DevNode management frontend with real-time monitoring.
 
+### Integration Goals
+This work consolidates functionality from two repositories:
+- **conflux-box**: Frontend UI, real-time updates, contract deployment interface
+- **devkit-connector**: Local node management, wallet tools, CLI interface
+
+The unified codebase will serve as the foundation for:
+- **MCP Server**: AI-assisted blockchain development tools
+- **Plugin System**: Extensible architecture for modular functionality
+
+---
+
+## DevContainer Improvements
+
+The devcontainer has been **completely rewritten** for improved usability:
+- Streamlined setup process with automatic dependency installation
+- Pre-configured development environment (Node 20, pnpm)
+- Port forwarding for all services (frontend, backend, WebSocket)
+- Works seamlessly with GitHub Codespaces
+- Docker support for consistent cross-platform development
+
 ---
 
 ## New Packages Created

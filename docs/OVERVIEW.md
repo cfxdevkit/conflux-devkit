@@ -12,6 +12,22 @@ Complete refactoring of the Conflux DevKit monorepo into a modular package archi
 
 ---
 
+## Project Vision
+
+This refactoring integrates functionality from two separate repositories into a unified codebase:
+
+| Repository | Features Integrated |
+|------------|--------------------|
+| [conflux-box](https://github.com/cfxdevkit/conflux-box) | Modern Mantine UI, real-time WebSocket updates, account management, contract deployment interface |
+| [devkit-connector](https://github.com/cfxdevkit/devkit-connector) | Local node management, dual-space support, wallet tools, CLI interface |
+
+This consolidation streamlines the developer experience and serves as the foundation for:
+
+1. **MCP Server**: Model Context Protocol server for AI-assisted blockchain development
+2. **Plugin System**: Extensible architecture to integrate functionality currently scattered across multiple repositories
+
+---
+
 ## Package Status
 
 | Package | Version | Status | Description |
@@ -64,6 +80,15 @@ Complete refactoring of the Conflux DevKit monorepo into a modular package archi
 3. **Real-time Monitoring**: WebSocket-based block and transaction streaming
 4. **Modern Frontend**: React 18 + Mantine UI dashboard with wallet integration
 5. **Developer Experience**: Docker + DevContainer support for consistent environments
+
+---
+
+## Future Roadmap
+
+- **MCP Server**: Model Context Protocol integration for AI-powered development workflows
+- **Plugin Architecture**: Modular system to extend DevKit capabilities
+- **CLI Tools**: Command-line interface for headless operations
+- **AI Integration**: Automated contract deployment, testing, and monitoring pipelines
 
 ---
 
