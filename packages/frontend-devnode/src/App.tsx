@@ -16,6 +16,7 @@
 
 import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
+import { BlockchainMonitor } from '@/components/BlockchainMonitor';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
 import { FaucetControl } from '@/components/FaucetControl';
@@ -190,14 +191,7 @@ function App() {
                   </Tabs.Panel>
 
                   <Tabs.Panel value="monitor" pt="md">
-                    <Stack align="center" gap="md" py="xl">
-                      <Text size="lg" fw={600}>
-                        Blockchain Monitor
-                      </Text>
-                      <Text size="sm" c="dimmed">
-                        Coming soon - Real-time blockchain monitoring and analytics
-                      </Text>
-                    </Stack>
+                    <BlockchainMonitor />
                   </Tabs.Panel>
                 </Tabs>
               </>
