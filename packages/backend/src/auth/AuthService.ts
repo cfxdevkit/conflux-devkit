@@ -21,10 +21,10 @@
  * a message to prove wallet ownership. No private keys reach the frontend.
  */
 
-import type { DevKitCompat } from '../devkit-compat.js';
-import crypto from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import crypto from 'node:crypto';
 import { verifyMessage } from 'viem';
+import type { DevKitCompat } from '../devkit-compat.js';
 import { logger } from '../utils/logger.js';
 
 export interface AuthUser {

@@ -20,9 +20,9 @@
  * REST endpoints that expose DevKit functionality
  */
 
-import type { DevKitCompat } from '../devkit-compat.js';
 import { Router } from 'express';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
+import type { DevKitCompat } from '../devkit-compat.js';
 import type { DevKitWebSocketServer } from '../server/WebSocketServer.js';
 import { logger } from '../utils/logger.js';
 
@@ -456,11 +456,13 @@ export function createDevKitRoutes(
         const network = currentNetwork;
         const networkConfig = getNetworkConfig(network);
 
-        // Determine if it's a Core or eSpace address
-        const isEvmAddress = address?.startsWith('0x') && address.length === 42;
-        const isCoreAddress = address?.startsWith('cfx') || address?.startsWith('cfxtest') || address?.startsWith('net');
+        // Use proper address validation
+        const { isAddress: isCoreAddress } = await import('cive/utils');
+        const { isAddress: isEspaceAddress } = await import('viem');
+        const isCore = isCoreAddress(address || '');
+        const isEvm = isEspaceAddress(address || '');
 
-        if (!isEvmAddress && !isCoreAddress) {
+        if (!isEvm && !isCore) {
           return res.status(400).json({ error: 'Invalid address format' });
         }
 
@@ -494,7 +496,7 @@ export function createDevKitRoutes(
         let evmBalance = '0';
 
         // Query balances based on address type
-        if (isCoreAddress) {
+        if (isCore) {
           const { createPublicClient: createCoreClient } = await import('cive');
           const { http: coreHttp } = await import('cive');
           const { formatCFX } = await import('cive');
@@ -507,7 +509,7 @@ export function createDevKitRoutes(
             address: address as any,
           });
           coreBalance = formatCFX(coreBalanceDrip);
-        } else if (isEvmAddress) {
+        } else if (isEvm) {
           const { createPublicClient: createViemClient } = await import('viem');
           const { http: viemHttp } = await import('viem');
           const { formatUnits } = await import('viem');
@@ -694,7 +696,7 @@ export function createDevKitRoutes(
   router.post('/faucet', async (req: AuthenticatedRequest, res) => {
     try {
       logger.info('Faucet request received:', req.body);
-      const { address, amount, chain = 'auto' } = req.body as { address?: string | string[]; amount?: string | string[]; chain?: string | string[] };
+      const { address, amount } = req.body as { address?: string | string[]; amount?: string | string[] };
       const addressValue = Array.isArray(address) ? address[0] : address;
       const amountValue = Array.isArray(amount) ? amount[0] : amount;
 
@@ -703,27 +705,9 @@ export function createDevKitRoutes(
         return res.status(400).json({ error: 'Address and amount are required' });
       }
 
-      // Auto-detect chain if not explicitly provided
-      const detectChainFromAddress = (addr: string): 'core' | 'evm' | null => {
-        if (addr.toLowerCase().startsWith('0x')) return 'evm';
-        if (addr.toLowerCase().startsWith('cfx')) return 'core';
-        return null;
-      };
-
-      const chainValue = Array.isArray(chain) ? chain[0] : chain;
-      const normalizedChainRaw = chainValue === 'eSpace' ? 'evm' : chainValue;
-      const normalizedChain =
-        normalizedChainRaw === 'auto'
-          ? detectChainFromAddress(addressValue) || 'core'
-          : normalizedChainRaw;
-
-      if (normalizedChain !== 'core' && normalizedChain !== 'evm') {
-        logger.error('Invalid chain value:', normalizedChain);
-        return res.status(400).json({ error: 'Invalid chain. Use core or eSpace.' });
-      }
-
-      logger.info(`Funding account ${addressValue} with ${amountValue} on ${normalizedChain} chain`);
-      const txHash = await devkit.fundAccount(addressValue, amountValue, normalizedChain);
+      logger.info(`Funding account ${addressValue} with ${amountValue} CFX`);
+      // Use unified faucet that auto-detects address type (Core or eSpace)
+      const txHash = await devkit.fundAccount(addressValue, amountValue);
       logger.info('Faucet transaction hash:', txHash);
       
       // Mine a block to ensure the faucet transaction is included in the blockchain
@@ -739,7 +723,6 @@ export function createDevKitRoutes(
       logger.info('Faucet request completed successfully');
       res.json({
         transactionHash: txHash,
-        chain: normalizedChain === 'evm' ? 'eSpace' : 'core',
         address: addressValue,
         amount: amountValue,
       });

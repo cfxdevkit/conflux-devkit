@@ -29,10 +29,10 @@ import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import { defaultNetworkSelector } from '../config/chains.js';
 import type {
-    AccountInfo,
-    MiningStatus,
-    ServerConfig,
-    ServerStatus,
+  AccountInfo,
+  MiningStatus,
+  ServerConfig,
+  ServerStatus,
 } from '../types/index.js';
 import { NodeError } from '../types/index.js';
 

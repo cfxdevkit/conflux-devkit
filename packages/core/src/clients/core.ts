@@ -39,6 +39,7 @@ import {
   hexAddressToBase32,
   isAddress as isCoreAddress,
 } from 'cive/utils';
+import { isAddress as isEspaceAddress } from 'viem';
 
 // Chain definitions
 const conflux = defineChain({
@@ -54,8 +55,6 @@ const confluxTestnet = defineChain({
   nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
   rpcUrls: { default: { http: ['https://test.confluxrpc.com'] } },
 });
-
-// import { isAddress as isEspaceAddress } from 'viem';
 
 import { getChainConfig, type SupportedChainId } from '../config/chains.js';
 import type {
@@ -551,11 +550,76 @@ export class CoreWalletClient implements UnifiedWalletClient {
   }
 
   /**
+   * Unified faucet functionality
+   * Automatically detects address type and sends CFX accordingly:
+   * - Core address: Direct transfer
+   * - eSpace address: Cross-chain transfer via internal contract
+   */
+  async faucet(address: string, amount: string): Promise<string> {
+    // Detect address type
+    const isCoreAddr = isCoreAddress(address);
+    const isEspaceAddr = isEspaceAddress(address);
+
+    if (!isCoreAddr && !isEspaceAddr) {
+      throw new NodeError(
+        'Invalid address format (must be Core or eSpace address)',
+        'INVALID_ADDRESS',
+        'core',
+        { address }
+      );
+    }
+
+    try {
+      if (isCoreAddr) {
+        // Direct Core space transfer
+        return await this.walletClient.sendTransaction({
+          chain: this.chain,
+          account: this.account,
+          to: address as Address,
+          value: parseCFX(amount),
+        });
+      } else {
+        // Cross-chain transfer to eSpace via internal contract
+        return await this.walletClient.sendTransaction({
+          chain: this.chain,
+          account: this.account,
+          to: hexAddressToBase32({
+            hexAddress: '0x0888000000000000000000000000000000000006',
+            networkId: this.chain.id,
+          }),
+          value: parseCFX(amount),
+          data: encodeFunctionData({
+            abi: [
+              {
+                type: 'function',
+                name: 'transferEVM',
+                inputs: [{ name: 'to', type: 'bytes20' }],
+                outputs: [{ name: 'output', type: 'bytes' }],
+                stateMutability: 'payable',
+              },
+            ],
+            functionName: 'transferEVM',
+            args: [address as `0x${string}`],
+          }),
+        });
+      }
+    } catch (error) {
+      throw new NodeError(
+        `Failed to send faucet transaction: ${error instanceof Error ? error.message : String(error)}`,
+        'FAUCET_ERROR',
+        'core',
+        { address, amount, originalError: error }
+      );
+    }
+  }
+
+  /**
    * Cross-chain faucet functionality (Core → eSpace)
    * Sends CFX from Core space to eSpace address via internal contract
+   * @deprecated Use faucet() instead which auto-detects address type
    */
   async faucetToEspace(espaceAddress: string, amount: string): Promise<string> {
-    if (!espaceAddress.startsWith('0x') || espaceAddress.length !== 42) {
+    if (!isEspaceAddress(espaceAddress)) {
       throw new NodeError(
         'Invalid eSpace address format',
         'INVALID_ADDRESS',

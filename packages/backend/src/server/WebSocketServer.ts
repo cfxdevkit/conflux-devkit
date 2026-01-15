@@ -18,10 +18,10 @@
  * WebSocket Server for real-time DevKit updates
  */
 
-import type { DevKitCompat } from '../devkit-compat.js';
-import type { BackendServerConfig } from './BackendServer.js';
 import { WebSocket, WebSocketServer } from 'ws';
+import type { DevKitCompat } from '../devkit-compat.js';
 import { logger } from '../utils/logger.js';
+import type { BackendServerConfig } from './BackendServer.js';
 
 export interface WebSocketMessage {
   type: string;

@@ -23,10 +23,10 @@
  * - No conditional code complexity - just environment-based configuration
  */
 
-import type { DevKitCompat } from '../devkit-compat.js';
 import type { NextFunction, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { verifyMessage } from 'viem';
+import type { DevKitCompat } from '../devkit-compat.js';
 import { logger } from '../utils/logger.js';
 
 export interface AuthUser {

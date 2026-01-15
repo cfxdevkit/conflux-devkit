@@ -70,7 +70,8 @@ export type {
 
 // Re-export useful utilities from dependencies
 export { formatCFX, parseCFX } from 'cive';
-export { formatUnits, parseUnits } from 'cive/utils';
+export { formatUnits, parseUnits, isAddress as isCoreAddress } from 'cive/utils';
+export { isAddress as isEspaceAddress } from 'viem';
 
 // Version info
 export const VERSION = '0.1.0';

@@ -21,13 +21,13 @@
  * with DevKit integration
  */
 
-import type { DevKitCompat } from '../devkit-compat.js';
-import { DevKitCompat as DevKitCompatClass } from '../devkit-compat.js';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { DevelopmentAuthService } from '../auth/DevelopmentAuthService.js';
+import type { DevKitCompat } from '../devkit-compat.js';
+import { DevKitCompat as DevKitCompatClass } from '../devkit-compat.js';
 import { createDevKitRoutes } from '../routes/devkit.js';
 import { createSwapRoutes } from '../routes/swap.js';
 import { logger } from '../utils/logger.js';

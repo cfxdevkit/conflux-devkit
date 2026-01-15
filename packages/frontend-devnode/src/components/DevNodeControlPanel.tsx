@@ -16,32 +16,32 @@
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-  ActionIcon,
-  Badge,
-  Button,
-  Card,
-  Collapse,
-  Divider,
-  Group,
-  Modal,
-  NumberInput,
-  SegmentedControl,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-  Tooltip,
+    ActionIcon,
+    Badge,
+    Button,
+    Card,
+    Collapse,
+    Divider,
+    Group,
+    Modal,
+    NumberInput,
+    SegmentedControl,
+    Stack,
+    Switch,
+    Text,
+    TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconChevronUp,
-  IconPick,
-  IconPlayerPlay,
-  IconPlayerStop,
-  IconRefresh,
-  IconSettings,
-  IconTrash,
+    IconChevronUp,
+    IconPick,
+    IconPlayerPlay,
+    IconPlayerStop,
+    IconRefresh,
+    IconSettings,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 

@@ -23,12 +23,11 @@
  * new plugin-based architecture.
  */
 
-import { ServerManager, type ServerConfig, type AccountInfo, type MiningStatus } from '@conflux-devkit/plugin-devnode';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { createPublicClient, http as viemHttp, createWalletClient, type Hash } from 'viem';
-import { createPublicClient as createCorePublicClient, http as coreHttp, formatCFX } from 'cive';
+import { ServerManager, type AccountInfo, type MiningStatus, type ServerConfig } from '@conflux-devkit/plugin-devnode';
+import { http as coreHttp, createPublicClient as createCorePublicClient, formatCFX } from 'cive';
 import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
+import { promises as fs } from 'node:fs';
+import { createPublicClient, createWalletClient, http as viemHttp } from 'viem';
 import { privateKeyToAccount as evmPrivateKeyToAccount } from 'viem/accounts';
 export interface DevKitConfig {
   chainId: number;
@@ -406,52 +405,69 @@ export class DevKitCompat {
 
   /**
    * Fund an account from faucet (uses mining account, not genesis account 0)
+   * Uses proper address validation and auto-detects Core vs eSpace addresses
    */
-  async fundAccount(address: string, amount: string, chain: 'core' | 'evm'): Promise<string> {
+  async fundAccount(address: string, amount: string): Promise<string> {
     // Get the actual mining/faucet account
     const faucet = await this.getFaucetAccount();
-    console.log('fundAccount called:', { address, amount, chain, faucetAddress: chain === 'core' ? faucet.address.core : faucet.address.evm });
+    console.log('fundAccount called:', { address, amount, faucetAddress: faucet.address });
     
-    // Create a wallet client for the faucet account
+    // Import address validators
+    const { isAddress: isCoreAddress } = await import('cive/utils');
+    const { isAddress: isEspaceAddress } = await import('viem');
+    const { hexAddressToBase32, encodeFunctionData } = await import('cive/utils');
+    
+    const isCore = isCoreAddress(address);
+    const isEspace = isEspaceAddress(address);
+    
+    if (!isCore && !isEspace) {
+      throw new Error('Invalid address format (must be Core or eSpace address)');
+    }
+    
     const rpcUrls = this.getRpcUrls();
+    const { createWalletClient: createCoreWalletClient, parseCFX, http: coreHttp } = await import('cive');
+    const { privateKeyToAccount: corePrivateKeyToAccount } = await import('cive/accounts');
     
-    if (chain === 'core') {
-      const { createWalletClient: createCoreWalletClient, parseCFX, http: coreHttp } = await import('cive');
-      const { privateKeyToAccount: corePrivateKeyToAccount } = await import('cive/accounts');
-      
-      const faucetCoreAccount = corePrivateKeyToAccount(faucet.privateKey as `0x${string}`, {
-        networkId: this._config.chainId || 2029,
-      });
-      
-      const walletClient = createCoreWalletClient({
-        account: faucetCoreAccount,
-        transport: coreHttp(rpcUrls.core),
-      });
-      
+    const faucetCoreAccount = corePrivateKeyToAccount(faucet.privateKey as `0x${string}`, {
+      networkId: this._config.chainId || 2029,
+    });
+    
+    const walletClient = createCoreWalletClient({
+      account: faucetCoreAccount,
+      transport: coreHttp(rpcUrls.core),
+    });
+    
+    if (isCore) {
+      // Direct Core space transfer
       const hash = await walletClient.sendTransaction({
         to: address as any,
         value: parseCFX(amount),
         chain: null,
       });
-      
       return hash;
     } else {
-      const { createWalletClient, http: viemHttp, parseEther } = await import('viem');
-      const { privateKeyToAccount: evmPrivateKeyToAccount } = await import('viem/accounts');
-      
-      const faucetEvmAccount = evmPrivateKeyToAccount(faucet.evmPrivateKey as `0x${string}`);
-      
-      const walletClient = createWalletClient({
-        account: faucetEvmAccount,
-        transport: viemHttp(rpcUrls.evm),
-      });
-      
+      // Cross-chain transfer to eSpace via internal contract
       const hash = await walletClient.sendTransaction({
-        to: address as `0x${string}`,
-        value: parseEther(amount),
+        to: hexAddressToBase32({
+          hexAddress: '0x0888000000000000000000000000000000000006',
+          networkId: this._config.chainId || 2029,
+        }) as any,
+        value: parseCFX(amount),
+        data: encodeFunctionData({
+          abi: [
+            {
+              type: 'function',
+              name: 'transferEVM',
+              inputs: [{ name: 'to', type: 'bytes20' }],
+              outputs: [{ name: 'output', type: 'bytes' }],
+              stateMutability: 'payable',
+            },
+          ],
+          functionName: 'transferEVM',
+          args: [address as `0x${string}`],
+        }) as `0x${string}`,
         chain: null,
       });
-      
       return hash;
     }
   }

@@ -17,6 +17,7 @@
 // Server Manager for xcfx/node lifecycle management
 // Based on proven patterns from DevKit CLI, adapted for unified interface
 
+import { defaultNetworkSelector } from '@conflux-devkit/core/config';
 import { createServer } from '@xcfx/node';
 import { BIP32Factory } from 'bip32';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
@@ -27,7 +28,6 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
-import { defaultNetworkSelector } from '@conflux-devkit/core/config';
 import {
     NodeError,
     type AccountInfo,

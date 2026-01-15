@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import axios, { type AxiosInstance } from 'axios';
 import type { NodeConfig } from '@/types/devnode';
+import axios, { type AxiosInstance } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
