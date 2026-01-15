@@ -165,7 +165,7 @@ export function AccountsTable() {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" fw={600} c="green">
-                    {faucetAccount.balance?.core || '—'}
+                    {faucetAccount.balance?.core ? parseFloat(faucetAccount.balance.core).toFixed(2) : '—'}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -189,7 +189,7 @@ export function AccountsTable() {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" fw={600} c="green">
-                    {faucetAccount.balance?.eSpace || '—'}
+                    {faucetAccount.balance?.eSpace ? parseFloat(faucetAccount.balance.eSpace).toFixed(2) : '—'}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -222,7 +222,7 @@ export function AccountsTable() {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" fw={500}>
-                    {account.balance?.core || '—'}
+                    {account.balance?.core ? parseFloat(account.balance.core).toFixed(2) : '—'}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -246,7 +246,7 @@ export function AccountsTable() {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" fw={500}>
-                    {account.balance?.eSpace || '—'}
+                    {account.balance?.eSpace ? parseFloat(account.balance.eSpace).toFixed(2) : '—'}
                   </Text>
                 </Table.Td>
                 <Table.Td>

@@ -111,6 +111,31 @@ export function DevNodeControlPanel() {
     }
   };
 
+  const handleClearData = async () => {
+    try {
+      if (status?.isRunning) {
+        notifications.show({
+          title: 'Node Running',
+          message: 'Please stop the node before clearing data',
+          color: 'yellow',
+        });
+        return;
+      }
+      await resetNode(true);
+      notifications.show({
+        title: 'Data Cleared',
+        message: 'All blockchain data has been deleted',
+        color: 'orange',
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Clear Failed',
+        message: error.message || 'Failed to clear blockchain data',
+        color: 'red',
+      });
+    }
+  };
+
   const handleRestart = () => {
     openResetModal();
   };
@@ -359,37 +384,68 @@ export function DevNodeControlPanel() {
                   style={{ fontFamily: 'monospace' }}
                 />
 
-                {/* Port Configuration Display (read-only when running) */}
-                {isRunning && status?.config && (
-                  <>
-                    <Divider my="xs" />
-                    <Text size="sm" fw={500} c="dimmed">
-                      RPC Ports
-                    </Text>
-                    <Stack gap="xs">
-                      <Group grow>
-                        <div>
-                          <Text size="xs" c="dimmed">Core HTTP RPC Port</Text>
-                          <Text size="sm" fw={600}>{status.config.jsonrpcHttpPort || 12537}</Text>
-                        </div>
-                        <div>
-                          <Text size="xs" c="dimmed">Core WebSocket Port</Text>
-                          <Text size="sm" fw={600}>{status.config.jsonrpcWsPort || 12535}</Text>
-                        </div>
-                      </Group>
-                      <Group grow>
-                        <div>
-                          <Text size="xs" c="dimmed">eSpace HTTP RPC Port</Text>
-                          <Text size="sm" fw={600}>{status.config.jsonrpcHttpEthPort || 8545}</Text>
-                        </div>
-                        <div>
-                          <Text size="xs" c="dimmed">eSpace WebSocket Port</Text>
-                          <Text size="sm" fw={600}>{status.config.jsonrpcWsEthPort || 8546}</Text>
-                        </div>
-                      </Group>
-                    </Stack>
-                  </>
-                )}
+                {/* RPC Port Configuration */}
+                <Divider my="xs" label="RPC Ports" labelPosition="left" />
+                <Stack gap="xs">
+                  <Group grow>
+                    <NumberInput
+                      label="Core HTTP RPC Port"
+                      description="Core space HTTP RPC port"
+                      value={config.jsonrpcHttpPort ?? 12537}
+                      onChange={(value) => setConfig({ jsonrpcHttpPort: Number(value) || 12537 })}
+                      disabled={isRunning}
+                      min={1024}
+                      max={65535}
+                      size="xs"
+                    />
+                    <NumberInput
+                      label="Core WebSocket Port"
+                      description="Core space WebSocket port"
+                      value={config.jsonrpcWsPort ?? 12535}
+                      onChange={(value) => setConfig({ jsonrpcWsPort: Number(value) || 12535 })}
+                      disabled={isRunning}
+                      min={1024}
+                      max={65535}
+                      size="xs"
+                    />
+                  </Group>
+                  <Group grow>
+                    <NumberInput
+                      label="eSpace HTTP RPC Port"
+                      description="EVM space HTTP RPC port"
+                      value={config.jsonrpcHttpEthPort ?? 8545}
+                      onChange={(value) => setConfig({ jsonrpcHttpEthPort: Number(value) || 8545 })}
+                      disabled={isRunning}
+                      min={1024}
+                      max={65535}
+                      size="xs"
+                    />
+                    <NumberInput
+                      label="eSpace WebSocket Port"
+                      description="EVM space WebSocket port"
+                      value={config.jsonrpcWsEthPort ?? 8546}
+                      onChange={(value) => setConfig({ jsonrpcWsEthPort: Number(value) || 8546 })}
+                      disabled={isRunning}
+                      min={1024}
+                      max={65535}
+                      size="xs"
+                    />
+                  </Group>
+                </Stack>
+
+                {/* Data Management */}
+                <Divider my="xs" />
+                <Button
+                  variant="light"
+                  color="red"
+                  size="xs"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={handleClearData}
+                  disabled={isRunning}
+                  fullWidth
+                >
+                  Delete Configuration Data
+                </Button>
               </Stack>
             </Card>
           </Collapse>
