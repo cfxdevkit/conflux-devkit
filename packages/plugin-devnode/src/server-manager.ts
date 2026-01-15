@@ -173,8 +173,9 @@ export class ServerManager {
       // Set up cleanup handlers
       this.setupCleanupHandlers();
 
-      // Note: Mining is fully manual via testClient.mine()
-      // Call startMining() to enable automatic mining if needed
+      // Auto-start mining with 500ms interval and transaction packing
+      // This ensures pending transactions are automatically included in blocks
+      await this.startMining(500);
     } catch (error) {
       this.status = 'error';
       throw new NodeError(
@@ -603,7 +604,7 @@ export class ServerManager {
       });
     }
 
-    const miningInterval = interval || 2000; // Default 2 seconds
+    const miningInterval = interval || 500; // Default 500ms for faster auto-mining
 
     this.miningStatus = {
       ...this.miningStatus,
@@ -616,12 +617,12 @@ export class ServerManager {
     this.miningTimer = setInterval(async () => {
       try {
         if (this.testClient) {
-          // Following xcfx-node test pattern: use testClient.mine({ blocks })
-          const blocksToMine = 1;
-          await this.testClient.mine({ blocks: blocksToMine });
+          // Mine blocks with transaction packing (numTxs: 1)
+          // This ensures pending transactions are included in blocks
+          await this.testClient.mine({ numTxs: 1 });
           this.miningStatus = {
             ...this.miningStatus,
-            blocksMined: (this.miningStatus.blocksMined || 0) + blocksToMine,
+            blocksMined: (this.miningStatus.blocksMined || 0) + 1,
           };
         }
       } catch (error) {

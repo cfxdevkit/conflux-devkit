@@ -175,14 +175,13 @@ export class ServerManager {
       // Set up cleanup handlers
       this.setupCleanupHandlers();
 
-      // Auto-start mining if configured
-      if (this.config.mining?.enabled && this.config.mining?.autoStart) {
-        try {
-          await this.startMining();
-        } catch (error) {
-          console.warn('Failed to auto-start mining:', error);
-          // Don't fail server startup if mining fails to start
-        }
+      // Auto-start mining with 500ms interval and transaction packing
+      // This ensures pending transactions are automatically included in blocks
+      try {
+        await this.startMining(500);
+      } catch (error) {
+        console.warn('Failed to auto-start mining:', error);
+        // Don't fail server startup if mining fails to start
       }
     } catch (error) {
       this.status = 'error';
@@ -618,7 +617,7 @@ export class ServerManager {
       });
     }
 
-    const miningInterval = interval || this.config.mining?.interval || 2000;
+    const miningInterval = interval || this.config.mining?.interval || 500; // Default 500ms
 
     this.miningStatus = {
       ...this.miningStatus,
@@ -631,13 +630,12 @@ export class ServerManager {
     this.miningTimer = setInterval(async () => {
       try {
         if (this.testClient) {
-          // Use generateEmptyLocalNodeBlocks for proper EVM transaction processing
-          const blocksToMine = 2;
-          const { generateEmptyLocalNodeBlocks } = await import('cive');
-          await generateEmptyLocalNodeBlocks(this.testClient, { numBlocks: blocksToMine });
+          // Mine blocks with transaction packing (numTxs: 1)
+          // This ensures pending transactions are included in blocks
+          await this.testClient.mine({ numTxs: 1 });
           this.miningStatus = {
             ...this.miningStatus,
-            blocksMined: this.miningStatus.blocksMined + blocksToMine,
+            blocksMined: this.miningStatus.blocksMined + 1,
           };
         }
       } catch (error) {
