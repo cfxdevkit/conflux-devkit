@@ -257,6 +257,47 @@ export function createDevKitRoutes(
     }
   });
 
+  // RPC Proxy endpoint - allows frontend to make RPC calls through the backend
+  // This avoids CORS issues when calling the local dev node directly
+  router.post('/rpc/:chain', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { chain } = req.params;
+      const rpcRequest = req.body;
+
+      if (!rpcRequest || !rpcRequest.method) {
+        return res.status(400).json({ error: 'Invalid RPC request' });
+      }
+
+      // Determine RPC URL based on chain
+      const config = devkit.getConfig();
+      let rpcUrl: string;
+      
+      if (chain === 'evm' || chain === 'espace') {
+        rpcUrl = `http://localhost:${config.jsonrpcHttpEthPort || 8545}`;
+      } else if (chain === 'core') {
+        rpcUrl = `http://localhost:${config.jsonrpcHttpPort || 12537}`;
+      } else {
+        return res.status(400).json({ error: `Unknown chain: ${chain}` });
+      }
+
+      // Forward the RPC request
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rpcRequest),
+      });
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      logger.error('RPC proxy error:', error);
+      res.status(500).json({ 
+        error: 'RPC request failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Get all accounts
   router.get('/accounts', async (req: AuthenticatedRequest, res) => {
     try {

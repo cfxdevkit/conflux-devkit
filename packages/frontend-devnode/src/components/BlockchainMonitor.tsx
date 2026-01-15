@@ -68,14 +68,13 @@ interface MonitorStats {
   totalTransactions: number;
 }
 
-// RPC endpoints for the local dev node
-const CORE_RPC_URL = 'http://localhost:12537';
-const EVM_RPC_URL = 'http://localhost:8545';
+// Use backend RPC proxy to avoid CORS issues
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-// Fetch block by number from eSpace (EVM)
+// Fetch block by number from eSpace (EVM) via backend proxy
 async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
   try {
-    const response = await fetch(EVM_RPC_URL, {
+    const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/evm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -93,10 +92,10 @@ async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
   }
 }
 
-// Fetch block by epoch from Core space
+// Fetch block by epoch from Core space via backend proxy
 async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
   try {
-    const response = await fetch(CORE_RPC_URL, {
+    const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/core`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
