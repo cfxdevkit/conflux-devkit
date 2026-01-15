@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { useAuthStore } from '@/stores/authStore';
 import { Card, Stack, Text } from '@mantine/core';
 import { IconWallet } from '@tabler/icons-react';
 import { ConnectKitButton } from 'connectkit';
-import { useAuthStore } from '@/stores/authStore';
 
 export function AuthSection() {
   const { isConnected } = useAuthStore();

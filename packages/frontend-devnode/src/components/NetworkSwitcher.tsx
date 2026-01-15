@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
+import {
+    confluxCore,
+    confluxCoreTestnet,
+    confluxESpace,
+    confluxESpaceTestnet,
+    confluxLocalCore,
+    confluxLocalESpace,
+} from '@/config/wagmi';
 import { Badge, Button, Card, Grid, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconNetwork } from '@tabler/icons-react';
 import { useChainId, useSwitchChain } from 'wagmi';
-import {
-  confluxCore,
-  confluxCoreTestnet,
-  confluxESpace,
-  confluxESpaceTestnet,
-  confluxLocalCore,
-  confluxLocalESpace,
-} from '@/config/wagmi';
 
 /**
  * Network switcher widget showing available networks

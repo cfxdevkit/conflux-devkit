@@ -1,6 +1,6 @@
 # Conflux DevKit - Package Overview
 
-**Repository:** conflux-devkit/conflux-devkit  
+**Repository:** cfxdevkit/conflux-devkit  
 **Report Date:** January 15, 2026  
 **Period:** January 9-15, 2026
 

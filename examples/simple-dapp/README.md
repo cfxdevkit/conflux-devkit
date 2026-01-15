@@ -100,7 +100,7 @@ This example shows how the modular architecture enables:
 
 ## Learn More
 
-- [Conflux DevKit Documentation](https://github.com/conflux-devkit/conflux-devkit)
+- [Conflux DevKit Documentation](https://github.com/cfxdevkit/conflux-devkit)
 - [UI Headless Components](../../packages/ui-headless/README.md)
 - [Wallet Package](../../packages/wallet/README.md)
 - [Contracts Package](../../packages/contracts/README.md)

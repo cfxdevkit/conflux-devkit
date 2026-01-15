@@ -18,59 +18,40 @@
 // Blockchain clients, types, and configuration without dev dependencies
 
 // Core Space Clients
-export { CoreClient, CoreWalletClient, CoreTestClient } from './clients/core.js';
+export { CoreClient, CoreTestClient, CoreWalletClient } from './clients/core.js';
 
 // EVM Space Clients
-export { EspaceClient, EspaceWalletClient, EspaceTestClient } from './clients/evm.js';
+export { EspaceClient, EspaceTestClient, EspaceWalletClient } from './clients/evm.js';
 
 // Client Manager - Main orchestration layer
 export { ClientManager } from './clients/manager.js';
-export type { ClientManagerConfig, ClientManagerStatus, ClientManagerEvents } from './clients/manager.js';
+export type { ClientManagerConfig, ClientManagerEvents, ClientManagerStatus } from './clients/manager.js';
 
 // Chain Configuration and Network Management
 export {
-  NetworkSelector,
-  defaultNetworkSelector,
-  SUPPORTED_CHAINS,
-  getChainConfig,
-  getCoreChains,
-  getEvmChains,
-  getMainnetChains,
-  getTestnetChains,
-  isValidChainId,
-  toCiveChain,
-  toViemChain,
-  CORE_MAINNET,
-  CORE_TESTNET,
-  CORE_LOCAL,
-  EVM_MAINNET,
-  EVM_TESTNET,
-  EVM_LOCAL
+    CORE_LOCAL, CORE_MAINNET,
+    CORE_TESTNET, EVM_LOCAL, EVM_MAINNET,
+    EVM_TESTNET, NetworkSelector, SUPPORTED_CHAINS, defaultNetworkSelector, getChainConfig,
+    getCoreChains,
+    getEvmChains,
+    getMainnetChains,
+    getTestnetChains,
+    isValidChainId,
+    toCiveChain,
+    toViemChain
 } from './config/chains.js';
 export type { ChainConfig } from './config/chains.js';
 
 // Base types and interfaces (excluding node-specific types)
 export type {
-  ClientConfig,
-  WalletConfig,
-  TestConfig,
-  ChainClient,
-  WalletClient,
-  TestClient,
-  BaseTransaction,
-  TransactionReceipt,
-  CoreClientInstance,
-  EspaceClientInstance,
-  HealthStatus,
-  SupportedChainId,
-  ChainType,
-  AccountInfo,
-  Log,
+    AccountInfo, BaseTransaction, ChainClient, ChainType, ClientConfig, CoreClientInstance,
+    EspaceClientInstance,
+    HealthStatus, Log, SupportedChainId, TestClient, TestConfig, TransactionReceipt, WalletClient, WalletConfig
 } from './types/index.js';
 
 // Re-export useful utilities from dependencies
 export { formatCFX, parseCFX } from 'cive';
-export { formatUnits, parseUnits, isAddress as isCoreAddress } from 'cive/utils';
+export { formatUnits, isAddress as isCoreAddress, parseUnits } from 'cive/utils';
 export { isAddress as isEspaceAddress } from 'viem';
 
 // Version info

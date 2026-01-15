@@ -15,21 +15,21 @@
  */
 
 import {
-  confluxESpace,
-  confluxESpaceTestnet,
-  confluxLocalESpace,
+    confluxESpace,
+    confluxESpaceTestnet,
+    confluxLocalESpace,
 } from '@/config/wagmi';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import type { NetworkType } from '@/types/devnode';
 import { Badge, Button, Group, Menu, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconCheck,
-  IconChevronDown,
-  IconCloud,
-  IconLock,
-  IconServer,
-  IconTestPipe,
+    IconCheck,
+    IconChevronDown,
+    IconCloud,
+    IconLock,
+    IconServer,
+    IconTestPipe,
 } from '@tabler/icons-react';
 import { useSwitchChain } from 'wagmi';
 

@@ -133,7 +133,7 @@ interface DevKitConfig {
 
 ## Development
 
-This package is part of the [Conflux DevKit](https://github.com/conflux-devkit/conflux-devkit) monorepo.
+This package is part of the [Conflux DevKit](https://github.com/cfxdevkit/conflux-devkit) monorepo.
 
 ### Building
 

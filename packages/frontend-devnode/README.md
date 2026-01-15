@@ -380,7 +380,7 @@ If API requests fail:
 
 ## Contributing
 
-This package is part of the [Conflux DevKit](https://github.com/conflux-devkit/conflux-devkit) monorepo.
+This package is part of the [Conflux DevKit](https://github.com/cfxdevkit/conflux-devkit) monorepo.
 
 ## License
 
@@ -388,7 +388,7 @@ Apache-2.0
 
 ## Links
 
-- [GitHub Repository](https://github.com/conflux-devkit/conflux-devkit)
-- [Documentation](https://github.com/conflux-devkit/conflux-devkit#readme)
-- [Issues](https://github.com/conflux-devkit/conflux-devkit/issues)
+- [GitHub Repository](https://github.com/cfxdevkit/conflux-devkit)
+- [Documentation](https://github.com/cfxdevkit/conflux-devkit#readme)
+- [Issues](https://github.com/cfxdevkit/conflux-devkit/issues)
 - [Conflux Network](https://confluxnetwork.org/)

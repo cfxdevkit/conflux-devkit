@@ -16,15 +16,15 @@
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  NumberInput,
-  Stack,
-  Text,
-  TextInput,
+    Alert,
+    Badge,
+    Button,
+    Group,
+    Modal,
+    NumberInput,
+    Stack,
+    Text,
+    TextInput,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';

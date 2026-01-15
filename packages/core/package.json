@@ -83,11 +83,11 @@
   "packageManager": "pnpm@10.11.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/conflux-devkit/conflux-devkit.git",
+    "url": "git+https://github.com/cfxdevkit/conflux-devkit.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/conflux-devkit/conflux-devkit#readme",
+  "homepage": "https://github.com/cfxdevkit/conflux-devkit#readme",
   "bugs": {
-    "url": "https://github.com/conflux-devkit/conflux-devkit/issues"
+    "url": "https://github.com/cfxdevkit/conflux-devkit/issues"
   }
 }

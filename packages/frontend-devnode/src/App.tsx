@@ -140,7 +140,7 @@ function App() {
                 </Group>
               ) : null}
               <a
-                href="https://github.com/conflux-devkit/conflux-devkit"
+                href="https://github.com/cfxdevkit/conflux-devkit"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'inherit', display: 'flex', alignItems: 'center' }}

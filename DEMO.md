@@ -23,7 +23,7 @@ cd packages/frontend-devnode && pnpm dev
 ```
 
 ### 3. Open Dashboard
-Navigate to http://localhost:5173
+Navigate to http://localhost:3000
 
 ## Features
 

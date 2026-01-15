@@ -19,10 +19,10 @@ import type { NetworkType } from '@/types/devnode';
 import { Alert, Badge, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconAlertCircle,
-  IconCloud,
-  IconServer,
-  IconTestPipe,
+    IconAlertCircle,
+    IconCloud,
+    IconServer,
+    IconTestPipe,
 } from '@tabler/icons-react';
 
 /**

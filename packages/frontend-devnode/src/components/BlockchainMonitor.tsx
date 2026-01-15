@@ -14,38 +14,38 @@
  * limitations under the License.
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import {
-  Card,
-  Stack,
-  Group,
-  Text,
-  Badge,
-  Table,
-  ActionIcon,
-  Tooltip,
-  SimpleGrid,
-  ThemeIcon,
-  CopyButton,
-  TextInput,
-  Alert,
-  Button,
-} from '@mantine/core';
-import {
-  IconTrash,
-  IconCopy,
-  IconCheck,
-  IconFileText,
-  IconCoin,
-  IconActivity,
-  IconBooks,
-  IconPlayerPause,
-  IconPlayerPlay,
-  IconFilter,
-  IconAlertCircle,
-} from '@tabler/icons-react';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
+import {
+    ActionIcon,
+    Alert,
+    Badge,
+    Button,
+    Card,
+    CopyButton,
+    Group,
+    SimpleGrid,
+    Stack,
+    Table,
+    Text,
+    TextInput,
+    ThemeIcon,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconActivity,
+    IconAlertCircle,
+    IconBooks,
+    IconCheck,
+    IconCoin,
+    IconCopy,
+    IconFileText,
+    IconFilter,
+    IconPlayerPause,
+    IconPlayerPlay,
+    IconTrash,
+} from '@tabler/icons-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface BlockInfo {
   blockNumber: string;
