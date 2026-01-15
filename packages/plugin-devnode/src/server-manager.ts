@@ -86,6 +86,7 @@ export class ServerManager {
     // This ensures accounts are always available regardless of node state
     this.mnemonic = this.config.mnemonic || generateMnemonic();
     this.generateAccountsSync();
+    this.generateMiningAccountSync();
   }
 
   /**
@@ -118,8 +119,7 @@ export class ServerManager {
       this.status = 'starting';
 
       // Mnemonic and accounts are already generated in constructor
-      // Generate dedicated mining account (separate from genesis)
-      await this.generateMiningAccount();
+      // Mining account is also already generated in constructor
 
       // Ensure data directory exists with proper permissions
       const dataDir = this.config.dataDir || '/workspace/.conflux-dev';
@@ -524,8 +524,9 @@ export class ServerManager {
   /**
    * Generate dedicated mining account (separate from genesis accounts)
    * This account will receive mining rewards and serve as the faucet
+   * Called synchronously from constructor to ensure always available
    */
-  private async generateMiningAccount(): Promise<void> {
+  private generateMiningAccountSync(): void {
     // Initialize BIP32 with secure elliptic curve implementation
     const bip32 = BIP32Factory(ecc);
 
