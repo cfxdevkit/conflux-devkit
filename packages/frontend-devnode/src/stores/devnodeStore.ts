@@ -15,7 +15,7 @@
  */
 
 import { apiClient } from '@/services/api';
-import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, NodeConfig } from '@/types/devnode';
+import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, NetworkType, NodeConfig } from '@/types/devnode';
 import { create } from 'zustand';
 
 interface DevNodeStore {
@@ -31,6 +31,7 @@ interface DevNodeStore {
   isResetting: boolean;
   isMining: boolean;
   isClearingData: boolean;
+  isSwitchingNetwork: boolean;
   error: string | null;
 
   // Actions
@@ -50,6 +51,7 @@ interface DevNodeStore {
   requestFaucet: (request: FaucetRequest) => Promise<void>;
   fetchAccounts: () => Promise<void>;
   updateStatus: (status: Partial<DevNodeStatus>) => void;
+  switchNetwork: (network: NetworkType) => Promise<void>;
 }
 
 export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
@@ -73,6 +75,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
   isResetting: false,
   isMining: false,
   isClearingData: false,
+  isSwitchingNetwork: false,
   error: null,
 
   fetchStatus: async () => {
@@ -378,5 +381,43 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
         jsonrpcWsEthPort: 8546,
       },
     });
+  },
+
+  switchNetwork: async (network) => {
+    try {
+      set({ isSwitchingNetwork: true, error: null });
+      const result = await apiClient.switchNetwork(network);
+      
+      console.log('[Store] switchNetwork result:', result);
+      console.log('[Store] Updating status with network:', result.network);
+      
+      // Update status with new network info
+      set((state) => {
+        console.log('[Store] Current status before update:', state.status);
+        const newStatus = state.status ? {
+          ...state.status,
+          network: result.network,
+          networkConfig: result.config,
+          capabilities: result.capabilities,
+        } : null;
+        console.log('[Store] New status after update:', newStatus);
+        return {
+          status: newStatus,
+          isSwitchingNetwork: false,
+        };
+      });
+
+      // Clear accounts if switching away from local (they're not relevant)
+      if (network !== 'local') {
+        set({ accounts: [], faucetAccount: null });
+      } else {
+        // Refetch accounts for local network
+        await get().fetchAccounts();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to switch network';
+      set({ error: errorMessage, isSwitchingNetwork: false });
+      throw error;
+    }
   },
 }));

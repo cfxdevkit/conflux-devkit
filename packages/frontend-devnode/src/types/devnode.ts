@@ -16,6 +16,9 @@
 
 export interface DevNodeStatus {
   isRunning: boolean;
+  network: NetworkType;
+  networkConfig: NetworkConfig;
+  capabilities: NetworkCapabilities;
   coreSpace: {
     chainId: number;
     rpcUrl: string;
@@ -75,4 +78,24 @@ export interface FaucetRequest {
   address: string;
   amount: string;
   chain?: 'core' | 'eSpace' | 'auto';
+}
+
+// Network types
+export type NetworkType = 'local' | 'testnet' | 'mainnet';
+
+export interface NetworkConfig {
+  evmChainId: number;
+  rpcUrl: string;
+  coreNetworkId: number;
+  coreRpcUrl: string;
+}
+
+export interface NetworkCapabilities {
+  canMine: boolean;
+  canUseFaucet: boolean;
+  canControlNode: boolean;
+  canResetNode: boolean;
+  canDeploy: boolean;
+  canMonitor: boolean;
+  requiresWallet: boolean;
 }

@@ -19,14 +19,14 @@ import { AuthSection } from '@/components/AuthSection';
 import { BlockchainMonitor } from '@/components/BlockchainMonitor';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
-import { FaucetControl } from '@/components/FaucetControl';
-import { NetworkSwitcher } from '@/components/NetworkSwitcher';
+import { FaucetButton } from '@/components/FaucetButton';
+import { NavbarNetworkDropdown } from '@/components/NavbarNetworkDropdown';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { wsClient } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import { AppShell, Badge, Button, Container, Group, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconBrandGithub, IconDatabase, IconLogout, IconNetwork, IconSettings } from '@tabler/icons-react';
+import { IconBrandGithub, IconDatabase, IconLogout, IconSettings } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
 function App() {
@@ -111,6 +111,8 @@ function App() {
             <Group>
               {isAuthenticated && user ? (
                 <Group gap="md">
+                  <NavbarNetworkDropdown />
+                  <FaucetButton />
                   <Stack gap={4}>
                     <Text size="sm" fw={500}>
                       {user.address.slice(0, 6)}...{user.address.slice(-4)}
@@ -164,9 +166,6 @@ function App() {
                     <Tabs.Tab value="dashboard" leftSection={<IconSettings size={14} />}>
                       Dashboard
                     </Tabs.Tab>
-                    <Tabs.Tab value="networks" leftSection={<IconNetwork size={14} />}>
-                      Networks
-                    </Tabs.Tab>
                     <Tabs.Tab value="accounts" leftSection={<IconDatabase size={14} />}>
                       Accounts
                     </Tabs.Tab>
@@ -178,12 +177,7 @@ function App() {
                   <Tabs.Panel value="dashboard" pt="md">
                     <Stack gap="lg">
                       <DevNodeControlPanel />
-                      <FaucetControl />
                     </Stack>
-                  </Tabs.Panel>
-
-                  <Tabs.Panel value="networks" pt="md">
-                    <NetworkSwitcher />
                   </Tabs.Panel>
 
                   <Tabs.Panel value="accounts" pt="md">

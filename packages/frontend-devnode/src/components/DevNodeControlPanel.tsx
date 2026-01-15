@@ -70,6 +70,12 @@ export function DevNodeControlPanel() {
     setMiningInterval,
   } = useDevNodeStore();
 
+  // Network capabilities
+  const capabilities = status?.capabilities;
+  const canControlNode = capabilities?.canControlNode ?? true;
+  const canMine = capabilities?.canMine ?? true;
+  const isLocalNetwork = status?.network === 'local';
+
   const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
   const [configOpened, { toggle: toggleConfig }] = useDisclosure(false);
   
@@ -280,7 +286,12 @@ export function DevNodeControlPanel() {
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
-          {!isAdmin && (
+          {!isLocalNetwork && (
+            <Alert icon={<IconAlertCircle size={16} />} color="blue" title="Remote Network Mode">
+              Connected to {status?.network}. Node control and mining features are only available on local network.
+            </Alert>
+          )}
+          {isLocalNetwork && !isAdmin && (
             <Alert icon={<IconAlertCircle size={16} />} color="yellow" title="Read-Only Mode">
               Only admin users can control the development node. Advanced features are disabled.
             </Alert>
@@ -315,34 +326,34 @@ export function DevNodeControlPanel() {
 
           {/* Node Control Buttons */}
           <Group grow>
-            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
               <Button
                 leftSection={<IconPlayerPlay size={16} />}
                 onClick={handleStart}
                 loading={isStarting}
-                disabled={isRunning || !isAdmin}
+                disabled={isRunning || !isAdmin || !canControlNode}
                 color="green"
               >
                 Start
               </Button>
             </Tooltip>
-            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
               <Button
                 leftSection={<IconPlayerStop size={16} />}
                 onClick={handleStop}
                 loading={isStopping}
-                disabled={!isRunning || !isAdmin}
+                disabled={!isRunning || !isAdmin || !canControlNode}
                 color="red"
               >
                 Stop
               </Button>
             </Tooltip>
-            <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
+            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
               <Button
                 leftSection={<IconRefresh size={16} />}
                 onClick={handleRestart}
                 loading={isResetting}
-                disabled={!isRunning || !isAdmin}
+                disabled={!isRunning || !isAdmin || !canControlNode}
                 color="blue"
               >
                 Restart
@@ -477,8 +488,8 @@ export function DevNodeControlPanel() {
             </Card>
           </Collapse>
 
-          {/* Mining Controls - Only when node is running and user is admin */}
-          {isRunning && (
+          {/* Mining Controls - Only when node is running, user is admin, and on local network */}
+          {isRunning && canMine && (
             <>
               <Divider label="Mining Control" labelPosition="center" />
               
@@ -507,7 +518,7 @@ export function DevNodeControlPanel() {
                     <Switch
                       checked={isAutoMining}
                       onChange={(e) => handleToggleAutoMine(e.currentTarget.checked)}
-                      disabled={isTogglingAutoMine || !isAdmin}
+                      disabled={isTogglingAutoMine || !isAdmin || !canMine}
                       color="green"
                       size="md"
                       label={isAutoMining ? 'Auto' : 'Manual'}
@@ -529,7 +540,7 @@ export function DevNodeControlPanel() {
                           step={100}
                           size="xs"
                           style={{ flex: 1 }}
-                          disabled={!isAdmin}
+                          disabled={!isAdmin || !canMine}
                         />
                         <Button
                           size="xs"
@@ -537,7 +548,7 @@ export function DevNodeControlPanel() {
                           onClick={handleSetInterval}
                           loading={isSettingInterval}
                           color={autoMineInterval !== currentInterval ? 'blue' : 'gray'}
-                          disabled={!isAdmin}
+                          disabled={!isAdmin || !canMine}
                         >
                           {autoMineInterval !== currentInterval ? 'Update' : 'Apply'}
                         </Button>
@@ -558,7 +569,7 @@ export function DevNodeControlPanel() {
                           max={100}
                           size="xs"
                           style={{ flex: 1 }}
-                          disabled={!isAdmin}
+                          disabled={!isAdmin || !canMine}
                         />
                         <SegmentedControl
                           size="xs"
@@ -568,7 +579,7 @@ export function DevNodeControlPanel() {
                             { label: 'Empty', value: 'empty' },
                             { label: 'Pack Txs', value: 'withTxs' },
                           ]}
-                          disabled={!isAdmin}
+                          disabled={!isAdmin || !canMine}
                         />
                       </Group>
                       <Text size="xs" c="dimmed">
@@ -584,7 +595,7 @@ export function DevNodeControlPanel() {
                           loading={isMining}
                           variant="light"
                           fullWidth
-                          disabled={!isAdmin}
+                          disabled={!isAdmin || !canMine}
                         >
                           Mine {blocksToMine} Block{blocksToMine > 1 ? 's' : ''}
                         </Button>

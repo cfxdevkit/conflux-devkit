@@ -27,6 +27,9 @@ import {
   SimpleGrid,
   ThemeIcon,
   CopyButton,
+  TextInput,
+  Alert,
+  Button,
 } from '@mantine/core';
 import {
   IconTrash,
@@ -38,6 +41,8 @@ import {
   IconBooks,
   IconPlayerPause,
   IconPlayerPlay,
+  IconFilter,
+  IconAlertCircle,
 } from '@tabler/icons-react';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
@@ -118,6 +123,11 @@ export function BlockchainMonitor() {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [transactions, setTransactions] = useState<TransactionInfo[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  
+  // Address filter state (for non-local networks)
+  const [addressFilter, setAddressFilter] = useState('');
+  const [contractFilter, setContractFilter] = useState('');
+  const [isFilterActive, setIsFilterActive] = useState(false);
   const [stats, setStats] = useState<MonitorStats>({
     coreBlockNumber: '0',
     evmBlockNumber: '0',
@@ -132,6 +142,10 @@ export function BlockchainMonitor() {
   const prevEvmBlockRef = useRef<number>(0);
   const prevTimestampRef = useRef<number>(Date.now());
   const isProcessingRef = useRef<boolean>(false);
+
+  // Network awareness
+  const isLocalNetwork = status?.network === 'local';
+  // canMonitor capability indicates if monitoring is available at all
 
   const isNodeRunning = status?.isRunning ?? false;
 
@@ -306,9 +320,111 @@ export function BlockchainMonitor() {
     return address.length > 16 ? `${address.slice(0, 8)}...${address.slice(-6)}` : address;
   };
 
+  // Apply address/contract filter to transactions
+  const applyFilters = () => {
+    if (addressFilter || contractFilter) {
+      setIsFilterActive(true);
+    }
+  };
+
+  const clearFilters = () => {
+    setAddressFilter('');
+    setContractFilter('');
+    setIsFilterActive(false);
+  };
+
+  // Filter transactions based on address or contract
+  const filteredTransactions = isFilterActive
+    ? transactions.filter((tx) => {
+        const normalizedFilter = addressFilter.toLowerCase();
+        const normalizedContract = contractFilter.toLowerCase();
+        const matchesAddress =
+          !normalizedFilter ||
+          tx.from.toLowerCase().includes(normalizedFilter) ||
+          (tx.to && tx.to.toLowerCase().includes(normalizedFilter));
+        const matchesContract =
+          !normalizedContract ||
+          (tx.to && tx.to.toLowerCase() === normalizedContract);
+        return matchesAddress && matchesContract;
+      })
+    : transactions;
+
+  // For non-local networks, require filters
+  const requiresFilter = !isLocalNetwork;
+
   return (
     <Stack gap="md">
-      {!isNodeRunning && (
+      {/* Network Warning for non-local networks */}
+      {!isLocalNetwork && (
+        <Alert
+          icon={<IconAlertCircle size={16} />}
+          title="Remote Network Mode"
+          color="yellow"
+          variant="light"
+        >
+          <Text size="sm">
+            You are connected to <strong>{status?.network || 'remote'}</strong> network.
+            For performance reasons, please specify an address or contract to filter
+            transactions.
+          </Text>
+        </Alert>
+      )}
+
+      {/* Filter Controls */}
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Group gap="xs">
+            <IconFilter size={20} />
+            <Text fw={500}>Transaction Filters</Text>
+            {isFilterActive && (
+              <Badge color="green" variant="light" size="sm">
+                Active
+              </Badge>
+            )}
+          </Group>
+          <Group grow>
+            <TextInput
+              placeholder="Filter by address (from/to)"
+              value={addressFilter}
+              onChange={(e) => setAddressFilter(e.target.value)}
+              leftSection={<IconActivity size={16} />}
+              size="sm"
+            />
+            <TextInput
+              placeholder="Filter by contract address"
+              value={contractFilter}
+              onChange={(e) => setContractFilter(e.target.value)}
+              leftSection={<IconFileText size={16} />}
+              size="sm"
+            />
+          </Group>
+          <Group>
+            <Button
+              size="xs"
+              onClick={applyFilters}
+              disabled={!addressFilter && !contractFilter}
+              color="blue"
+            >
+              Apply Filters
+            </Button>
+            <Button
+              size="xs"
+              variant="light"
+              onClick={clearFilters}
+              disabled={!isFilterActive}
+            >
+              Clear Filters
+            </Button>
+            {requiresFilter && !isFilterActive && (
+              <Text size="xs" c="orange">
+                Filters required for remote networks
+              </Text>
+            )}
+          </Group>
+        </Stack>
+      </Card>
+
+      {!isNodeRunning && isLocalNetwork && (
         <Card withBorder padding="md" bg="yellow.0" radius="md">
           <Group>
             <IconActivity size={20} />
@@ -384,7 +500,7 @@ export function BlockchainMonitor() {
               {stats.totalTransactions}
             </Text>
             <Text size="xs" c="dimmed">
-              {transactions.length} in view
+              {isFilterActive ? `${filteredTransactions.length} filtered` : `${transactions.length} in view`}
             </Text>
           </Stack>
         </Card>
@@ -485,16 +601,25 @@ export function BlockchainMonitor() {
             <Group gap="xs">
               <IconFileText size={20} />
               <Text fw={600}>Recent Transactions</Text>
+              {isFilterActive && (
+                <Badge size="sm" color="blue" variant="light">
+                  Filtered: {filteredTransactions.length} / {transactions.length}
+                </Badge>
+              )}
             </Group>
           </Group>
         </Card.Section>
 
-        {transactions.length === 0 ? (
+        {filteredTransactions.length === 0 ? (
           <Stack align="center" gap="md" py="xl">
             <Text size="sm" c="dimmed">
-              {isNodeRunning
-                ? 'No transactions yet. Use the faucet to send test tokens.'
-                : 'Start the node and send transactions to see them here.'}
+              {isFilterActive
+                ? 'No transactions match the current filters.'
+                : isLocalNetwork
+                  ? isNodeRunning
+                    ? 'No transactions yet. Use the faucet to send test tokens.'
+                    : 'Start the node and send transactions to see them here.'
+                  : 'Apply filters to view transactions on remote network.'}
             </Text>
           </Stack>
         ) : (
@@ -509,7 +634,7 @@ export function BlockchainMonitor() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {transactions.slice(0, 20).map((tx, idx) => (
+              {filteredTransactions.slice(0, 20).map((tx, idx) => (
                 <Table.Tr key={`${tx.hash}-${idx}`}>
                   <Table.Td>
                     <Group gap="xs">

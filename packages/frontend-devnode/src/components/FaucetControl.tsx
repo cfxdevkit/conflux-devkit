@@ -15,21 +15,25 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { Button, Card, Group, NumberInput, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Alert, Button, Card, Group, NumberInput, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconDroplet } from '@tabler/icons-react';
+import { IconAlertCircle, IconDroplet } from '@tabler/icons-react';
 import { useState } from 'react';
 
 /**
  * Compact faucet control for requesting test tokens
  * Accessible to both admin and non-admin users
  * Auto-detects address type (Core vs eSpace)
+ * Only available on local network
  */
 export function FaucetControl() {
-  const { faucetAccount, requestFaucet } = useDevNodeStore();
+  const { status, faucetAccount, requestFaucet } = useDevNodeStore();
   const [loadingFaucet, setLoadingFaucet] = useState(false);
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState<number | string>(10);
+
+  // Check network capabilities
+  const canUseFaucet = status?.capabilities?.canUseFaucet ?? true;
 
   const detectChain = (address: string): 'core' | 'eSpace' => {
     if (address.toLowerCase().startsWith('0x')) return 'eSpace';
@@ -78,21 +82,29 @@ export function FaucetControl() {
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Stack gap="sm">
+        {!canUseFaucet && (
+          <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" p="xs">
+            Faucet is only available on local network
+          </Alert>
+        )}
+        
         <Group justify="space-between" align="flex-start">
           <div>
             <Text size="sm" fw={600}>
               Faucet
             </Text>
             <Text size="xs" c="dimmed">
-              Request test tokens
+              {canUseFaucet ? 'Request test tokens' : 'Local network only'}
             </Text>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <Text size="xs" c="dimmed">Available Balance</Text>
-            <Text size="sm" fw={600} style={{ fontFamily: 'monospace', color: 'var(--mantine-color-green-6)' }}>
-              {faucetAccount?.balance?.core ? parseFloat(faucetAccount.balance.core).toFixed(2) : '0.00'} CFX
-            </Text>
-          </div>
+          {canUseFaucet && (
+            <div style={{ textAlign: 'right' }}>
+              <Text size="xs" c="dimmed">Available Balance</Text>
+              <Text size="sm" fw={600} style={{ fontFamily: 'monospace', color: 'var(--mantine-color-green-6)' }}>
+                {faucetAccount?.balance?.core ? parseFloat(faucetAccount.balance.core).toFixed(2) : '0.00'} CFX
+              </Text>
+            </div>
+          )}
         </Group>
 
         <Group gap="xs" align="flex-end">
@@ -104,6 +116,7 @@ export function FaucetControl() {
             style={{ flex: 1, minWidth: 200 }}
             size="sm"
             autoComplete="off"
+            disabled={!canUseFaucet}
           />
           <NumberInput
             label="Amount"
@@ -113,9 +126,10 @@ export function FaucetControl() {
             max={10000}
             size="sm"
             style={{ width: 90 }}
+            disabled={!canUseFaucet}
           />
           <Tooltip 
-            label="Auto-detects Core (cfx...) vs eSpace (0x...) addresses" 
+            label={!canUseFaucet ? 'Local network only' : 'Auto-detects Core (cfx...) vs eSpace (0x...) addresses'}
             multiline
             w={180}
           >
@@ -123,7 +137,7 @@ export function FaucetControl() {
               leftSection={<IconDroplet size={16} />}
               onClick={handleFaucet}
               loading={loadingFaucet}
-              disabled={!recipientAddress.trim()}
+              disabled={!recipientAddress.trim() || !canUseFaucet}
               size="sm"
               color="blue"
             >

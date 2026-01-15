@@ -99,6 +99,22 @@ class ApiClient {
     // Transform backend response to match frontend types
     return {
       isRunning: data.running || false,
+      network: data.network || 'local',
+      networkConfig: data.networkConfig || {
+        evmChainId: data.config?.evmChainId || 2030,
+        rpcUrl: data.rpcUrls?.evm || 'http://localhost:8545',
+        coreNetworkId: data.config?.chainId || 2029,
+        coreRpcUrl: data.rpcUrls?.core || 'http://localhost:12537',
+      },
+      capabilities: data.capabilities || {
+        canMine: true,
+        canUseFaucet: true,
+        canControlNode: true,
+        canResetNode: true,
+        canDeploy: true,
+        canMonitor: true,
+        requiresWallet: false,
+      },
       coreSpace: {
         chainId: data.chains?.core?.chainId || data.config?.chainId || 0,
         rpcUrl: data.rpcUrls?.core || '',
@@ -233,6 +249,17 @@ class ApiClient {
       amount,
       chain: chain || 'auto',
     });
+    return response.data;
+  }
+
+  // Network management
+  async switchNetwork(network: 'local' | 'testnet' | 'mainnet') {
+    const response = await this.client.post('/devkit/network/switch', { network });
+    return response.data;
+  }
+
+  async getCurrentNetwork() {
+    const response = await this.client.get('/devkit/network/current');
     return response.data;
   }
 

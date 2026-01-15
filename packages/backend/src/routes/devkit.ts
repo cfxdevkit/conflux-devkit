@@ -30,6 +30,25 @@ import { logger } from '../utils/logger.js';
 type NetworkType = 'local' | 'testnet' | 'mainnet';
 let currentNetwork: NetworkType = 'local'; // Default to local network
 
+// Helper to check if current network is local
+function isLocalNetwork(): boolean {
+  return currentNetwork === 'local';
+}
+
+// Helper to get network-specific capabilities
+function getNetworkCapabilities(network: NetworkType) {
+  const isLocal = network === 'local';
+  return {
+    canMine: isLocal,           // Mining only on local
+    canUseFaucet: isLocal,      // Faucet only on local
+    canControlNode: isLocal,    // Node start/stop only on local
+    canResetNode: isLocal,      // Reset only on local
+    canDeploy: true,            // Deploy works on all networks
+    canMonitor: true,           // Monitor works on all networks
+    requiresWallet: !isLocal,   // Non-local networks need wallet for transactions
+  };
+}
+
 // Network configuration helper
 function getNetworkConfig(network: NetworkType) {
   switch (network) {
@@ -61,6 +80,16 @@ function getNetworkConfig(network: NetworkType) {
         coreRpcUrl: 'http://localhost:12537', // Local Core RPC
       };
   }
+}
+
+// Helper to create "local only" error response
+function localOnlyError(res: any, operation: string) {
+  return res.status(403).json({
+    error: `Operation not available on ${currentNetwork}`,
+    message: `${operation} is only available on local network. Switch to local network to use this feature.`,
+    network: currentNetwork,
+    requiredNetwork: 'local',
+  });
 }
 
 export function createDevKitRoutes(
@@ -213,6 +242,9 @@ export function createDevKitRoutes(
         status: nodeStatus,
         running: isRunning,
         mining: miningStatus,
+        network: currentNetwork,
+        networkConfig: getNetworkConfig(currentNetwork),
+        capabilities: getNetworkCapabilities(currentNetwork),
         chains: {
           core: {
             ...chainStatus.core,
@@ -731,8 +763,13 @@ export function createDevKitRoutes(
     }
   );
 
-  // Faucet: fund any address on Core or eSpace
+  // Faucet: fund any address on Core or eSpace (LOCAL ONLY)
   router.post('/faucet', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Faucet');
+    }
+
     try {
       logger.info('Faucet request received:', req.body);
       const { address, amount } = req.body as { address?: string | string[]; amount?: string | string[] };
@@ -1085,10 +1122,15 @@ export function createDevKitRoutes(
     }
   );
 
-  // ===== NODE CONTROL ENDPOINTS =====
+  // ===== NODE CONTROL ENDPOINTS (LOCAL ONLY) =====
 
-  // Start node (if stopped)
+  // Start node (if stopped) - LOCAL ONLY
   router.post('/node/start', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Node start');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1155,8 +1197,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Stop node
+  // Stop node - LOCAL ONLY
   router.post('/node/stop', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Node stop');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1184,8 +1231,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Reset node (stop, optionally clear data, restart)
+  // Reset node (stop, optionally clear data, restart) - LOCAL ONLY
   router.post('/node/reset', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Node reset');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1232,8 +1284,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Clear blockchain data without restarting
+  // Clear blockchain data without restarting - LOCAL ONLY
   router.post('/node/clear-data', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Clear data');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1263,12 +1320,17 @@ export function createDevKitRoutes(
     }
   });
 
-  // ===== MINING CONTROL ENDPOINTS =====
+  // ===== MINING CONTROL ENDPOINTS (LOCAL ONLY) =====
   // Mining is controlled via testClient following xcfx-node test patterns
   // No auto-mining configuration - everything is manual via these endpoints
 
-  // Start mining
+  // Start mining - LOCAL ONLY
   router.post('/mining/start', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Mining');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1315,8 +1377,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Stop mining
+  // Stop mining - LOCAL ONLY
   router.post('/mining/stop', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Mining');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1359,8 +1426,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Set mining interval
+  // Set mining interval - LOCAL ONLY
   router.post('/mining/interval', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Mining interval');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1394,8 +1466,13 @@ export function createDevKitRoutes(
     }
   });
 
-  // Mine specific blocks
+  // Mine specific blocks - LOCAL ONLY
   router.post('/mining/mine', async (req: AuthenticatedRequest, res) => {
+    // Check if on local network
+    if (!isLocalNetwork()) {
+      return localOnlyError(res, 'Mining');
+    }
+
     try {
       if (!req.wallet?.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -1449,6 +1526,7 @@ export function createDevKitRoutes(
       // Update the current network state
       currentNetwork = network as NetworkType;
       const networkConfig = getNetworkConfig(currentNetwork);
+      const capabilities = getNetworkCapabilities(currentNetwork);
 
       logger.info(`Network switched to: ${network}`, networkConfig);
 
@@ -1459,6 +1537,7 @@ export function createDevKitRoutes(
           data: {
             network,
             config: networkConfig,
+            capabilities,
           },
           timestamp: new Date().toISOString(),
         });
@@ -1468,6 +1547,7 @@ export function createDevKitRoutes(
         message: `Switched to ${network} network`,
         network,
         config: networkConfig,
+        capabilities,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -1483,9 +1563,11 @@ export function createDevKitRoutes(
   router.get('/network/current', async (_req: AuthenticatedRequest, res) => {
     try {
       const networkConfig = getNetworkConfig(currentNetwork);
+      const capabilities = getNetworkCapabilities(currentNetwork);
       res.json({
         network: currentNetwork,
         config: networkConfig,
+        capabilities,
       });
     } catch (error) {
       logger.error('Get current network failed:', error);

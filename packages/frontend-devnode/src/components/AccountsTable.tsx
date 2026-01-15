@@ -52,15 +52,21 @@ export function AccountsTable() {
         <Table highlightOnHover>
           <Table.Thead>
             <Table.Tr>
+              <Table.Th w={50}>#</Table.Th>
               <Table.Th>Core Space Address</Table.Th>
               <Table.Th>Balance (CFX)</Table.Th>
               <Table.Th>eSpace Address</Table.Th>
-              <Table.Th>Balance (ETH)</Table.Th>
+              <Table.Th>Balance (CFX)</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {accounts.map((account) => (
+            {accounts.map((account, idx) => (
               <Table.Tr key={account.index}>
+                <Table.Td>
+                  <Text size="sm" fw={600} c="dimmed">
+                    {idx + 1}
+                  </Text>
+                </Table.Td>
                 <Table.Td>
                   <Group gap="xs">
                     <Text size="sm" style={{ fontFamily: 'monospace' }}>

@@ -25,7 +25,6 @@
     "check:fix": "turbo run check:fix",
     "check:fix:unsafe": "turbo run check:fix:unsafe",
     "dev": "turbo run dev",
-    "dev:node": "turbo run dev --filter=@conflux-devkit/node",
     "dev:backend": "turbo run dev --filter=@conflux-devkit/backend",
     "dev:frontend": "turbo run dev --filter=@conflux-devkit/frontend"
   },

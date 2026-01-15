@@ -6,16 +6,25 @@
   },
   "references": [
     {
-      "path": "./packages/devkit-node"
+      "path": "./packages/core"
     },
     {
-      "path": "./packages/devkit-backend"
+      "path": "./packages/plugin-devnode"
     },
     {
-      "path": "./packages/devkit-frontend"
+      "path": "./packages/backend"
     },
     {
-      "path": "./packages/devkit-demo"
+      "path": "./packages/frontend-devnode"
+    },
+    {
+      "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./packages/ui-headless"
     }
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
