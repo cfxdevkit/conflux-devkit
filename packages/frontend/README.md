@@ -1,4 +1,4 @@
-# @conflux-devkit/frontend-devnode
+# @conflux-devkit/frontend
 
 Modern React frontend for Conflux DevKit with a focus on **authentication** and **local development node management**. Built with Mantine UI for a beautiful, professional interface.
 
@@ -33,7 +33,7 @@ Modern React frontend for Conflux DevKit with a focus on **authentication** and 
 pnpm install
 
 # Or install individually
-cd packages/frontend-devnode
+cd packages/frontend
 pnpm install
 ```
 

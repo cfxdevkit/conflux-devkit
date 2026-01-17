@@ -1,5 +1,5 @@
 {
-  "name": "@conflux-devkit/frontend-devnode",
+  "name": "@conflux-devkit/frontend",
   "version": "1.0.0",
   "description": "Modern React frontend for Conflux DevKit - Auth and DevNode management with Mantine UI",
   "type": "module",
@@ -64,7 +64,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cfxdevkit/conflux-devkit.git",
-    "directory": "packages/frontend-devnode"
+    "directory": "packages/frontend"
   },
   "homepage": "https://github.com/cfxdevkit/conflux-devkit#readme",
   "bugs": {

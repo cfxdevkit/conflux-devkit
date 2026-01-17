@@ -19,7 +19,7 @@ pnpm build
 cd packages/backend && pnpm dev
 
 # Terminal 2: Frontend
-cd packages/frontend-devnode && pnpm dev
+cd packages/frontend && pnpm dev
 ```
 
 ### 3. Open Dashboard

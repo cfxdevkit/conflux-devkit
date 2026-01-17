@@ -15,7 +15,7 @@
       "path": "./packages/backend"
     },
     {
-      "path": "./packages/frontend-devnode"
+      "path": "./packages/frontend"
     },
     {
       "path": "./packages/wallet"

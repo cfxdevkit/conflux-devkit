@@ -38,7 +38,7 @@ This consolidation streamlines the developer experience and serves as the founda
 | `@conflux-devkit/contracts` | 0.1.0 | **NEW** | Contract deployment utilities |
 | `@conflux-devkit/ui-headless` | 1.0.0 | **NEW** | Headless React components |
 | `@conflux-devkit/backend` | 0.1.0 | **UPDATED** | REST API & WebSocket server |
-| `@conflux-devkit/frontend-devnode` | 1.0.0 | **UPDATED** | React DevNode dashboard |
+| `@conflux-devkit/frontend` | 1.0.0 | **UPDATED** | React DevNode dashboard |
 | `@conflux-devkit/node` | - | **REMOVED** | Was redundant re-export |
 
 ---
@@ -48,7 +48,7 @@ This consolidation streamlines the developer experience and serves as the founda
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     PRESENTATION LAYER                       │
-│  frontend-devnode (Dashboard)    ui-headless (Components)    │
+│    frontend (Dashboard)          ui-headless (Components)    │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -98,7 +98,7 @@ See individual package documentation in `/docs/packages/`:
 - [CORE.md](packages/CORE.md)
 - [PLUGIN_DEVNODE.md](packages/PLUGIN_DEVNODE.md)
 - [BACKEND.md](packages/BACKEND.md)
-- [FRONTEND_DEVNODE.md](packages/FRONTEND_DEVNODE.md)
+- [FRONTEND.md](packages/FRONTEND.md)
 - [WALLET.md](packages/WALLET.md)
 - [CONTRACTS.md](packages/CONTRACTS.md)
 - [UI_HEADLESS.md](packages/UI_HEADLESS.md)

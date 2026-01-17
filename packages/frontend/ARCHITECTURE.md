@@ -1,4 +1,4 @@
-# @conflux-devkit/frontend-devnode - Architecture Overview
+# @conflux-devkit/frontend - Architecture Overview
 
 ## Package Purpose
 
@@ -206,7 +206,7 @@ WebSocket Event → wsClient → devnodeStore → Update State → Re-render
 ## File Structure
 
 ```
-frontend-devnode/
+frontend/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── AuthSection.tsx
@@ -319,7 +319,7 @@ frontend-devnode/
 - Not npm-publishable
 - Tightly coupled to full DevKit
 
-### New Frontend (@conflux-devkit/frontend-devnode v1.0.0)
+### New Frontend (@conflux-devkit/frontend v1.0.0)
 - Focused scope (auth + devnode only)
 - Mantine UI component library
 - Clean separation of concerns

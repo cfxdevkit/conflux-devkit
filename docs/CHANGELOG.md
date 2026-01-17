@@ -71,7 +71,7 @@ Complete rewrite with modular architecture.
 - **New**: Signature-based wallet authentication
 - **Updated**: 23+ REST API endpoints for DevNode control
 
-### @conflux-devkit/frontend-devnode (v1.0.0)
+### @conflux-devkit/frontend (v1.0.0)
 Modern React dashboard for DevNode management.
 - **Stack**: React 18, Mantine UI 7, Wagmi 2.12, Zustand
 - **Features**:

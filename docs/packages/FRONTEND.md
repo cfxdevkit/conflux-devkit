@@ -1,4 +1,4 @@
-# @conflux-devkit/frontend-devnode
+# @conflux-devkit/frontend
 
 **Version:** 1.0.0  
 **Status:** Updated Package  
@@ -52,7 +52,7 @@ Modern React dashboard for managing local Conflux development nodes. Provides a 
 
 ## Running Locally
 ```bash
-cd packages/frontend-devnode
+cd packages/frontend
 pnpm install
 pnpm dev
 ```

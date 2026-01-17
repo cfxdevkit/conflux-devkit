@@ -71,7 +71,7 @@
                                                        │
                                                        ▼
                               ┌──────────────────────────────────────┐
-                              │  @conflux-devkit/frontend-devnode    │
+                              │  @conflux-devkit/frontend    │
                               │  (React Frontend)                    │
                               │                                      │
                               │  • DevNode control panel UI          │
@@ -95,7 +95,7 @@
 | **ui-headless** | `core`, `react` (peer) | Headless React components | UI |
 | **plugin-devnode** | `@xcfx/node`, `cive`, `viem`, `bip39`, `bip32`, `core` (peer) | Dev node wrapper & management | Dev Tools |
 | **backend** | `plugin-devnode`, `node`, `express`, `ws`, `viem` | Backend API server | Service |
-| **frontend-devnode** | `core`, `ui-headless`, `@mantine`, `react`, `axios` | Frontend UI | UI |
+| **frontend** | `core`, `ui-headless`, `@mantine`, `react`, `axios` | Frontend UI | UI |
 
 ## Code Duplication Issues
 
@@ -303,7 +303,7 @@ Core (foundation)
 
 ## Metrics
 
-- **Total Packages:** 8 (core, contracts, wallet, node, ui-headless, plugin-devnode, backend, frontend-devnode)
+- **Total Packages:** 8 (core, contracts, wallet, node, ui-headless, plugin-devnode, backend, frontend)
 - **Lines of Duplicated Code:** ~2000+ (ServerManager alone)
 - **External Dependencies:** 6 major (cive, viem, @xcfx/node, bip39, bip32, tiny-secp256k1)
 - **Workspace Dependencies:** 12 internal references

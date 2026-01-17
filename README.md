@@ -16,7 +16,7 @@ A comprehensive development toolkit for building applications on Conflux blockch
 | [@conflux-devkit/core](./packages/core/) | 0.1.0 | Foundation blockchain client library |
 | [@conflux-devkit/plugin-devnode](./packages/plugin-devnode/) | 0.1.0 | Local development node plugin |
 | [@conflux-devkit/backend](./packages/backend/) | 0.1.0 | REST API & WebSocket server |
-| [@conflux-devkit/frontend-devnode](./packages/frontend-devnode/) | 1.0.0 | React DevNode dashboard |
+| [@conflux-devkit/frontend](./packages/frontend/) | 1.0.0 | React DevNode dashboard |
 | [@conflux-devkit/wallet](./packages/wallet/) | 0.1.0 | Wallet abstractions |
 | [@conflux-devkit/contracts](./packages/contracts/) | 0.1.0 | Contract utilities |
 | [@conflux-devkit/ui-headless](./packages/ui-headless/) | 1.0.0 | Headless React components |
@@ -57,7 +57,7 @@ Open http://localhost:5173 to access the dashboard.
 ```
 ┌─────────────────────────────────────────────┐
 │            PRESENTATION LAYER               │
-│   frontend-devnode     ui-headless          │
+│      frontend          ui-headless          │
 └─────────────────────────────────────────────┘
                     │
 ┌─────────────────────────────────────────────┐
