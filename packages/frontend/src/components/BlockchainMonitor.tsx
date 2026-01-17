@@ -94,6 +94,7 @@ export function BlockchainMonitor() {
   const { status } = useDevNodeStore();
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
   
   // Address filter state (for non-local networks)
   const [addressFilter, setAddressFilter] = useState('');
@@ -240,6 +241,18 @@ export function BlockchainMonitor() {
   const formatAddress = (address: string) => {
     if (!address) return 'N/A';
     return address.length > 16 ? `${address.slice(0, 8)}...${address.slice(-6)}` : address;
+  };
+
+  const toggleBlockExpanded = (blockKey: string) => {
+    setExpandedBlocks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(blockKey)) {
+        newSet.delete(blockKey);
+      } else {
+        newSet.add(blockKey);
+      }
+      return newSet;
+    });
   };
 
   // Apply address/contract filter to transactions
@@ -476,57 +489,95 @@ export function BlockchainMonitor() {
                         size="lg"
                         color={block.chainType === 'core' ? 'blue' : 'green'}
                         variant="filled"
-                      >
-                        {block.chainType === 'core' ? 'Core' : 'eSpace'} #{block.blockNumber}
-                      </Badge>
-                      <Badge size="sm" color="cyan" variant="light">
-                        {block.transactionCount} {block.transactionCount === 1 ? 'tx' : 'txs'}
-                      </Badge>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {new Date(block.timestamp).toLocaleTimeString()}
-                    </Text>
-                  </Group>
-
-                  {/* Transactions List */}
+                      >- Show last 3 by default */}
                   {block.transactions.length > 0 && (
                     <Stack gap="xs" style={{ paddingLeft: '12px', borderLeft: '2px solid var(--mantine-color-gray-3)' }}>
-                      {block.transactions.map((tx, txIdx) => (
-                        <Card key={`${tx.hash}-${txIdx}`} withBorder padding="xs" radius="xs" bg="gray.0" style={{ borderLeftWidth: '3px', borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)' }}>
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                              <Text ff="monospace" size="xs" fw={500} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {formatHash(tx.hash)}
-                              </Text>
-                              <CopyButton value={tx.hash} timeout={2000}>
-                                {({ copied }) => (
-                                  <Tooltip label={copied ? 'Copied' : 'Copy hash'}>
-                                    <ActionIcon
-                                      color={copied ? 'teal' : 'gray'}
-                                      variant="subtle"
-                                      size="xs"
-                                    >
-                                      {copied ? <IconCheck style={{ width: 10 }} /> : <IconCopy style={{ width: 10 }} />}
-                                    </ActionIcon>
-                                  </Tooltip>
-                                )}
-                              </CopyButton>
-                            </Group>
-                            <Text size="xs" fw={600} c="blue">
-                              {tx.value}
-                            </Text>
-                          </Group>
-                          <Group gap="xs" mt={4}>
-                            <Text size="xs" c="dimmed">
-                              From:
-                            </Text>
-                            <Tooltip label={tx.from}>
-                              <Text ff="monospace" size="xs">
-                                {formatAddress(tx.from)}
-                              </Text>
-                            </Tooltip>
-                            <Text size="xs" c="dimmed">
-                              →
+                      {(() => {
+                        const blockKey = `${block.chainType}-${block.blockNumber}`;
+                        const isExpanded = expandedBlocks.has(blockKey);
+                        const txsToShow = isExpanded 
+                          ? block.transactions 
+                          : block.transactions.slice(-3); // Show last 3 transactions
+                        const hasMore = block.transactions.length > 3;
+
+                        return (
+                          <>
+                            {!isExpanded && hasMore && (
+                              <Button
+                                variant="subtle"
+                                size="xs"
+                                color="gray"
+                                onClick={() => toggleBlockExpanded(blockKey)}
+                                leftSection={<Text size="xs">+{block.transactions.length - 3} more</Text>}
+                              >
+                                Show all {block.transactions.length} transactions
+                              </Button>
+                            )}
+                            
+                            <Stack gap="xs" style={{ maxHeight: isExpanded ? '400px' : 'none', overflowY: isExpanded ? 'auto' : 'visible' }}>
+                              {txsToShow.map((tx, txIdx) => (
+                                <Card key={`${tx.hash}-${txIdx}`} withBorder padding="xs" radius="xs" bg="gray.0" style={{ borderLeftWidth: '3px', borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)' }}>
+                                  <Group justify="space-between" wrap="nowrap">
+                                    <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                                      <Text ff="monospace" size="xs" fw={500} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {formatHash(tx.hash)}
+                                      </Text>
+                                      <CopyButton value={tx.hash} timeout={2000}>
+                                        {({ copied }) => (
+                                          <Tooltip label={copied ? 'Copied' : 'Copy hash'}>
+                                            <ActionIcon
+                                              color={copied ? 'teal' : 'gray'}
+                                              variant="subtle"
+                                              size="xs"
+                                            >
+                                              {copied ? <IconCheck style={{ width: 10 }} /> : <IconCopy style={{ width: 10 }} />}
+                                            </ActionIcon>
+                                          </Tooltip>
+                                        )}
+                                      </CopyButton>
+                                    </Group>
+                                    <Text size="xs" fw={600} c="blue" style={{ flexShrink: 0 }}>
+                                      {tx.value}
+                                    </Text>
+                                  </Group>
+                                  <Group gap="xs" mt={4} wrap="nowrap" style={{ overflow: 'hidden' }}>
+                                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                                      From:
+                                    </Text>
+                                    <Tooltip label={tx.from}>
+                                      <Text ff="monospace" size="xs" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {formatAddress(tx.from)}
+                                      </Text>
+                                    </Tooltip>
+                                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                                      →
+                                    </Text>
+                                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                                      To:
+                                    </Text>
+                                    <Tooltip label={tx.to || 'Contract Creation'}>
+                                      <Text ff="monospace" size="xs" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {tx.to ? formatAddress(tx.to) : 'Contract'}
+                                      </Text>
+                                    </Tooltip>
+                                  </Group>
+                                </Card>
+                              ))}
+                            </Stack>
+
+                            {isExpanded && hasMore && (
+                              <Button
+                                variant="subtle"
+                                size="xs"
+                                color="gray"
+                                onClick={() => toggleBlockExpanded(blockKey)}
+                              >
+                                Show less
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })(       →
                             </Text>
                             <Text size="xs" c="dimmed">
                               To:
