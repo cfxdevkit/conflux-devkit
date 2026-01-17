@@ -577,19 +577,7 @@ export function BlockchainMonitor() {
                             )}
                           </>
                         );
-                      })(       →
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              To:
-                            </Text>
-                            <Tooltip label={tx.to || 'Contract Creation'}>
-                              <Text ff="monospace" size="xs">
-                                {tx.to ? formatAddress(tx.to) : 'Contract'}
-                              </Text>
-                            </Tooltip>
-                          </Group>
-                        </Card>
-                      ))}
+                      })()}
                     </Stack>
                   )}
                 </Stack>
