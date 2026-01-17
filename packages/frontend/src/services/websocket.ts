@@ -18,6 +18,7 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3002';
 
 export type WebSocketEventType =
   | 'nodeStats'
+  | 'newBlocks'
   | 'devnode:status'
   | 'devnode:block'
   | 'devnode:transaction'

@@ -26,7 +26,6 @@ import {
     Group,
     SimpleGrid,
     Stack,
-    Table,
     Text,
     TextInput,
     ThemeIcon,
@@ -45,7 +44,7 @@ import {
     IconPlayerPlay,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface BlockInfo {
   blockNumber: string;
@@ -73,21 +72,6 @@ interface MonitorStats {
   totalBlocks: number;
   totalTransactions: number;
   miningInterval?: number; // Current mining interval from node
-}
-
-// Use backend RPC proxy to avoid CORS issues
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-// Helper to get auth headers for fetch calls
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  const sessionId = localStorage.getItem('sessionId');
-  if (sessionId) {
-    headers.Authorization = `Bearer ${sessionId}`;
-  }
-  return headers;
 }
 
 export function BlockchainMonitor() {

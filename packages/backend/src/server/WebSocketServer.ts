@@ -500,8 +500,8 @@ export class DevKitWebSocketServer {
         }),
       ]);
 
-      const currentCoreData = await currentCoreResponse.json();
-      const currentEvmData = await currentEvmResponse.json();
+      const currentCoreData = (await currentCoreResponse.json()) as { result: string };
+      const currentEvmData = (await currentEvmResponse.json()) as { result: string };
 
       const currentCoreEpoch = parseInt(currentCoreData.result, 16);
       const currentEvmBlock = parseInt(currentEvmData.result, 16);
@@ -521,7 +521,7 @@ export class DevKitWebSocketServer {
               id: 1,
             }),
           });
-          const data = await response.json();
+          const data = (await response.json()) as { result: any };
           const block = data.result;
 
           if (block && block.transactions && block.transactions.length > 0) {
@@ -557,7 +557,7 @@ export class DevKitWebSocketServer {
               id: 1,
             }),
           });
-          const data = await response.json();
+          const data = (await response.json()) as { result: any };
           const block = data.result;
 
           if (block && block.transactions && block.transactions.length > 0) {
