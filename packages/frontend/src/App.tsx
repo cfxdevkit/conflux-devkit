@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { AccountsTable } from '@/components/AccountsTable';
 import { AuthSection } from '@/components/AuthSection';
 import { BlockchainMonitor } from '@/components/BlockchainMonitor';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
@@ -22,7 +21,8 @@ import { DevNodeStatus } from '@/components/DevNodeStatus';
 import { FaucetButton } from '@/components/FaucetButton';
 import { FirstLoginModal } from '@/components/FirstLoginModal';
 import { NavbarNetworkDropdown } from '@/components/NavbarNetworkDropdown';
-import { WalletSettings } from '@/components/WalletSettings';
+import { TestMnemonicWarning } from '@/components/TestMnemonicWarning';
+import { WalletSettingsEnhanced } from '@/components/WalletSettingsEnhanced';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { apiClient } from '@/services/api';
 import { wsClient } from '@/services/websocket';
@@ -37,6 +37,8 @@ function App() {
   const { user } = useAuthStore();
   const { status, updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const [isTestMnemonic, setIsTestMnemonic] = useState(false);
+  const [activeTab, setActiveTab] = useState('devnode');
 
   // Check wallet status on authentication
   useEffect(() => {
@@ -45,6 +47,9 @@ function App() {
     const checkWalletStatus = async () => {
       try {
         const walletStatus = await apiClient.getWalletStatus();
+        
+        // Track test mnemonic status for footer warning
+        setIsTestMnemonic(walletStatus.isTestMnemonic === true);
         
         // Show warning if using test mnemonic and not encrypted
         if (walletStatus.isTestMnemonic === true && !walletStatus.encryptionEnabled) {
@@ -188,13 +193,10 @@ function App() {
 
             {isAuthenticated && (
               <>
-                <Tabs defaultValue="devnode" orientation="horizontal">
+                <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'devnode')} orientation="horizontal">
                   <Tabs.List>
                     <Tabs.Tab value="devnode" leftSection={<IconSettings size={14} />}>
                       DevNode
-                    </Tabs.Tab>
-                    <Tabs.Tab value="accounts" leftSection={<IconDatabase size={14} />}>
-                      Accounts
                     </Tabs.Tab>
                     <Tabs.Tab value="wallet" leftSection={<IconWallet size={14} />}>
                       Wallet
@@ -211,12 +213,8 @@ function App() {
                     </Stack>
                   </Tabs.Panel>
 
-                  <Tabs.Panel value="accounts" pt="md">
-                    <AccountsTable />
-                  </Tabs.Panel>
-
                   <Tabs.Panel value="wallet" pt="md">
-                    <WalletSettings />
+                    <WalletSettingsEnhanced />
                   </Tabs.Panel>
 
                   <Tabs.Panel value="monitor" pt="md">
@@ -237,6 +235,11 @@ function App() {
         </Container>
       </AppShell.Main>
 
+      {/* Persistent footer warning for test mnemonic */}
+      {isAuthenticated && isTestMnemonic && (
+        <TestMnemonicWarning onConfigureClick={() => setActiveTab('wallet')} />
+      )}
+
       {/* First-login modal for test mnemonic warning */}
       <FirstLoginModal
         opened={showFirstLoginModal}
@@ -247,6 +250,9 @@ function App() {
         onSetMnemonic={async (mnemonic) => {
           await apiClient.addMnemonic({ mnemonic, label: 'Custom Wallet', setActive: true });
           console.log('Custom mnemonic set');
+          // Refresh wallet status
+          const newStatus = await apiClient.getWalletStatus();
+          setIsTestMnemonic(newStatus.isTestMnemonic === true);
         }}
         onGenerateMnemonic={async () => {
           const result = await apiClient.generateMnemonic();

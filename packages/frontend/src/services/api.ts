@@ -326,6 +326,16 @@ class ApiClient {
     };
   }
 
+  // Alias for compatibility with WalletSettingsEnhanced
+  async listWallets() {
+    const data = await this.getKeystoreEntries();
+    return {
+      wallets: data.entries,
+      activeIndex: data.activeIndex,
+      activeLabel: data.activeLabel,
+    };
+  }
+
   async getWalletDataDirs() {
     const response = await this.client.get('/devkit/wallet/data-dirs');
     return response.data as {

@@ -472,6 +472,7 @@ export class KeystoreService {
     network: 'core' | 'espace';
     index?: number;
     customPath?: string;
+    networkId?: number;
   }): Promise<DerivedAccount> {
     const index = options.index ?? 0;
     const network = options.network;
@@ -491,8 +492,10 @@ export class KeystoreService {
       const account = viemPrivateKeyToAccount(privateKey as `0x${string}`);
       address = account.address;
     } else {
-      // Core space uses different address format
-      const account = civePrivateKeyToAccount(privateKey as `0x${string}`, { networkId: 1029 });
+      // Core space uses different address format based on network
+      // local: 2029, testnet: 1, mainnet: 1029
+      const coreNetworkId = options.networkId ?? 2029;
+      const account = civePrivateKeyToAccount(privateKey as `0x${string}`, { networkId: coreNetworkId });
       address = account.address;
     }
 
@@ -513,6 +516,7 @@ export class KeystoreService {
     network: 'core' | 'espace';
     count?: number;
     startIndex?: number;
+    networkId?: number;
   }): Promise<DerivedAccount[]> {
     const count = options.count ?? 10;
     const startIndex = options.startIndex ?? 0;
@@ -523,6 +527,7 @@ export class KeystoreService {
         mnemonic: options.mnemonic,
         network: options.network,
         index: startIndex + i,
+        networkId: options.networkId,
       }));
     }
 

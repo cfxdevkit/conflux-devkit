@@ -74,7 +74,8 @@ export function DevNodeControlPanel() {
   const capabilities = status?.capabilities;
   const canControlNode = capabilities?.canControlNode ?? true;
   const canMine = capabilities?.canMine ?? true;
-  const isLocalNetwork = status?.network === 'local';
+  // Consider local if network is 'local' or undefined (default)
+  const isLocalNetwork = !status?.network || status.network === 'local';
 
   const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
   const [configOpened, { toggle: toggleConfig }] = useDisclosure(false);

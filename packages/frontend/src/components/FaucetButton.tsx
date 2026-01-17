@@ -77,6 +77,10 @@ export function FaucetButton() {
         message: `${amountStr} CFX sent to ${recipientAddress.slice(0, 10)}... (${chain === 'core' ? 'Core Space' : 'eSpace'})`,
         color: 'green',
       });
+      
+      // Trigger balance refresh globally
+      window.dispatchEvent(new CustomEvent('wallet:balance-update'));
+      
       setRecipientAddress('');
       setAmount(10);
       close();

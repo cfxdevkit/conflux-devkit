@@ -2182,10 +2182,12 @@ export function createDevKitRoutes(
         });
       }
 
+      const networkConfig = getNetworkConfig(currentNetwork);
       const account = await keystore.deriveAccount({
         network: network as 'core' | 'espace',
         index: index ? parseInt(index as string, 10) : 0,
         customPath: customPath as string | undefined,
+        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
       });
 
       res.json({
@@ -2218,10 +2220,12 @@ export function createDevKitRoutes(
         });
       }
 
+      const networkConfig = getNetworkConfig(currentNetwork);
       const accounts = await keystore.deriveAccounts({
         network: network as 'core' | 'espace',
         count: count ? Math.min(parseInt(count as string, 10), 100) : 10,
         startIndex: startIndex ? parseInt(startIndex as string, 10) : 0,
+        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
       });
 
       // Return addresses only, not private keys
@@ -2264,10 +2268,12 @@ export function createDevKitRoutes(
         });
       }
 
+      const networkConfig = getNetworkConfig(currentNetwork);
       const account = await keystore.deriveAccount({
         network: network as 'core' | 'espace',
         index: index ?? 0,
         customPath,
+        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
       });
 
       res.json({
