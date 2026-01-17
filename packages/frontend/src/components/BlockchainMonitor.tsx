@@ -489,7 +489,19 @@ export function BlockchainMonitor() {
                         size="lg"
                         color={block.chainType === 'core' ? 'blue' : 'green'}
                         variant="filled"
-                      >- Show last 3 by default */}
+                      >
+                        {block.chainType === 'core' ? 'Core' : 'eSpace'} #{block.blockNumber}
+                      </Badge>
+                      <Badge size="sm" color="cyan" variant="light">
+                        {block.transactionCount} {block.transactionCount === 1 ? 'tx' : 'txs'}
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      {new Date(block.timestamp).toLocaleTimeString()}
+                    </Text>
+                  </Group>
+
+                  {/* Transactions List - Show last 3 by default */}
                   {block.transactions.length > 0 && (
                     <Stack gap="xs" style={{ paddingLeft: '12px', borderLeft: '2px solid var(--mantine-color-gray-3)' }}>
                       {(() => {
