@@ -52,6 +52,7 @@ interface BlockInfo {
   timestamp: number;
   chainType: 'core' | 'evm';
   transactionCount: number;
+  transactions: TransactionInfo[]; // Nested transactions
 }
 
 interface TransactionInfo {
@@ -71,6 +72,7 @@ interface MonitorStats {
   evmBlocksPerSecond: number;
   totalBlocks: number;
   totalTransactions: number;
+  miningInterval?: number; // Current mining interval from node
 }
 
 // Use backend RPC proxy to avoid CORS issues
@@ -147,6 +149,7 @@ export function BlockchainMonitor() {
     evmBlocksPerSecond: 0,
     totalBlocks: 0,
     totalTransactions: 0,
+    miningInterval: 500, // Default, will be updated from nodeStats
   });
 
   // Track previous block numbers to detect new blocks
@@ -180,19 +183,13 @@ export function BlockchainMonitor() {
         for (let i = startBlock; i <= newEvmBlock; i++) {
           const block = await fetchEvmBlock(i);
           if (block) {
-            const txCount = block.transactions?.length || 0;
-            newBlocks.push({
-              blockNumber: String(i),
-              timestamp: Date.now(),
-              chainType: 'evm',
-              transactionCount: txCount,
-            });
+            const blockTransactions: TransactionInfo[] = [];
 
             // Extract transactions from the block
             if (block.transactions && Array.isArray(block.transactions)) {
               for (const tx of block.transactions) {
                 if (typeof tx === 'object') {
-                  newTxs.push({
+                  const txInfo: TransactionInfo = {
                     hash: tx.hash || '',
                     from: tx.from || '',
                     to: tx.to || undefined,
@@ -200,9 +197,22 @@ export function BlockchainMonitor() {
                     blockNumber: String(i),
                     timestamp: Date.now(),
                     chainType: 'evm',
-                  });
+                  };
+                  blockTransactions.push(txInfo);
+                  newTxs.push(txInfo);
                 }
               }
+            }
+
+            // Only add blocks that have transactions
+            if (blockTransactions.length > 0) {
+              newBlocks.push({
+                blockNumber: String(i),
+                timestamp: Date.now(),
+                chainType: 'evm',
+                transactionCount: blockTransactions.length,
+                transactions: blockTransactions,
+              });
             }
           }
         }
@@ -215,19 +225,13 @@ export function BlockchainMonitor() {
         for (let i = startBlock; i <= newCoreBlock; i++) {
           const block = await fetchCoreBlock(i);
           if (block) {
-            const txCount = block.transactions?.length || 0;
-            newBlocks.push({
-              blockNumber: String(i),
-              timestamp: Date.now(),
-              chainType: 'core',
-              transactionCount: txCount,
-            });
+            const blockTransactions: TransactionInfo[] = [];
 
             // Extract transactions from the block
             if (block.transactions && Array.isArray(block.transactions)) {
               for (const tx of block.transactions) {
                 if (typeof tx === 'object') {
-                  newTxs.push({
+                  const txInfo: TransactionInfo = {
                     hash: tx.hash || '',
                     from: tx.from || '',
                     to: tx.to || undefined,
@@ -235,9 +239,22 @@ export function BlockchainMonitor() {
                     blockNumber: String(i),
                     timestamp: Date.now(),
                     chainType: 'core',
-                  });
+                  };
+                  blockTransactions.push(txInfo);
+                  newTxs.push(txInfo);
                 }
               }
+            }
+
+            // Only add blocks that have transactions
+            if (blockTransactions.length > 0) {
+              newBlocks.push({
+                blockNumber: String(i),
+                timestamp: Date.now(),
+                chainType: 'core',
+                transactionCount: blockTransactions.length,
+                transactions: blockTransactions,
+              });
             }
           }
         }
@@ -287,13 +304,15 @@ export function BlockchainMonitor() {
         evmBlocksPerSec = Math.max(0, evmBlockDiff / timeDiff);
       }
 
-      // Update stats
+      // Update stats including mining interval
+      const miningInterval = data.mining?.interval || data.miningInterval || prev.miningInterval || 500;
       setStats((prev) => ({
         ...prev,
         coreBlockNumber: String(coreBlockNum),
         evmBlockNumber: String(evmBlockNum),
         coreBlocksPerSecond: Math.round(coreBlocksPerSec * 100) / 100,
         evmBlocksPerSecond: Math.round(evmBlocksPerSec * 100) / 100,
+        miningInterval,
       }));
 
       // Process new blocks if there are any
@@ -518,16 +537,21 @@ export function BlockchainMonitor() {
         </Card>
       </SimpleGrid>
 
-      {/* Blocks Section */}
+      {/* Blocks with Nested Transactions - Fixed Height Scrollable */}
       <Card withBorder padding="lg" radius="md">
         <Card.Section withBorder inheritPadding py="md">
           <Group justify="space-between">
             <Group gap="xs">
               <IconBooks size={20} />
-              <Text fw={600}>Recent Blocks</Text>
+              <Text fw={600}>Blocks with Transactions</Text>
               <Badge size="sm" color={isPaused ? 'orange' : 'green'} variant="light">
                 {isPaused ? 'Paused' : 'Live'}
               </Badge>
+              {stats.miningInterval && (
+                <Badge size="sm" color="violet" variant="light">
+                  {stats.miningInterval}ms interval
+                </Badge>
+              )}
             </Group>
             <Group gap="xs">
               <Tooltip label={isPaused ? 'Resume monitoring' : 'Pause monitoring'}>
@@ -558,152 +582,94 @@ export function BlockchainMonitor() {
           <Stack align="center" gap="md" py="xl">
             <Text size="sm" c="dimmed">
               {isNodeRunning
-                ? 'Waiting for new blocks... Mine blocks or use the faucet to see activity.'
-                : 'Start the node and mine blocks to see them here.'}
+                ? 'Waiting for blocks with transactions... Use the faucet or send transactions to see activity.'
+                : 'Start the node and send transactions to see blocks here.'}
+            </Text>
+            <Text size="xs" c="dimmed">
+              Note: Only blocks containing transactions are displayed
             </Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Block #</Table.Th>
-                <Table.Th>Chain</Table.Th>
-                <Table.Th>Txs</Table.Th>
-                <Table.Th>Time</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {blocks.slice(0, 20).map((block, idx) => (
-                <Table.Tr key={`${block.chainType}-${block.blockNumber}-${idx}`}>
-                  <Table.Td>
-                    <Text fw={500} ff="monospace" size="sm">
-                      {block.blockNumber}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      size="sm"
-                      color={block.chainType === 'core' ? 'blue' : 'green'}
-                      variant="light"
-                    >
-                      {block.chainType === 'core' ? 'Core' : 'eSpace'}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge size="sm" color={block.transactionCount > 0 ? 'cyan' : 'gray'} variant="light">
-                      {block.transactionCount}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" c="dimmed">
+          <Stack gap="sm" style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
+            {blocks.map((block, idx) => (
+              <Card key={`${block.chainType}-${block.blockNumber}-${idx}`} withBorder padding="md" radius="sm">
+                <Stack gap="sm">
+                  {/* Block Header */}
+                  <Group justify="space-between">
+                    <Group gap="sm">
+                      <Badge
+                        size="lg"
+                        color={block.chainType === 'core' ? 'blue' : 'green'}
+                        variant="filled"
+                      >
+                        {block.chainType === 'core' ? 'Core' : 'eSpace'} #{block.blockNumber}
+                      </Badge>
+                      <Badge size="sm" color="cyan" variant="light">
+                        {block.transactionCount} {block.transactionCount === 1 ? 'tx' : 'txs'}
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed">
                       {new Date(block.timestamp).toLocaleTimeString()}
                     </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
+                  </Group>
 
-      {/* Transactions Section */}
-      <Card withBorder padding="lg" radius="md">
-        <Card.Section withBorder inheritPadding py="md">
-          <Group justify="space-between">
-            <Group gap="xs">
-              <IconFileText size={20} />
-              <Text fw={600}>Recent Transactions</Text>
-              {isFilterActive && (
-                <Badge size="sm" color="blue" variant="light">
-                  Filtered: {filteredTransactions.length} / {transactions.length}
-                </Badge>
-              )}
-            </Group>
-          </Group>
-        </Card.Section>
-
-        {filteredTransactions.length === 0 ? (
-          <Stack align="center" gap="md" py="xl">
-            <Text size="sm" c="dimmed">
-              {isFilterActive
-                ? 'No transactions match the current filters.'
-                : isLocalNetwork
-                  ? isNodeRunning
-                    ? 'No transactions yet. Use the faucet to send test tokens.'
-                    : 'Start the node and send transactions to see them here.'
-                  : 'Apply filters to view transactions on remote network.'}
-            </Text>
+                  {/* Transactions List */}
+                  {block.transactions.length > 0 && (
+                    <Stack gap="xs" style={{ paddingLeft: '12px', borderLeft: '2px solid var(--mantine-color-gray-3)' }}>
+                      {block.transactions.map((tx, txIdx) => (
+                        <Card key={`${tx.hash}-${txIdx}`} withBorder padding="xs" radius="xs" bg="gray.0" style={{ borderLeftWidth: '3px', borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)' }}>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                              <Text ff="monospace" size="xs" fw={500} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {formatHash(tx.hash)}
+                              </Text>
+                              <CopyButton value={tx.hash} timeout={2000}>
+                                {({ copied }) => (
+                                  <Tooltip label={copied ? 'Copied' : 'Copy hash'}>
+                                    <ActionIcon
+                                      color={copied ? 'teal' : 'gray'}
+                                      variant="subtle"
+                                      size="xs"
+                                    >
+                                      {copied ? <IconCheck style={{ width: 10 }} /> : <IconCopy style={{ width: 10 }} />}
+                                    </ActionIcon>
+                                  </Tooltip>
+                                )}
+                              </CopyButton>
+                            </Group>
+                            <Text size="xs" fw={600} c="blue">
+                              {tx.value}
+                            </Text>
+                          </Group>
+                          <Group gap="xs" mt={4}>
+                            <Text size="xs" c="dimmed">
+                              From:
+                            </Text>
+                            <Tooltip label={tx.from}>
+                              <Text ff="monospace" size="xs">
+                                {formatAddress(tx.from)}
+                              </Text>
+                            </Tooltip>
+                            <Text size="xs" c="dimmed">
+                              →
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              To:
+                            </Text>
+                            <Tooltip label={tx.to || 'Contract Creation'}>
+                              <Text ff="monospace" size="xs">
+                                {tx.to ? formatAddress(tx.to) : 'Contract'}
+                              </Text>
+                            </Tooltip>
+                          </Group>
+                        </Card>
+                      ))}
+                    </Stack>
+                  )}
+                </Stack>
+              </Card>
+            ))}
           </Stack>
-        ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Hash</Table.Th>
-                <Table.Th>Chain</Table.Th>
-                <Table.Th>From</Table.Th>
-                <Table.Th>To</Table.Th>
-                <Table.Th>Value</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {filteredTransactions.slice(0, 20).map((tx, idx) => (
-                <Table.Tr key={`${tx.hash}-${idx}`}>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <Text fw={500} ff="monospace" size="sm">
-                        {formatHash(tx.hash)}
-                      </Text>
-                      <CopyButton value={tx.hash} timeout={2000}>
-                        {({ copied }) => (
-                          <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="right">
-                            <ActionIcon
-                              color={copied ? 'teal' : 'gray'}
-                              variant="subtle"
-                              size="xs"
-                            >
-                              {copied ? (
-                                <IconCheck style={{ width: 12 }} />
-                              ) : (
-                                <IconCopy style={{ width: 12 }} />
-                              )}
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                      </CopyButton>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      size="sm"
-                      color={tx.chainType === 'core' ? 'blue' : 'green'}
-                      variant="light"
-                    >
-                      {tx.chainType === 'core' ? 'Core' : 'eSpace'}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Tooltip label={tx.from} multiline maw={200}>
-                      <Text ff="monospace" size="sm">
-                        {formatAddress(tx.from)}
-                      </Text>
-                    </Tooltip>
-                  </Table.Td>
-                  <Table.Td>
-                    <Tooltip label={tx.to || 'Contract Creation'} multiline maw={200}>
-                      <Text ff="monospace" size="sm">
-                        {tx.to ? formatAddress(tx.to) : 'Contract'}
-                      </Text>
-                    </Tooltip>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {tx.value}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
         )}
       </Card>
     </Stack>
