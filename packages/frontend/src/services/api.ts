@@ -452,6 +452,36 @@ class ApiClient {
     };
   }
 
+  // Wallet status and encryption endpoints
+  async getWalletStatus() {
+    const response = await this.client.get('/devkit/wallet/status');
+    return response.data as {
+      isTestMnemonic: boolean | null;
+      hasCustomMnemonic: boolean | null;
+      encryptionEnabled: boolean;
+      isLocked: boolean;
+      adminAddress: string | null;
+      walletCount: number;
+      activeWallet: string;
+    };
+  }
+
+  async enableEncryption(password: string) {
+    const response = await this.client.post('/devkit/wallet/encryption/enable', { password });
+    return response.data as {
+      success: boolean;
+      message: string;
+    };
+  }
+
+  async unlockWallet(password: string) {
+    const response = await this.client.post('/devkit/wallet/encryption/unlock', { password });
+    return response.data as {
+      success: boolean;
+      message: string;
+    };
+  }
+
   // Generic request method for extensibility
   async request(method: string, url: string, data?: unknown) {
     const response = await this.client.request({

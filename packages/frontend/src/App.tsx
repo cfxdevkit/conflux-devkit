@@ -20,20 +20,48 @@ import { BlockchainMonitor } from '@/components/BlockchainMonitor';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
 import { DevNodeStatus } from '@/components/DevNodeStatus';
 import { FaucetButton } from '@/components/FaucetButton';
+import { FirstLoginModal } from '@/components/FirstLoginModal';
 import { NavbarNetworkDropdown } from '@/components/NavbarNetworkDropdown';
 import { WalletSettings } from '@/components/WalletSettings';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
+import { apiClient } from '@/services/api';
 import { wsClient } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import { AppShell, Badge, Button, Container, Group, Stack, Tabs, Text, Title } from '@mantine/core';
 import { IconBrandGithub, IconDatabase, IconLogout, IconSettings, IconWallet } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 function App() {
   const { isAuthenticated, logout } = useWalletAuth();
   const { user } = useAuthStore();
   const { status, updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+
+  // Check wallet status on authentication
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkWalletStatus = async () => {
+      try {
+        const walletStatus = await apiClient.getWalletStatus();
+        
+        // Show warning if using test mnemonic and not encrypted
+        if (walletStatus.isTestMnemonic === true && !walletStatus.encryptionEnabled) {
+          // Only show once per session
+          const hasSeenWarning = sessionStorage.getItem('firstLoginWarningShown');
+          if (!hasSeenWarning) {
+            setShowFirstLoginModal(true);
+            sessionStorage.setItem('firstLoginWarningShown', 'true');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check wallet status:', error);
+      }
+    };
+
+    checkWalletStatus();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -208,6 +236,27 @@ function App() {
           </Stack>
         </Container>
       </AppShell.Main>
+
+      {/* First-login modal for test mnemonic warning */}
+      <FirstLoginModal
+        opened={showFirstLoginModal}
+        onClose={() => setShowFirstLoginModal(false)}
+        onContinue={() => {
+          console.log('User accepted test mnemonic');
+        }}
+        onSetMnemonic={async (mnemonic) => {
+          await apiClient.addMnemonic({ mnemonic, label: 'Custom Wallet', setActive: true });
+          console.log('Custom mnemonic set');
+        }}
+        onGenerateMnemonic={async () => {
+          const result = await apiClient.generateMnemonic();
+          return result.mnemonic;
+        }}
+        onEnableEncryption={async (password) => {
+          await apiClient.enableEncryption(password);
+          console.log('Encryption enabled');
+        }}
+      />
     </AppShell>
   );
 }
