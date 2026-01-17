@@ -76,12 +76,24 @@ interface MonitorStats {
 // Use backend RPC proxy to avoid CORS issues
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// Helper to get auth headers for fetch calls
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const sessionId = localStorage.getItem('sessionId');
+  if (sessionId) {
+    headers.Authorization = `Bearer ${sessionId}`;
+  }
+  return headers;
+}
+
 // Fetch block by number from eSpace (EVM) via backend proxy
 async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/evm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'eth_getBlockByNumber',
@@ -102,7 +114,7 @@ async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/core`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'cfx_getBlockByEpochNumber',

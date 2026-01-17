@@ -263,6 +263,195 @@ class ApiClient {
     return response.data;
   }
 
+  // ===== Configuration Management =====
+
+  async getConfig() {
+    const response = await this.client.get('/devkit/config');
+    return response.data as {
+      node: {
+        chainId: number;
+        evmChainId: number;
+        jsonrpcHttpPort: number;
+        jsonrpcHttpEthPort: number;
+        jsonrpcWsPort?: number;
+        jsonrpcWsEthPort?: number;
+        logging: boolean;
+      };
+      rpcUrls: { core: string; evm: string };
+      mining: {
+        isRunning: boolean;
+        interval: number;
+        mode: 'auto' | 'manual';
+      };
+      network: string;
+    };
+  }
+
+  async getConfigView() {
+    const response = await this.client.get('/devkit/config/view');
+    return response.data as Record<string, Record<string, any>>;
+  }
+
+  async updateConfig(updates: {
+    chainId?: number;
+    evmChainId?: number;
+    jsonrpcHttpPort?: number;
+    jsonrpcHttpEthPort?: number;
+    logging?: boolean;
+    miningInterval?: number;
+  }) {
+    const response = await this.client.post('/devkit/config/update', updates);
+    return response.data as {
+      success: boolean;
+      updates: Record<string, any>;
+      requiresRestart: boolean;
+      restartRequired: string[];
+      message: string;
+    };
+  }
+
+  // ===== Wallet / Keystore Management =====
+
+  async getKeystoreEntries() {
+    const response = await this.client.get('/devkit/wallet/keystore');
+    return response.data as {
+      entries: Array<{
+        index: number;
+        label: string;
+        type: string;
+        isActive: boolean;
+      }>;
+      activeIndex: number;
+      activeLabel: string;
+    };
+  }
+
+  async getWalletDataDirs() {
+    const response = await this.client.get('/devkit/wallet/data-dirs');
+    return response.data as {
+      activeDataDir: string;
+      wallets: Array<{
+        index: number;
+        label: string;
+        dataDir: string;
+        hash: string;
+      }>;
+    };
+  }
+
+  async addMnemonic(options: { mnemonic?: string; label?: string; setActive?: boolean; generate?: boolean }) {
+    const response = await this.client.post('/devkit/wallet/keystore/add', options);
+    return response.data as {
+      success: boolean;
+      index: number;
+      label: string;
+      message: string;
+      mnemonic?: string;
+      warning?: string;
+    };
+  }
+
+  async deleteMnemonic(index: number) {
+    const response = await this.client.delete(`/devkit/wallet/keystore/${index}`);
+    return response.data as {
+      success: boolean;
+      message: string;
+      activeIndex: number;
+    };
+  }
+
+  async selectMnemonic(index: number) {
+    const response = await this.client.post('/devkit/wallet/keystore/select', { index });
+    return response.data as {
+      success: boolean;
+      activeIndex: number;
+      activeLabel: string;
+      message: string;
+    };
+  }
+
+  async updateWalletLabel(index: number, label: string) {
+    const response = await this.client.patch(`/devkit/wallet/keystore/${index}/label`, { label });
+    return response.data;
+  }
+
+  async showMnemonic(confirmed: boolean) {
+    const response = await this.client.post('/devkit/wallet/keystore/show-mnemonic', { confirmed });
+    return response.data as {
+      mnemonic?: string;
+      label?: string;
+      warning?: string;
+      error?: string;
+      requiresConfirmation?: boolean;
+    };
+  }
+
+  async deriveAccount(network: 'core' | 'espace', index?: number, customPath?: string) {
+    const params = new URLSearchParams({ network });
+    if (index !== undefined) params.append('index', String(index));
+    if (customPath) params.append('customPath', customPath);
+    
+    const response = await this.client.get(`/devkit/wallet/derive?${params.toString()}`);
+    return response.data as {
+      address: string;
+      path: string;
+      index: number;
+      network: string;
+    };
+  }
+
+  async deriveAccounts(network: 'core' | 'espace', count?: number, startIndex?: number) {
+    const params = new URLSearchParams({ network });
+    if (count !== undefined) params.append('count', String(count));
+    if (startIndex !== undefined) params.append('startIndex', String(startIndex));
+    
+    const response = await this.client.get(`/devkit/wallet/derive/batch?${params.toString()}`);
+    return response.data as {
+      accounts: Array<{
+        address: string;
+        path: string;
+        index: number;
+        network: string;
+      }>;
+      activeWallet: string;
+    };
+  }
+
+  async getPrivateKey(network: 'core' | 'espace', index: number, confirmed: boolean) {
+    const response = await this.client.post('/devkit/wallet/private-key', {
+      network,
+      index,
+      confirmed,
+    });
+    return response.data as {
+      privateKey?: string;
+      address?: string;
+      path?: string;
+      network?: string;
+      warning?: string;
+      error?: string;
+      requiresConfirmation?: boolean;
+    };
+  }
+
+  async generateMnemonic() {
+    const response = await this.client.get('/devkit/wallet/generate-mnemonic');
+    return response.data as {
+      mnemonic: string;
+      message: string;
+      wordCount: number;
+    };
+  }
+
+  async validateMnemonic(mnemonic: string) {
+    const response = await this.client.post('/devkit/wallet/validate-mnemonic', { mnemonic });
+    return response.data as {
+      valid: boolean;
+      wordCount: number;
+      message: string;
+    };
+  }
+
   // Generic request method for extensibility
   async request(method: string, url: string, data?: unknown) {
     const response = await this.client.request({

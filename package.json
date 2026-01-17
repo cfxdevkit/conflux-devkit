@@ -35,7 +35,10 @@
     "docker:restart": "docker compose restart",
     "docker:status": "docker compose ps",
     "docker:logs": "docker compose logs -f",
-    "docker:cleanup": "docker compose down -v --remove-orphans"
+    "docker:cleanup": "docker compose down -v --remove-orphans",
+    "ports:check": "lsof -i :3000 -i :3001 -i :3002 2>/dev/null || echo 'No processes on these ports'",
+    "ports:kill": "lsof -ti :3000 -ti :3001 -ti :3002 2>/dev/null | xargs -r kill -9 && echo 'Killed processes on ports 3000, 3001, 3002' || echo 'No processes to kill'",
+    "session:token": "curl -s http://localhost:3001/api/dev/session 2>/dev/null | jq -r '.sessionId // empty' || echo 'Backend not running or jq not installed'"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",

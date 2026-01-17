@@ -38,6 +38,7 @@ export interface DevKitConfig {
   jsonrpcWsEthPort?: number;
   log: boolean;
   mnemonic?: string;
+  dataDir?: string; // Mnemonic-specific data directory
 }
 
 /**
@@ -94,6 +95,7 @@ export class DevKitCompat {
       accounts: this.accountsCount, // Use configurable accounts count
       balance: '10000', // Default balance in CFX
       miningAuthor: this.miningAuthor, // Mining rewards address (optional)
+      dataDir: config.dataDir, // Mnemonic-specific data directory
       // devPackTxImmediately is always false - mining is via testClient
     };
 
@@ -158,6 +160,7 @@ export class DevKitCompat {
         accounts: this.accountsCount,
         balance: '10000',
         miningAuthor: this.miningAuthor,
+        dataDir: this._config.dataDir,
       };
       
       this.serverManager = new ServerManager(serverConfig);
@@ -175,6 +178,7 @@ export class DevKitCompat {
         accounts: this.accountsCount,
         balance: '10000',
         miningAuthor: this.miningAuthor,
+        dataDir: this._config.dataDir,
       };
       
       this.serverManager = new ServerManager(serverConfig);
@@ -198,7 +202,7 @@ export class DevKitCompat {
    * Should be called while node is stopped
    */
   async clearData(): Promise<void> {
-    const dataDir = '/workspace/.conflux-dev';
+    const dataDir = this._config.dataDir || '/workspace/.conflux-dev';
     try {
       // Remove the data directory recursively
       await fs.rm(dataDir, { recursive: true, force: true });
@@ -207,6 +211,13 @@ export class DevKitCompat {
       console.error('Failed to clear data directory:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get the current data directory path
+   */
+  getDataDir(): string {
+    return this._config.dataDir || '/workspace/.conflux-dev';
   }
 
   async getStatus(): Promise<{

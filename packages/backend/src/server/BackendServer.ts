@@ -45,6 +45,7 @@ export interface BackendServerConfig {
     jsonrpcWsEthPort?: number;
     log: boolean;
     mnemonic?: string;
+    dataDir?: string;
   };
 }
 

@@ -1,16 +1,36 @@
 # Lightweight development container for Conflux DevKit
 FROM node:20-bookworm-slim
 
-# Install system dependencies
+# Install system dependencies and common development utilities
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    wget \
     ca-certificates \
     python3 \
     make \
     g++ \
     sudo \
-    && rm -rf /var/lib/apt/lists/*
+    # Process management utilities
+    procps \
+    htop \
+    # Network utilities
+    net-tools \
+    iputils-ping \
+    dnsutils \
+    # Text processing
+    jq \
+    vim-tiny \
+    less \
+    # File utilities
+    tree \
+    zip \
+    unzip \
+    # Debugging tools
+    strace \
+    lsof \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Configure sudo for node user
 RUN echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/node && \

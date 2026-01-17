@@ -38,11 +38,12 @@ try {
 }
 
 // Main exports for library usage
+export { AuthService } from './auth/AuthService.js';
+export { DevelopmentAuthService } from './auth/DevelopmentAuthService.js';
 export { BackendServer } from './server/BackendServer.js';
 export type { BackendServerConfig } from './server/BackendServer.js';
 export { DevKitWebSocketServer } from './server/WebSocketServer.js';
-export { AuthService } from './auth/AuthService.js';
-export { DevelopmentAuthService } from './auth/DevelopmentAuthService.js';
+export { getKeystoreService, initializeKeystoreService, KeystoreService } from './services/keystore-service.js';
 export { logger } from './utils/logger.js';
 
 // Route creators for custom implementations
@@ -50,11 +51,33 @@ export { createDevKitRoutes } from './routes/devkit.js';
 export { createSwapRoutes } from './routes/swap.js';
 
 import { BackendServer } from './server/BackendServer.js';
+import { getKeystoreService, initializeKeystoreService } from './services/keystore-service.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
   try {
     logger.info('🚀 Starting Conflux DevKit Backend Core...');
+
+    // Initialize keystore service
+    await initializeKeystoreService();
+    const keystoreService = getKeystoreService();
+    logger.info('📝 Keystore service initialized');
+
+    // Get active mnemonic and data directory from keystore
+    // If encrypted and locked, use default mnemonic temporarily
+    let activeMnemonic: string;
+    let dataDir: string;
+    
+    if (keystoreService.isEncrypted() && !keystoreService.isUnlocked()) {
+      logger.warn('⚠️  Keystore is encrypted and locked. Using default mnemonic until unlocked.');
+      logger.warn('⚠️  Please unlock via API: POST /api/devkit/wallet/encryption/unlock');
+      activeMnemonic = 'test test test test test test test test test test test junk';
+      dataDir = await keystoreService.getDataDir(activeMnemonic);
+    } else {
+      activeMnemonic = await keystoreService.getActiveMnemonic();
+      dataDir = await keystoreService.getDataDir();
+      logger.info(`📁 Using wallet: "${keystoreService.getActiveLabel()}" with data directory: ${dataDir}`);
+    }
 
     const server = new BackendServer({
       port: parseInt(process.env.PORT || '3001', 10),
@@ -67,25 +90,14 @@ async function main() {
         jsonrpcHttpEthPort: 8545,
         jsonrpcWsEthPort: 8546,
         log: false,
-        // Prefer the canonical env var used across the workspace
-        mnemonic:
-          process.env.HARDHAT_VAR_DEPLOYER_MNEMONIC ||
-          process.env.VITE_HARDHAT_VAR_DEPLOYER_MNEMONIC ||
-          'test test test test test test test test test test test junk',
+        // Use mnemonic from keystore service
+        mnemonic: activeMnemonic,
+        // Use mnemonic-specific data directory
+        dataDir: dataDir,
       },
     });
 
     await server.start();
-
-    // Warn if using the default test mnemonic (helps catch accidental leaks)
-    const usedMnemonic =
-      process.env.HARDHAT_VAR_DEPLOYER_MNEMONIC ||
-      process.env.VITE_HARDHAT_VAR_DEPLOYER_MNEMONIC;
-    if (!usedMnemonic) {
-      logger.warn(
-        'No deployer mnemonic env var set; backend is using the default test mnemonic. Do NOT use this in production.'
-      );
-    }
 
     // Graceful shutdown
     process.on('SIGINT', async () => {

@@ -21,15 +21,16 @@
  */
 
 export { ContractService } from './contract-service.js';
+export { KeystoreService, getKeystoreService, initializeKeystoreService } from './keystore-service.js';
+export { SwapService } from './swap-service.js';
 export { TransactionService } from './transaction-service.js';
 export { WalletService } from './wallet-service.js';
-export { SwapService } from './swap-service.js';
 
+export type { DerivedAccount, KeystoreEntry, KeystoreFile } from './keystore-service.js';
+export type {
+    SwapExecuteParams,
+    SwapQuote, SwapQuoteParams, SwapResult
+} from './swap-service.js';
 export type { SendTransactionOptions } from './transaction-service.js';
 export type { AccountInfo } from './wallet-service.js';
-export type {
-  SwapQuoteParams,
-  SwapExecuteParams,
-  SwapQuote,
-  SwapResult,
-} from './swap-service.js';
+

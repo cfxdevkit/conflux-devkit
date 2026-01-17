@@ -24,6 +24,7 @@ import { Router } from 'express';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
 import type { DevKitCompat } from '../devkit-compat.js';
 import type { DevKitWebSocketServer } from '../server/WebSocketServer.js';
+import { getKeystoreService } from '../services/keystore-service.js';
 import { logger } from '../utils/logger.js';
 
 // Network state management
@@ -913,6 +914,177 @@ export function createDevKitRoutes(
     }
   });
 
+  // ============================================
+  // CONFIGURATION MANAGEMENT ENDPOINTS
+  // ============================================
+
+  // Get current configuration
+  router.get('/config', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const config = devkit.getConfig();
+      const rpcUrls = devkit.getRpcUrls();
+      const miningStatus = devkit.getMiningStatus();
+      
+      res.json({
+        node: {
+          chainId: config.chainId,
+          evmChainId: config.evmChainId,
+          jsonrpcHttpPort: config.jsonrpcHttpPort,
+          jsonrpcHttpEthPort: config.jsonrpcHttpEthPort,
+          jsonrpcWsPort: config.jsonrpcWsPort,
+          jsonrpcWsEthPort: config.jsonrpcWsEthPort,
+          logging: config.log,
+        },
+        rpcUrls,
+        mining: {
+          isRunning: miningStatus?.isRunning ?? false,
+          interval: miningStatus?.interval ?? 0,
+          mode: miningStatus?.isRunning ? 'auto' : 'manual',
+        },
+        network: currentNetwork,
+      });
+    } catch (error) {
+      logger.error('Failed to get configuration:', error);
+      res.status(500).json({
+        error: 'Failed to get configuration',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Get configuration in a format suitable for CLI display
+  router.get('/config/view', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const config = devkit.getConfig();
+      const rpcUrls = devkit.getRpcUrls();
+      const miningStatus = devkit.getMiningStatus();
+      const keystore = getKeystoreService();
+      
+      // Format for CLI-style display
+      const configView = {
+        'Network Configuration': {
+          'Core Space Chain ID': config.chainId,
+          'eSpace Chain ID': config.evmChainId,
+          'Current Network': currentNetwork,
+        },
+        'RPC Ports': {
+          'Core HTTP RPC': config.jsonrpcHttpPort,
+          'Core WebSocket': config.jsonrpcWsPort || 'Not configured',
+          'eSpace HTTP RPC': config.jsonrpcHttpEthPort,
+          'eSpace WebSocket': config.jsonrpcWsEthPort || 'Not configured',
+        },
+        'RPC URLs': {
+          'Core Space': rpcUrls.core,
+          'eSpace': rpcUrls.evm,
+        },
+        'Mining Configuration': {
+          'Mode': miningStatus?.isRunning ? 'Auto' : 'Manual',
+          'Interval (ms)': miningStatus?.interval ?? 'N/A',
+          'Status': miningStatus?.isRunning ? 'Running' : 'Stopped',
+        },
+        'Wallet': {
+          'Active Wallet': keystore.getActiveLabel(),
+          'Wallets Count': keystore.getEntries().length,
+          'Data Directory': await keystore.getDataDir(),
+          'Mnemonic Hash': (await keystore.getMnemonicHash()).substring(0, 8) + '...',
+        },
+        'Logging': {
+          'Enabled': config.log,
+        },
+      };
+      
+      res.json(configView);
+    } catch (error) {
+      logger.error('Failed to get config view:', error);
+      res.status(500).json({
+        error: 'Failed to get configuration',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Update configuration (requires node restart for most settings)
+  router.post('/config/update', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { 
+        chainId, 
+        evmChainId, 
+        jsonrpcHttpPort, 
+        jsonrpcHttpEthPort,
+        logging,
+        miningInterval,
+      } = req.body;
+
+      // Validate values if provided
+      const updates: Record<string, any> = {};
+      const requiresRestart: string[] = [];
+
+      if (chainId !== undefined) {
+        if (typeof chainId !== 'number' || chainId <= 0) {
+          return res.status(400).json({ error: 'Invalid chainId' });
+        }
+        updates.chainId = chainId;
+        requiresRestart.push('chainId');
+      }
+
+      if (evmChainId !== undefined) {
+        if (typeof evmChainId !== 'number' || evmChainId <= 0) {
+          return res.status(400).json({ error: 'Invalid evmChainId' });
+        }
+        updates.evmChainId = evmChainId;
+        requiresRestart.push('evmChainId');
+      }
+
+      if (jsonrpcHttpPort !== undefined) {
+        if (typeof jsonrpcHttpPort !== 'number' || jsonrpcHttpPort < 1 || jsonrpcHttpPort > 65535) {
+          return res.status(400).json({ error: 'Invalid jsonrpcHttpPort' });
+        }
+        updates.jsonrpcHttpPort = jsonrpcHttpPort;
+        requiresRestart.push('jsonrpcHttpPort');
+      }
+
+      if (jsonrpcHttpEthPort !== undefined) {
+        if (typeof jsonrpcHttpEthPort !== 'number' || jsonrpcHttpEthPort < 1 || jsonrpcHttpEthPort > 65535) {
+          return res.status(400).json({ error: 'Invalid jsonrpcHttpEthPort' });
+        }
+        updates.jsonrpcHttpEthPort = jsonrpcHttpEthPort;
+        requiresRestart.push('jsonrpcHttpEthPort');
+      }
+
+      if (logging !== undefined) {
+        updates.logging = Boolean(logging);
+        requiresRestart.push('logging');
+      }
+
+      // Mining interval can be updated without restart
+      if (miningInterval !== undefined) {
+        if (typeof miningInterval !== 'number' || miningInterval < 100) {
+          return res.status(400).json({ error: 'Mining interval must be at least 100ms' });
+        }
+        await devkit.setMiningInterval(miningInterval);
+      }
+
+      // Note: Node configuration updates require restart to take effect
+      // The actual config update would need to be persisted and applied on restart
+      
+      res.json({
+        success: true,
+        updates,
+        requiresRestart: requiresRestart.length > 0,
+        restartRequired: requiresRestart,
+        message: requiresRestart.length > 0 
+          ? `Configuration updated. Restart the node for these changes to take effect: ${requiresRestart.join(', ')}`
+          : 'Configuration updated',
+      });
+    } catch (error) {
+      logger.error('Failed to update configuration:', error);
+      res.status(500).json({
+        error: 'Failed to update configuration',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
   // Read contract function
   router.post('/contracts/read', async (req: AuthenticatedRequest, res) => {
     try {
@@ -1573,6 +1745,576 @@ export function createDevKitRoutes(
       logger.error('Get current network failed:', error);
       res.status(500).json({
         error: 'Failed to get current network',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // ============================================
+  // WALLET / KEYSTORE MANAGEMENT ENDPOINTS
+  // ============================================
+
+  // Get all keystore entries (without mnemonics)
+  router.get('/wallet/keystore', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      const entries = keystore.getEntries();
+      res.json({
+        entries,
+        activeIndex: keystore.getActiveIndex(),
+        activeLabel: keystore.getActiveLabel(),
+      });
+    } catch (error) {
+      logger.error('Failed to get keystore entries:', error);
+      res.status(500).json({
+        error: 'Failed to get keystore entries',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Get data directory info for all wallets
+  router.get('/wallet/data-dirs', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      const dataDirs = await keystore.getDataDirInfo();
+      const activeDataDir = await keystore.getDataDir();
+      res.json({
+        activeDataDir,
+        wallets: dataDirs,
+      });
+    } catch (error) {
+      logger.error('Failed to get data directory info:', error);
+      res.status(500).json({
+        error: 'Failed to get data directory info',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // ============================================
+  // ADMIN WALLET ENDPOINTS
+  // ============================================
+
+  // Get admin wallet info
+  router.get('/wallet/admin', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      const adminAddress = keystore.getAdminAddress();
+      const hasAdminKey = keystore.getAdminPrivateKey() !== null;
+      
+      res.json({
+        adminAddress,
+        hasAdminKey,
+        isSet: !!adminAddress,
+      });
+    } catch (error) {
+      logger.error('Failed to get admin info:', error);
+      res.status(500).json({
+        error: 'Failed to get admin info',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Set admin private key
+  router.post('/wallet/admin/set', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { privateKey } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!privateKey || typeof privateKey !== 'string') {
+        return res.status(400).json({
+          error: 'Invalid private key',
+          message: 'Private key must be a hex string',
+        });
+      }
+
+      await keystore.setAdminPrivateKey(privateKey);
+      const adminAddress = keystore.getAdminAddress();
+
+      res.json({
+        success: true,
+        adminAddress,
+        message: 'Admin private key set successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to set admin key:', error);
+      res.status(400).json({
+        error: 'Failed to set admin key',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Reset admin to default (first account of active mnemonic)
+  router.post('/wallet/admin/reset', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      await keystore.resetAdminToDefault();
+      const adminAddress = keystore.getAdminAddress();
+
+      res.json({
+        success: true,
+        adminAddress,
+        message: 'Admin reset to first account of active mnemonic',
+      });
+    } catch (error) {
+      logger.error('Failed to reset admin:', error);
+      res.status(400).json({
+        error: 'Failed to reset admin',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // ============================================
+  // ENCRYPTION ENDPOINTS
+  // ============================================
+
+  // Get encryption status
+  router.get('/wallet/encryption/status', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      res.json({
+        enabled: keystore.isEncrypted(),
+        unlocked: keystore.isUnlocked(),
+      });
+    } catch (error) {
+      logger.error('Failed to get encryption status:', error);
+      res.status(500).json({
+        error: 'Failed to get encryption status',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Enable encryption
+  router.post('/wallet/encryption/enable', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { password } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!password || typeof password !== 'string') {
+        return res.status(400).json({
+          error: 'Invalid password',
+          message: 'Password is required',
+        });
+      }
+
+      await keystore.enableEncryption(password);
+
+      res.json({
+        success: true,
+        message: 'Encryption enabled successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to enable encryption:', error);
+      res.status(400).json({
+        error: 'Failed to enable encryption',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Disable encryption
+  router.post('/wallet/encryption/disable', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { password } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!password || typeof password !== 'string') {
+        return res.status(400).json({
+          error: 'Invalid password',
+          message: 'Password is required',
+        });
+      }
+
+      await keystore.disableEncryption(password);
+
+      res.json({
+        success: true,
+        message: 'Encryption disabled successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to disable encryption:', error);
+      res.status(400).json({
+        error: 'Failed to disable encryption',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Unlock encrypted keystore
+  router.post('/wallet/encryption/unlock', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { password } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!password || typeof password !== 'string') {
+        return res.status(400).json({
+          error: 'Invalid password',
+          message: 'Password is required',
+        });
+      }
+
+      const unlocked = await keystore.unlock(password);
+
+      if (!unlocked) {
+        return res.status(401).json({
+          error: 'Invalid password',
+          message: 'The provided password is incorrect',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Keystore unlocked successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to unlock keystore:', error);
+      res.status(400).json({
+        error: 'Failed to unlock keystore',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Add a new mnemonic to keystore
+  router.post('/wallet/keystore/add', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { mnemonic, label, setActive, generate } = req.body;
+      const keystore = getKeystoreService();
+
+      // If generate is true, create a new mnemonic
+      const mnemonicToAdd = generate ? undefined : mnemonic;
+
+      // Validate mnemonic if provided
+      if (mnemonicToAdd && !keystore.validateMnemonic(mnemonicToAdd)) {
+        return res.status(400).json({
+          error: 'Invalid mnemonic',
+          message: 'The provided mnemonic phrase is not valid BIP-39',
+        });
+      }
+
+      const result = await keystore.addMnemonic({
+        mnemonic: mnemonicToAdd,
+        label,
+        setActive: setActive ?? false,
+      });
+
+      // If generated, return the mnemonic (one time only!)
+      const response: any = {
+        success: true,
+        index: result.index,
+        label: result.label,
+        message: `Wallet "${result.label}" added successfully`,
+      };
+
+      if (generate) {
+        // Get the newly generated mnemonic to show the user once
+        const entries = keystore.getEntries();
+        const newEntry = entries[result.index];
+        if (newEntry) {
+          // Show mnemonic only when generating new
+          response.mnemonic = keystore.showActiveMnemonic(true);
+          response.warning = 'Save this mnemonic phrase securely. It will not be shown again.';
+        }
+      }
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Failed to add mnemonic:', error);
+      res.status(500).json({
+        error: 'Failed to add mnemonic',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Delete a mnemonic from keystore
+  router.delete('/wallet/keystore/:index', async (req: AuthenticatedRequest, res) => {
+    try {
+      const indexParam = req.params.index;
+      const index = parseInt(Array.isArray(indexParam) ? indexParam[0] : indexParam, 10);
+      const keystore = getKeystoreService();
+
+      if (isNaN(index)) {
+        return res.status(400).json({
+          error: 'Invalid index',
+          message: 'Index must be a number',
+        });
+      }
+
+      await keystore.deleteMnemonic(index);
+
+      res.json({
+        success: true,
+        message: `Wallet at index ${index} deleted`,
+        activeIndex: keystore.getActiveIndex(),
+      });
+    } catch (error) {
+      logger.error('Failed to delete mnemonic:', error);
+      res.status(400).json({
+        error: 'Failed to delete mnemonic',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Set active mnemonic
+  router.post('/wallet/keystore/select', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { index } = req.body;
+      const keystore = getKeystoreService();
+
+      if (typeof index !== 'number') {
+        return res.status(400).json({
+          error: 'Invalid index',
+          message: 'Index must be a number',
+        });
+      }
+
+      await keystore.setActiveMnemonic(index);
+
+      res.json({
+        success: true,
+        activeIndex: index,
+        activeLabel: keystore.getActiveLabel(),
+        message: `Active wallet set to "${keystore.getActiveLabel()}"`,
+      });
+    } catch (error) {
+      logger.error('Failed to select mnemonic:', error);
+      res.status(400).json({
+        error: 'Failed to select mnemonic',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Update mnemonic label
+  router.patch('/wallet/keystore/:index/label', async (req: AuthenticatedRequest, res) => {
+    try {
+      const indexParam = req.params.index;
+      const index = parseInt(Array.isArray(indexParam) ? indexParam[0] : indexParam, 10);
+      const { label } = req.body;
+      const keystore = getKeystoreService();
+
+      if (isNaN(index) || !label) {
+        return res.status(400).json({
+          error: 'Invalid parameters',
+          message: 'Index must be a number and label is required',
+        });
+      }
+
+      await keystore.updateLabel(index, label);
+
+      res.json({
+        success: true,
+        index,
+        label,
+        message: `Wallet label updated to "${label}"`,
+      });
+    } catch (error) {
+      logger.error('Failed to update label:', error);
+      res.status(400).json({
+        error: 'Failed to update label',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Show active mnemonic (requires confirmation)
+  router.post('/wallet/keystore/show-mnemonic', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { confirmed } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!confirmed) {
+        return res.status(400).json({
+          error: 'Confirmation required',
+          message: 'You must confirm to view the mnemonic phrase',
+          requiresConfirmation: true,
+        });
+      }
+
+      const mnemonic = keystore.showActiveMnemonic(true);
+
+      res.json({
+        mnemonic,
+        label: keystore.getActiveLabel(),
+        warning: 'Keep this mnemonic phrase secure and never share it.',
+      });
+    } catch (error) {
+      logger.error('Failed to show mnemonic:', error);
+      res.status(500).json({
+        error: 'Failed to show mnemonic',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Derive a single account
+  router.get('/wallet/derive', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { network, index, customPath } = req.query;
+      const keystore = getKeystoreService();
+
+      if (!network || !['core', 'espace'].includes(network as string)) {
+        return res.status(400).json({
+          error: 'Invalid network',
+          message: 'Network must be "core" or "espace"',
+        });
+      }
+
+      const account = await keystore.deriveAccount({
+        network: network as 'core' | 'espace',
+        index: index ? parseInt(index as string, 10) : 0,
+        customPath: customPath as string | undefined,
+      });
+
+      res.json({
+        address: account.address,
+        path: account.path,
+        index: account.index,
+        network: account.network,
+        // Note: privateKey is intentionally omitted for security
+        // Use /wallet/private-key endpoint to get it
+      });
+    } catch (error) {
+      logger.error('Failed to derive account:', error);
+      res.status(500).json({
+        error: 'Failed to derive account',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Derive multiple accounts
+  router.get('/wallet/derive/batch', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { network, count, startIndex } = req.query;
+      const keystore = getKeystoreService();
+
+      if (!network || !['core', 'espace'].includes(network as string)) {
+        return res.status(400).json({
+          error: 'Invalid network',
+          message: 'Network must be "core" or "espace"',
+        });
+      }
+
+      const accounts = await keystore.deriveAccounts({
+        network: network as 'core' | 'espace',
+        count: count ? Math.min(parseInt(count as string, 10), 100) : 10,
+        startIndex: startIndex ? parseInt(startIndex as string, 10) : 0,
+      });
+
+      // Return addresses only, not private keys
+      res.json({
+        accounts: accounts.map(acc => ({
+          address: acc.address,
+          path: acc.path,
+          index: acc.index,
+          network: acc.network,
+        })),
+        activeWallet: keystore.getActiveLabel(),
+      });
+    } catch (error) {
+      logger.error('Failed to derive accounts:', error);
+      res.status(500).json({
+        error: 'Failed to derive accounts',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Get private key (requires explicit request)
+  router.post('/wallet/private-key', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { network, index, customPath, confirmed } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!confirmed) {
+        return res.status(400).json({
+          error: 'Confirmation required',
+          message: 'You must confirm to view the private key',
+          requiresConfirmation: true,
+        });
+      }
+
+      if (!network || !['core', 'espace'].includes(network)) {
+        return res.status(400).json({
+          error: 'Invalid network',
+          message: 'Network must be "core" or "espace"',
+        });
+      }
+
+      const account = await keystore.deriveAccount({
+        network: network as 'core' | 'espace',
+        index: index ?? 0,
+        customPath,
+      });
+
+      res.json({
+        privateKey: account.privateKey,
+        address: account.address,
+        path: account.path,
+        network: account.network,
+        warning: 'Keep this private key secure and never share it.',
+      });
+    } catch (error) {
+      logger.error('Failed to get private key:', error);
+      res.status(500).json({
+        error: 'Failed to get private key',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Generate a new mnemonic (preview, not saved)
+  router.get('/wallet/generate-mnemonic', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      const mnemonic = keystore.generateMnemonic();
+
+      res.json({
+        mnemonic,
+        message: 'This mnemonic is not saved. Use POST /wallet/keystore/add to save it.',
+        wordCount: mnemonic.split(' ').length,
+      });
+    } catch (error) {
+      logger.error('Failed to generate mnemonic:', error);
+      res.status(500).json({
+        error: 'Failed to generate mnemonic',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Validate a mnemonic phrase
+  router.post('/wallet/validate-mnemonic', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { mnemonic } = req.body;
+      const keystore = getKeystoreService();
+
+      if (!mnemonic) {
+        return res.status(400).json({
+          error: 'Mnemonic required',
+          message: 'Please provide a mnemonic phrase to validate',
+        });
+      }
+
+      const isValid = keystore.validateMnemonic(mnemonic);
+
+      res.json({
+        valid: isValid,
+        wordCount: mnemonic.split(' ').length,
+        message: isValid ? 'Valid BIP-39 mnemonic' : 'Invalid mnemonic phrase',
+      });
+    } catch (error) {
+      logger.error('Failed to validate mnemonic:', error);
+      res.status(500).json({
+        error: 'Failed to validate mnemonic',
         details: error instanceof Error ? error.message : String(error),
       });
     }

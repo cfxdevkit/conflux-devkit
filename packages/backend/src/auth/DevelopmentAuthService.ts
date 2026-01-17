@@ -27,6 +27,7 @@ import type { NextFunction, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { verifyMessage } from 'viem';
 import type { DevKitCompat } from '../devkit-compat.js';
+import { getKeystoreService } from '../services/keystore-service.js';
 import { logger } from '../utils/logger.js';
 
 export interface AuthUser {
@@ -91,27 +92,39 @@ export class DevelopmentAuthService {
 
   async initialize() {
     try {
-      // Prefer explicit override via environment variables
-      const envAdmin =
-        process.env.HARDHAT_ADMIN_ADDRESS || process.env.VITE_HARDHAT_ADMIN_ADDRESS;
-
-      if (envAdmin && /^0x[a-fA-F0-9]{40}$/.test(envAdmin)) {
-        this.adminAddress = envAdmin.toLowerCase();
-        logger.info('✅ Admin address set from environment variable:', this.adminAddress);
+      // Priority order for admin address:
+      // 1. KeystoreService admin wallet (highest priority)
+      // 2. Environment variable override
+      // 3. First account of default mnemonic (fallback)
+      
+      const keystore = getKeystoreService();
+      const keystoreAdmin = keystore.getAdminAddress();
+      
+      if (keystoreAdmin) {
+        this.adminAddress = keystoreAdmin.toLowerCase();
+        logger.info('✅ Admin address from KeystoreService:', this.adminAddress);
       } else {
-        // Use the proper Ethereum-derived admin address from mnemonic
-        // This uses the standard Ethereum derivation path: m/44'/60'/0'/0/0
-        try {
-          const ethereumAdminAddress = this.devkit.getEthereumAdminAddress();
-          this.adminAddress = ethereumAdminAddress.toLowerCase();
-          logger.info('✅ Admin address derived from Ethereum path (m/44\'/60\'/0\'/0/0):', this.adminAddress);
-        } catch (error) {
-          // Fallback to legacy test address (deprecated)
-          this.adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
-          logger.warn(
-            '⚠️ Failed to derive Ethereum admin address from mnemonic; using legacy test address. Set HARDHAT_ADMIN_ADDRESS to override.',
-            { error }
-          );
+        // Fallback to environment variable
+        const envAdmin =
+          process.env.HARDHAT_ADMIN_ADDRESS || process.env.VITE_HARDHAT_ADMIN_ADDRESS;
+
+        if (envAdmin && /^0x[a-fA-F0-9]{40}$/.test(envAdmin)) {
+          this.adminAddress = envAdmin.toLowerCase();
+          logger.info('✅ Admin address set from environment variable:', this.adminAddress);
+        } else {
+          // Last resort: derive from mnemonic
+          try {
+            const ethereumAdminAddress = this.devkit.getEthereumAdminAddress();
+            this.adminAddress = ethereumAdminAddress.toLowerCase();
+            logger.info('✅ Admin address derived from Ethereum path (m/44\'/60\'/0\'/0/0):', this.adminAddress);
+          } catch (error) {
+            // Ultimate fallback to legacy test address
+            this.adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+            logger.warn(
+              '⚠️ Failed to derive admin address; using legacy test address. Set admin via KeystoreService.',
+              { error }
+            );
+          }
         }
       }
 

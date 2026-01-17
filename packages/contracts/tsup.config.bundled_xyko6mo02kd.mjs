@@ -1,0 +1,21 @@
+// tsup.config.ts
+import { defineConfig } from "tsup";
+var tsup_config_default = defineConfig({
+  entry: {
+    index: "src/index.ts",
+    "deployer/index": "src/deployer/index.ts",
+    "interaction/index": "src/interaction/index.ts",
+    "abis/index": "src/abis/index.ts"
+  },
+  format: ["esm", "cjs"],
+  dts: true,
+  clean: true,
+  sourcemap: true,
+  splitting: false,
+  minify: false,
+  external: ["@conflux-devkit/core", "viem", "cive"]
+});
+export {
+  tsup_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidHN1cC5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9faW5qZWN0ZWRfZmlsZW5hbWVfXyA9IFwiL3dvcmtzcGFjZS9wYWNrYWdlcy9jb250cmFjdHMvdHN1cC5jb25maWcudHNcIjtjb25zdCBfX2luamVjdGVkX2Rpcm5hbWVfXyA9IFwiL3dvcmtzcGFjZS9wYWNrYWdlcy9jb250cmFjdHNcIjtjb25zdCBfX2luamVjdGVkX2ltcG9ydF9tZXRhX3VybF9fID0gXCJmaWxlOi8vL3dvcmtzcGFjZS9wYWNrYWdlcy9jb250cmFjdHMvdHN1cC5jb25maWcudHNcIjtpbXBvcnQgeyBkZWZpbmVDb25maWcgfSBmcm9tICd0c3VwJztcblxuZXhwb3J0IGRlZmF1bHQgZGVmaW5lQ29uZmlnKHtcbiAgZW50cnk6IHtcbiAgICBpbmRleDogJ3NyYy9pbmRleC50cycsXG4gICAgJ2RlcGxveWVyL2luZGV4JzogJ3NyYy9kZXBsb3llci9pbmRleC50cycsXG4gICAgJ2ludGVyYWN0aW9uL2luZGV4JzogJ3NyYy9pbnRlcmFjdGlvbi9pbmRleC50cycsXG4gICAgJ2FiaXMvaW5kZXgnOiAnc3JjL2FiaXMvaW5kZXgudHMnLFxuICB9LFxuICBmb3JtYXQ6IFsnZXNtJywgJ2NqcyddLFxuICBkdHM6IHRydWUsXG4gIGNsZWFuOiB0cnVlLFxuICBzb3VyY2VtYXA6IHRydWUsXG4gIHNwbGl0dGluZzogZmFsc2UsXG4gIG1pbmlmeTogZmFsc2UsXG4gIGV4dGVybmFsOiBbJ0Bjb25mbHV4LWRldmtpdC9jb3JlJywgJ3ZpZW0nLCAnY2l2ZSddLFxufSk7XG4iXSwKICAibWFwcGluZ3MiOiAiO0FBQXFPLFNBQVMsb0JBQW9CO0FBRWxRLElBQU8sc0JBQVEsYUFBYTtBQUFBLEVBQzFCLE9BQU87QUFBQSxJQUNMLE9BQU87QUFBQSxJQUNQLGtCQUFrQjtBQUFBLElBQ2xCLHFCQUFxQjtBQUFBLElBQ3JCLGNBQWM7QUFBQSxFQUNoQjtBQUFBLEVBQ0EsUUFBUSxDQUFDLE9BQU8sS0FBSztBQUFBLEVBQ3JCLEtBQUs7QUFBQSxFQUNMLE9BQU87QUFBQSxFQUNQLFdBQVc7QUFBQSxFQUNYLFdBQVc7QUFBQSxFQUNYLFFBQVE7QUFBQSxFQUNSLFVBQVUsQ0FBQyx3QkFBd0IsUUFBUSxNQUFNO0FBQ25ELENBQUM7IiwKICAibmFtZXMiOiBbXQp9Cg==
