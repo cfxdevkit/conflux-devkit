@@ -15,9 +15,10 @@
  */
 
 import { useDevNodeStore } from '@/stores/devnodeStore';
+import { wsClient } from '@/services/websocket';
 import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconCoin, IconNetwork } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const formatGasPriceGDrip = (value?: string | number) => {
   if (value === undefined || value === null) return '—';
@@ -38,6 +39,13 @@ const formatGasPriceGDrip = (value?: string | number) => {
 
 export function DevNodeStatus() {
   const { status, nodeInfo, fetchStatus } = useDevNodeStore();
+  const [liveBlockNumbers, setLiveBlockNumbers] = useState<{
+    coreBlock: number;
+    evmBlock: number;
+  }>({
+    coreBlock: status?.coreSpace?.blockNumber || 0,
+    evmBlock: status?.eSpace?.blockNumber || 0,
+  });
 
   useEffect(() => {
     fetchStatus();
@@ -45,6 +53,23 @@ export function DevNodeStatus() {
     const interval = setInterval(fetchStatus, 60000); // Every minute as fallback
     return () => clearInterval(interval);
   }, [fetchStatus]);
+
+  // Subscribe to real-time block number updates from WebSocket
+  useEffect(() => {
+    if (!status?.isRunning) return;
+
+    const unsubscribe = wsClient.on('newBlocks', (data: any) => {
+      const { currentCoreEpoch, currentEvmBlock } = data;
+      setLiveBlockNumbers({
+        coreBlock: currentCoreEpoch || 0,
+        evmBlock: currentEvmBlock || 0,
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [status?.isRunning]);
 
   if (!status?.isRunning) {
     return (
@@ -88,7 +113,7 @@ export function DevNodeStatus() {
                 Block Number
               </Text>
               <Text size="sm" fw={500}>
-                {status.coreSpace.blockNumber > 0 ? status.coreSpace.blockNumber.toLocaleString() : '—'}
+                {liveBlockNumbers.coreBlock > 0 ? liveBlockNumbers.coreBlock.toLocaleString() : '—'}
               </Text>
             </Group>
 
@@ -142,7 +167,7 @@ export function DevNodeStatus() {
                 Block Number
               </Text>
               <Text size="sm" fw={500}>
-                {status.eSpace.blockNumber > 0 ? status.eSpace.blockNumber.toLocaleString() : '—'}
+                {liveBlockNumbers.evmBlock > 0 ? liveBlockNumbers.evmBlock.toLocaleString() : '—'}
               </Text>
             </Group>
 
