@@ -478,9 +478,23 @@ export function BlockchainMonitor() {
             </Text>
           </Stack>
         ) : (
-          <Stack gap="sm" style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
+          <div style={{ 
+            maxHeight: '600px', 
+            overflowY: 'auto', 
+            overflowX: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            padding: '0 8px 0 0'
+          }}>
             {blocks.map((block, idx) => (
-              <Card key={`${block.chainType}-${block.blockNumber}-${idx}`} withBorder padding="md" radius="sm">
+              <Card 
+                key={`${block.chainType}-${block.blockNumber}-${idx}`} 
+                withBorder 
+                padding="md" 
+                radius="sm"
+                style={{ flexShrink: 0 }}
+              >
                 <Stack gap="sm">
                   {/* Block Header */}
                   <Group justify="space-between">
@@ -526,9 +540,20 @@ export function BlockchainMonitor() {
                               </Button>
                             )}
                             
-                            <Stack gap="xs" style={{ maxHeight: isExpanded ? '400px' : 'none', overflowY: isExpanded ? 'auto' : 'visible' }}>
+                            <Stack gap="xs" style={{ maxHeight: isExpanded ? '300px' : 'none', overflowY: isExpanded ? 'auto' : 'visible', overflowX: 'hidden' }}>
                               {txsToShow.map((tx, txIdx) => (
-                                <Card key={`${tx.hash}-${txIdx}`} withBorder padding="xs" radius="xs" bg="gray.0" style={{ borderLeftWidth: '3px', borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)' }}>
+                                <Card 
+                                  key={`${tx.hash}-${txIdx}`} 
+                                  withBorder 
+                                  padding="xs" 
+                                  radius="xs" 
+                                  bg="gray.0" 
+                                  style={{ 
+                                    borderLeftWidth: '3px', 
+                                    borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)',
+                                    flexShrink: 0
+                                  }}
+                                >
                                   <Group justify="space-between" wrap="nowrap">
                                     <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
                                       <Text ff="monospace" size="xs" fw={500} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -595,7 +620,7 @@ export function BlockchainMonitor() {
                 </Stack>
               </Card>
             ))}
-          </Stack>
+          </div>
         )}
       </Card>
     </Stack>
