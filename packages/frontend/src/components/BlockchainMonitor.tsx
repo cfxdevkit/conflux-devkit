@@ -93,6 +93,7 @@ function getAuthHeaders(): Record<string, string> {
 // Fetch block by number from eSpace (EVM) via backend proxy
 async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
   try {
+    console.log(`[Monitor] Fetching eSpace block #${blockNumber}...`);
     const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/evm`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -104,6 +105,7 @@ async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
       }),
     });
     const data = await response.json();
+    console.log(`[Monitor] eSpace block #${blockNumber} result:`, data.result ? 'received' : 'null', data.result?.transactions?.length || 0, 'txs');
     return data.result;
   } catch (error) {
     console.warn('Failed to fetch EVM block:', error);
@@ -114,6 +116,7 @@ async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
 // Fetch block by epoch from Core space via backend proxy
 async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
   try {
+    console.log(`[Monitor] Fetching Core block at epoch ${epochNumber}...`);
     const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/core`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -125,6 +128,7 @@ async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
       }),
     });
     const data = await response.json();
+    console.log(`[Monitor] Core block ${epochNumber} result:`, data.result ? 'received' : 'null', data.result?.transactions?.length || 0, 'txs');
     return data.result;
   } catch (error) {
     console.warn('Failed to fetch Core block:', error);
@@ -171,6 +175,8 @@ export function BlockchainMonitor() {
   ) => {
     if (isPaused || isProcessingRef.current) return;
     isProcessingRef.current = true;
+
+    console.log(`[Monitor] Processing new blocks - Core: ${prevCoreBlockRef.current} → ${newCoreBlock}, eSpace: ${prevEvmBlockRef.current} → ${newEvmBlock}`);
 
     try {
       const newBlocks: BlockInfo[] = [];
@@ -262,6 +268,7 @@ export function BlockchainMonitor() {
 
       // Update state with new blocks and transactions
       if (newBlocks.length > 0) {
+        console.log(`[Monitor] Adding ${newBlocks.length} new blocks with transactions:`, newBlocks.map(b => `${b.chainType} #${b.blockNumber} (${b.transactionCount} txs)`));
         setBlocks((prev) => [...newBlocks.reverse(), ...prev].slice(0, 100));
         setStats((prev) => ({
           ...prev,
@@ -270,6 +277,7 @@ export function BlockchainMonitor() {
       }
 
       if (newTxs.length > 0) {
+        console.log(`[Monitor] Adding ${newTxs.length} new transactions`);
         setTransactions((prev) => [...newTxs.reverse(), ...prev].slice(0, 100));
         setStats((prev) => ({
           ...prev,
