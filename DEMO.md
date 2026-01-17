@@ -15,15 +15,19 @@ pnpm build
 
 ### 2. Start the Stack
 ```bash
+# Start both backend and frontend
+pnpm dev
+
+# Or start individually:
 # Terminal 1: Backend
-cd packages/backend && pnpm dev
+pnpm dev:backend
 
 # Terminal 2: Frontend
-cd packages/frontend && pnpm dev
+pnpm dev:frontend
 ```
 
 ### 3. Open Dashboard
-Navigate to http://localhost:3000
+Navigate to http://localhost:5173
 
 ## Features
 

@@ -9,14 +9,12 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "dev": "concurrently -n backend,frontend -c cyan,magenta \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "dev:backend": "turbo run dev --filter=@conflux-devkit/backend",
+    "dev:frontend": "turbo run dev --filter=@conflux-devkit/frontend",
     "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean",
-    "clean:all": "pnpm clean:cache && pnpm clean:builds && pnpm clean:modules",
-    "clean:cache": "rm -rf .turbo packages/*/.turbo ~/.cache/turbo 2>/dev/null; rm -rf node_modules/.cache node_modules/.vite packages/*/node_modules/.cache packages/*/node_modules/.vite 2>/dev/null; echo 'Cache cleaned'",
-    "clean:modules": "rm -rf packages/*/node_modules pnpm-lock.yaml 2>/dev/null; rm -rf node_modules 2>/dev/null || echo 'Note: root node_modules may be in use - close IDE/processes and retry'; echo 'Modules cleaned'",
-    "clean:builds": "rm -rf packages/*/dist packages/*/.next packages/*/.nuxt packages/*/build packages/*/*.tsbuildinfo 2>/dev/null; echo 'Builds cleaned'",
-    "reset": "pnpm clean:all && pnpm install && pnpm build",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "turbo run format",
@@ -24,16 +22,26 @@
     "check": "turbo run check",
     "check:fix": "turbo run check:fix",
     "check:fix:unsafe": "turbo run check:fix:unsafe",
-    "dev": "turbo run dev",
-    "dev:backend": "turbo run dev --filter=@conflux-devkit/backend",
-    "dev:frontend": "turbo run dev --filter=@conflux-devkit/frontend"
+    "clean": "turbo run clean",
+    "clean:all": "pnpm clean:cache && pnpm clean:builds && pnpm clean:modules",
+    "clean:cache": "rm -rf .turbo packages/*/.turbo ~/.cache/turbo node_modules/.cache node_modules/.vite packages/*/node_modules/.cache packages/*/node_modules/.vite 2>/dev/null && echo 'Cache cleaned'",
+    "clean:modules": "rm -rf packages/*/node_modules pnpm-lock.yaml node_modules 2>/dev/null && echo 'Modules cleaned'",
+    "clean:builds": "rm -rf packages/*/dist packages/*/.next packages/*/.nuxt packages/*/build packages/*/*.tsbuildinfo 2>/dev/null && echo 'Builds cleaned'",
+    "reset": "pnpm clean:all && pnpm install && pnpm build",
+    "docker:start": "docker compose up -d",
+    "docker:start:conflux": "docker compose --profile conflux up -d",
+    "docker:start:database": "docker compose --profile database up -d",
+    "docker:stop": "docker compose down",
+    "docker:restart": "docker compose restart",
+    "docker:status": "docker compose ps",
+    "docker:logs": "docker compose logs -f",
+    "docker:cleanup": "docker compose down -v --remove-orphans"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
     "@swc/core": "^1.15.7",
     "@types/node": "^25.0.3",
     "concurrently": "^9.2.1",
-    "pm2": "^6.0.14",
     "tsx": "^4.21.0",
     "turbo": "^2.7.1",
     "typescript": "^5.9.3"
@@ -55,7 +63,12 @@
   ],
   "author": "Conflux DevKit Team",
   "license": "Apache-2.0",
-  "dependencies": {
-     "cive": "^0.8.1"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cfxdevkit/conflux-devkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cfxdevkit/conflux-devkit/issues"
+  },
+  "homepage": "https://github.com/cfxdevkit/conflux-devkit#readme"
 }

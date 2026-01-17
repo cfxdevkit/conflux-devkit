@@ -30,7 +30,10 @@ pnpm install
 # Build all packages
 pnpm build
 
-# Start development stack
+# Start development (backend + frontend)
+pnpm dev
+
+# Or start individually:
 pnpm dev:backend   # Terminal 1
 pnpm dev:frontend  # Terminal 2
 ```
