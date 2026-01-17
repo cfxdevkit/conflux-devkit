@@ -452,9 +452,12 @@ export class DevKitWebSocketServer {
   startBlockMonitoring() {
     this.stopBlockMonitoring(); // Clear any existing interval
     
+    // Check immediately on start
+    this.checkForNewBlocks();
+    
     this.blockMonitorInterval = setInterval(async () => {
       await this.checkForNewBlocks();
-    }, 500); // Check every 500ms (same as mining interval)
+    }, 1000); // Check every 1 second
   }
 
   /**
@@ -541,7 +544,7 @@ export class DevKitWebSocketServer {
             });
           }
         }
-        this.lastCoreEpoch = currentCoreEpoch;
+
       }
 
       // Check for new eSpace blocks
@@ -580,8 +583,8 @@ export class DevKitWebSocketServer {
         this.lastEvmBlock = currentEvmBlock;
       }
 
-      // Broadcast new blocks if any
-      if (blocksWithTxs.length > 0) {
+      // Always broadcast if block numbers changed (even without transactions)
+      if (currentCoreEpoch !== this.lastCoreEpoch || currentEvmBlock !== this.lastEvmBlock) {
         this.broadcast({
           type: 'newBlocks',
           data: {
@@ -591,6 +594,9 @@ export class DevKitWebSocketServer {
           },
           timestamp: new Date().toISOString(),
         });
+        
+        this.lastCoreEpoch = currentCoreEpoch;
+        this.lastEvmBlock = currentEvmBlock;
       }
     } catch (error) {
       // Silently fail - node might not be running yet

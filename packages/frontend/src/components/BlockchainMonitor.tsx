@@ -113,30 +113,33 @@ export function BlockchainMonitor() {
       if (isPaused) return;
       
       const { blocks, currentCoreEpoch, currentEvmBlock } = data;
-      
-      if (!blocks || blocks.length === 0) return;
 
-      console.log(`[Monitor] Received ${blocks.length} new blocks from WebSocket`);
-
-      // Update stats with current block numbers
+      // Always update block numbers (even if no blocks with transactions)
       setStats((prev) => {
-        // Count total transactions in new blocks
-        const totalTxs = blocks.reduce((sum: number, b: any) => sum + (b.transactionCount || 0), 0);
-        
-        return {
+        const updates: any = {
           ...prev,
           coreBlockNumber: String(currentCoreEpoch || prev.coreBlockNumber),
           evmBlockNumber: String(currentEvmBlock || prev.evmBlockNumber),
-          totalBlocks: prev.totalBlocks + blocks.length,
-          totalTransactions: prev.totalTransactions + totalTxs,
         };
+
+        // Add transaction counts if we have blocks
+        if (blocks && blocks.length > 0) {
+          const totalTxs = blocks.reduce((sum: number, b: any) => sum + (b.transactionCount || 0), 0);
+          updates.totalBlocks = prev.totalBlocks + blocks.length;
+          updates.totalTransactions = prev.totalTransactions + totalTxs;
+        }
+
+        return updates;
       });
 
-      // Add new blocks to the list
-      setBlocks((prev) => {
-        const newBlocks = [...blocks, ...prev];
-        return newBlocks.slice(0, 1000); // Keep last 1000 blocks
-      });
+      // Add new blocks to the list (only if we have blocks with transactions)
+      if (blocks && blocks.length > 0) {
+        console.log(`[Monitor] Received ${blocks.length} new blocks from WebSocket`);
+        setBlocks((prev) => {
+          const newBlocks = [...blocks, ...prev];
+          return newBlocks.slice(0, 1000); // Keep last 1000 blocks
+        });
+      }
     });
 
     // Subscribe to node stats for other metrics (gas price, mining status, etc)
