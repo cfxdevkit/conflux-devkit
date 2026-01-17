@@ -35,6 +35,14 @@ import { bytesToHex } from 'viem';
 import { privateKeyToAccount as viemPrivateKeyToAccount } from 'viem/accounts';
 import { logger } from '../utils/logger.js';
 
+// Custom error for locked keystore
+export class KeystoreLockedError extends Error {
+  constructor(message: string = 'Keystore is locked. Please unlock with your password first.') {
+    super(message);
+    this.name = 'KeystoreLockedError';
+  }
+}
+
 // Default hardhat mnemonic
 const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
 
@@ -216,6 +224,56 @@ export class KeystoreService {
       return 'No wallet';
     }
     return this.keystore[this.activeIndex]?.label || this.keystore[0].label;
+  }
+
+  /**
+   * Check if current mnemonic is the default test mnemonic
+   */
+  async isTestMnemonic(): Promise<boolean> {
+    try {
+      const activeMnemonic = await this.getActiveMnemonic();
+      return activeMnemonic === DEFAULT_MNEMONIC;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if a custom mnemonic has been set (not default test mnemonic)
+   */
+  async hasCustomMnemonic(): Promise<boolean> {
+    return !(await this.isTestMnemonic());
+  }
+
+  /**
+   * Get comprehensive wallet status for UI
+   */
+  async getWalletStatus(): Promise<{
+    isTestMnemonic: boolean | null;
+    hasCustomMnemonic: boolean | null;
+    encryptionEnabled: boolean;
+    isLocked: boolean;
+    adminAddress: string | null;
+    walletCount: number;
+    activeWallet: string;
+  }> {
+    const isLocked = this.encryptionEnabled && !this.encryptionPassword;
+    let isTest: boolean | null = null;
+    
+    // Only check test mnemonic if unlocked
+    if (!isLocked) {
+      isTest = await this.isTestMnemonic();
+    }
+    
+    return {
+      isTestMnemonic: isTest,
+      hasCustomMnemonic: isTest !== null ? !isTest : null,
+      encryptionEnabled: this.encryptionEnabled,
+      isLocked,
+      adminAddress: this.getAdminAddress(),
+      walletCount: this.keystore.length,
+      activeWallet: this.getActiveLabel(),
+    };
   }
 
   /**
@@ -746,7 +804,7 @@ export class KeystoreService {
 
     if (entry.type === 'encrypted') {
       if (!this.encryptionPassword) {
-        throw new Error('Keystore is locked. Unlock it first.');
+        throw new KeystoreLockedError();
       }
       return await this.decrypt(entry.mnemonic, this.encryptionPassword);
     }

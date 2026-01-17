@@ -43,7 +43,7 @@ export { DevelopmentAuthService } from './auth/DevelopmentAuthService.js';
 export { BackendServer } from './server/BackendServer.js';
 export type { BackendServerConfig } from './server/BackendServer.js';
 export { DevKitWebSocketServer } from './server/WebSocketServer.js';
-export { getKeystoreService, initializeKeystoreService, KeystoreService } from './services/keystore-service.js';
+export { getKeystoreService, initializeKeystoreService, KeystoreLockedError, KeystoreService } from './services/keystore-service.js';
 export { logger } from './utils/logger.js';
 
 // Route creators for custom implementations

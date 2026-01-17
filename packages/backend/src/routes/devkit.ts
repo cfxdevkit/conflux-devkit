@@ -1872,6 +1872,21 @@ export function createDevKitRoutes(
   // ENCRYPTION ENDPOINTS
   // ============================================
 
+  // Get comprehensive wallet status
+  router.get('/wallet/status', async (_req: AuthenticatedRequest, res) => {
+    try {
+      const keystore = getKeystoreService();
+      const status = await keystore.getWalletStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error('Failed to get wallet status:', error);
+      res.status(500).json({
+        error: 'Failed to get wallet status',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
   // Get encryption status
   router.get('/wallet/encryption/status', async (_req: AuthenticatedRequest, res) => {
     try {
