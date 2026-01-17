@@ -36,6 +36,9 @@ export class DevKitWebSocketServer {
   private statsInterval: NodeJS.Timeout | null = null;
   private lastKnownNodeStatus: boolean = false;
   private lastMiningStatus: boolean = false;
+  private blockMonitorInterval: NodeJS.Timeout | null = null;
+  private lastCoreEpoch: number = 0;
+  private lastEvmBlock: number = 0;
 
   constructor(port: number, devkit: DevKitCompat) {
     this.devkit = devkit;
@@ -229,6 +232,9 @@ export class DevKitWebSocketServer {
 
     // Start adaptive polling
     this.scheduleNextUpdate();
+    
+    // Start block monitoring
+    this.startBlockMonitoring();
   }
 
   /**
@@ -439,8 +445,161 @@ export class DevKitWebSocketServer {
     }
   }
 
+  /**
+   * Start real-time block monitoring
+   * Polls every 500ms to catch blocks immediately after mining
+   */
+  startBlockMonitoring() {
+    this.stopBlockMonitoring(); // Clear any existing interval
+    
+    this.blockMonitorInterval = setInterval(async () => {
+      await this.checkForNewBlocks();
+    }, 500); // Check every 500ms (same as mining interval)
+  }
+
+  /**
+   * Stop block monitoring
+   */
+  stopBlockMonitoring() {
+    if (this.blockMonitorInterval) {
+      clearInterval(this.blockMonitorInterval);
+      this.blockMonitorInterval = null;
+    }
+  }
+
+  /**
+   * Check for new blocks and broadcast them with transactions
+   */
+  private async checkForNewBlocks() {
+    try {
+      const config = this.devkit.getConfig();
+      const coreRpcUrl = `http://localhost:${config.jsonrpcHttpPort || 12537}`;
+      const evmRpcUrl = `http://localhost:${config.jsonrpcHttpEthPort || 8545}`;
+
+      // Fetch current epoch/block numbers
+      const [currentCoreResponse, currentEvmResponse] = await Promise.all([
+        fetch(coreRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'cfx_epochNumber',
+            params: [],
+            id: 1,
+          }),
+        }),
+        fetch(evmRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_blockNumber',
+            params: [],
+            id: 1,
+          }),
+        }),
+      ]);
+
+      const currentCoreData = await currentCoreResponse.json();
+      const currentEvmData = await currentEvmResponse.json();
+
+      const currentCoreEpoch = parseInt(currentCoreData.result, 16);
+      const currentEvmBlock = parseInt(currentEvmData.result, 16);
+
+      const blocksWithTxs: any[] = [];
+
+      // Check for new Core epochs
+      if (currentCoreEpoch > this.lastCoreEpoch) {
+        for (let epoch = this.lastCoreEpoch + 1; epoch <= currentCoreEpoch; epoch++) {
+          const response = await fetch(coreRpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'cfx_getBlockByEpochNumber',
+              params: [`0x${epoch.toString(16)}`, true],
+              id: 1,
+            }),
+          });
+          const data = await response.json();
+          const block = data.result;
+
+          if (block && block.transactions && block.transactions.length > 0) {
+            const transactions = block.transactions.map((tx: any) => ({
+              hash: tx.hash || '',
+              from: tx.from || '',
+              to: tx.to || undefined,
+              value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+            }));
+
+            blocksWithTxs.push({
+              blockNumber: String(epoch),
+              timestamp: Date.now(),
+              chainType: 'core',
+              transactionCount: transactions.length,
+              transactions,
+            });
+          }
+        }
+        this.lastCoreEpoch = currentCoreEpoch;
+      }
+
+      // Check for new eSpace blocks
+      if (currentEvmBlock > this.lastEvmBlock) {
+        for (let blockNum = this.lastEvmBlock + 1; blockNum <= currentEvmBlock; blockNum++) {
+          const response = await fetch(evmRpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByNumber',
+              params: [`0x${blockNum.toString(16)}`, true],
+              id: 1,
+            }),
+          });
+          const data = await response.json();
+          const block = data.result;
+
+          if (block && block.transactions && block.transactions.length > 0) {
+            const transactions = block.transactions.map((tx: any) => ({
+              hash: tx.hash || '',
+              from: tx.from || '',
+              to: tx.to || undefined,
+              value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+            }));
+
+            blocksWithTxs.push({
+              blockNumber: String(blockNum),
+              timestamp: Date.now(),
+              chainType: 'evm',
+              transactionCount: transactions.length,
+              transactions,
+            });
+          }
+        }
+        this.lastEvmBlock = currentEvmBlock;
+      }
+
+      // Broadcast new blocks if any
+      if (blocksWithTxs.length > 0) {
+        this.broadcast({
+          type: 'newBlocks',
+          data: {
+            blocks: blocksWithTxs,
+            currentCoreEpoch,
+            currentEvmBlock,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      // Silently fail - node might not be running yet
+    }
+  }
+
   close() {
     this.stopNodeStatsUpdates();
+    this.stopBlockMonitoring();
     this.wss.close();
   }
 }

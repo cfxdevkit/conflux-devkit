@@ -110,11 +110,10 @@ export function BlockchainMonitor() {
     miningInterval: 500, // Default, will be updated from nodeStats
   });
 
-  // Track previous block numbers to detect new blocks
+  // Track previous block numbers for blocks-per-second calculation
   const prevCoreBlockRef = useRef<number>(0);
   const prevEvmBlockRef = useRef<number>(0);
   const prevTimestampRef = useRef<number>(Date.now());
-  const isProcessingRef = useRef<boolean>(false);
 
   // Network awareness
   const isLocalNetwork = status?.network === 'local';
@@ -122,62 +121,41 @@ export function BlockchainMonitor() {
 
   const isNodeRunning = status?.isRunning ?? false;
 
-  // Process new blocks detected from nodeStats
-  const processNewBlocks = useCallback(async (
-    newCoreEpoch: number,
-    newEvmBlock: number
-  ) => {
-    if (isPaused || isProcessingRef.current) return;
-    isProcessingRef.current = true;
-
-    console.log(`[Monitor] Processing new blocks - Core epoch: ${prevCoreBlockRef.current} → ${newCoreEpoch}, eSpace block: ${prevEvmBlockRef.current} → ${newEvmBlock}`);
-
-    try {
-      // Fetch blocks with transactions from backend (aggregated)
-      const response = await fetch(
-        `${API_BASE_URL}/api/devkit/blocks/since?coreEpoch=${prevCoreBlockRef.current}&evmBlock=${prevEvmBlockRef.current}`,
-        {
-          method: 'GET',
-          headers: getAuthHeaders(),
-        }
-      );
-
-      if (!response.ok) {
-        console.error('[Monitor] Failed to fetch blocks:', response.statusText);
-        return;
-      }
-
-      const data = await response.json();
-      const { blocks } = data;
-
-      console.log(`[Monitor] Received ${blocks.length} blocks with transactions from backend`);
-
-      // Update state with new blocks
-      if (blocks.length > 0) {
-        console.log(`[Monitor] Adding blocks:`, blocks.map((b: any) => `${b.chainType} #${b.blockNumber} (${b.transactionCount} txs)`));
-        
-        setBlocks((prev) => [...blocks.reverse(), ...prev].slice(0, 100));
-        
-        // Count total transactions
-        const totalTxs = blocks.reduce((sum: number, b: any) => sum + b.transactionCount, 0);
-        
-        setStats((prev) => ({
-          ...prev,
-          totalBlocks: prev.totalBlocks + blocks.length,
-          totalTransactions: prev.totalTransactions + totalTxs,
-        }));
-      }
-    } catch (error) {
-      console.error('[Monitor] Error processing blocks:', error);
-    } finally {
-      isProcessingRef.current = false;
-    }
-  }, [isPaused]);
-
   useEffect(() => {
     if (!isNodeRunning) return;
 
-    // Subscribe to node stats for block numbers
+    // Subscribe to new blocks from WebSocket
+    const unsubBlocks = wsClient.on('newBlocks', (data: any) => {
+      if (isPaused) return;
+      
+      const { blocks, currentCoreEpoch, currentEvmBlock } = data;
+      
+      if (!blocks || blocks.length === 0) return;
+
+      console.log(`[Monitor] Received ${blocks.length} new blocks from WebSocket`);
+
+      // Update stats with current block numbers
+      setStats((prev) => {
+        // Count total transactions in new blocks
+        const totalTxs = blocks.reduce((sum: number, b: any) => sum + (b.transactionCount || 0), 0);
+        
+        return {
+          ...prev,
+          coreBlockNumber: String(currentCoreEpoch || prev.coreBlockNumber),
+          evmBlockNumber: String(currentEvmBlock || prev.evmBlockNumber),
+          totalBlocks: prev.totalBlocks + blocks.length,
+          totalTransactions: prev.totalTransactions + totalTxs,
+        };
+      });
+
+      // Add new blocks to the list
+      setBlocks((prev) => {
+        const newBlocks = [...blocks, ...prev];
+        return newBlocks.slice(0, 1000); // Keep last 1000 blocks
+      });
+    });
+
+    // Subscribe to node stats for other metrics (gas price, mining status, etc)
     const unsubStats = wsClient.on('nodeStats', (data: any) => {
       const now = Date.now();
       const timeDiff = (now - prevTimestampRef.current) / 1000;
@@ -198,20 +176,13 @@ export function BlockchainMonitor() {
       }
 
       // Update stats including mining interval
-      const miningInterval = data.mining?.interval || data.miningInterval || prev.miningInterval || 500;
+      const miningInterval = data.mining?.interval || data.miningInterval || 500;
       setStats((prev) => ({
         ...prev,
-        coreBlockNumber: String(coreBlockNum),
-        evmBlockNumber: String(evmBlockNum),
         coreBlocksPerSecond: Math.round(coreBlocksPerSec * 100) / 100,
         evmBlocksPerSecond: Math.round(evmBlocksPerSec * 100) / 100,
         miningInterval,
       }));
-
-      // Process new blocks if there are any
-      if (coreBlockNum > prevCoreBlockRef.current || evmBlockNum > prevEvmBlockRef.current) {
-        processNewBlocks(coreBlockNum, evmBlockNum);
-      }
 
       // Update previous values
       prevCoreBlockRef.current = coreBlockNum;
@@ -220,9 +191,10 @@ export function BlockchainMonitor() {
     });
 
     return () => {
+      unsubBlocks();
       unsubStats();
     };
-  }, [isNodeRunning, processNewBlocks]);
+  }, [isNodeRunning, isPaused]);
 
   const clearHistory = () => {
     setBlocks([]);
