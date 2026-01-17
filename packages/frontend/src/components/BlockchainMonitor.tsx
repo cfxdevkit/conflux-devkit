@@ -90,56 +90,9 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
-// Fetch block by number from eSpace (EVM) via backend proxy
-async function fetchEvmBlock(blockNumber: number): Promise<any | null> {
-  try {
-    console.log(`[Monitor] Fetching eSpace block #${blockNumber}...`);
-    const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/evm`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'eth_getBlockByNumber',
-        params: [`0x${blockNumber.toString(16)}`, true], // true = include transactions
-        id: 1,
-      }),
-    });
-    const data = await response.json();
-    console.log(`[Monitor] eSpace block #${blockNumber} result:`, data.result ? 'received' : 'null', data.result?.transactions?.length || 0, 'txs');
-    return data.result;
-  } catch (error) {
-    console.warn('Failed to fetch EVM block:', error);
-    return null;
-  }
-}
-
-// Fetch block by epoch from Core space via backend proxy
-async function fetchCoreBlock(epochNumber: number): Promise<any | null> {
-  try {
-    console.log(`[Monitor] Fetching Core block at epoch ${epochNumber}...`);
-    const response = await fetch(`${API_BASE_URL}/api/devkit/rpc/core`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'cfx_getBlockByEpochNumber',
-        params: [`0x${epochNumber.toString(16)}`, true], // true = include transactions
-        id: 1,
-      }),
-    });
-    const data = await response.json();
-    console.log(`[Monitor] Core block ${epochNumber} result:`, data.result ? 'received' : 'null', data.result?.transactions?.length || 0, 'txs');
-    return data.result;
-  } catch (error) {
-    console.warn('Failed to fetch Core block:', error);
-    return null;
-  }
-}
-
 export function BlockchainMonitor() {
   const { status } = useDevNodeStore();
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
-  const [transactions, setTransactions] = useState<TransactionInfo[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   
   // Address filter state (for non-local networks)
@@ -170,120 +123,51 @@ export function BlockchainMonitor() {
 
   // Process new blocks detected from nodeStats
   const processNewBlocks = useCallback(async (
-    newCoreBlock: number,
+    newCoreEpoch: number,
     newEvmBlock: number
   ) => {
     if (isPaused || isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    console.log(`[Monitor] Processing new blocks - Core: ${prevCoreBlockRef.current} → ${newCoreBlock}, eSpace: ${prevEvmBlockRef.current} → ${newEvmBlock}`);
+    console.log(`[Monitor] Processing new blocks - Core epoch: ${prevCoreBlockRef.current} → ${newCoreEpoch}, eSpace block: ${prevEvmBlockRef.current} → ${newEvmBlock}`);
 
     try {
-      const newBlocks: BlockInfo[] = [];
-      const newTxs: TransactionInfo[] = [];
-
-      // Check for new eSpace blocks
-      if (newEvmBlock > prevEvmBlockRef.current && prevEvmBlockRef.current > 0) {
-        // Fetch new blocks (limit to last 5 to avoid flooding)
-        const startBlock = Math.max(prevEvmBlockRef.current + 1, newEvmBlock - 4);
-        for (let i = startBlock; i <= newEvmBlock; i++) {
-          const block = await fetchEvmBlock(i);
-          if (block) {
-            const blockTransactions: TransactionInfo[] = [];
-
-            // Extract transactions from the block
-            if (block.transactions && Array.isArray(block.transactions)) {
-              for (const tx of block.transactions) {
-                if (typeof tx === 'object') {
-                  const txInfo: TransactionInfo = {
-                    hash: tx.hash || '',
-                    from: tx.from || '',
-                    to: tx.to || undefined,
-                    value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
-                    blockNumber: String(i),
-                    timestamp: Date.now(),
-                    chainType: 'evm',
-                  };
-                  blockTransactions.push(txInfo);
-                  newTxs.push(txInfo);
-                }
-              }
-            }
-
-            // Only add blocks that have transactions
-            if (blockTransactions.length > 0) {
-              newBlocks.push({
-                blockNumber: String(i),
-                timestamp: Date.now(),
-                chainType: 'evm',
-                transactionCount: blockTransactions.length,
-                transactions: blockTransactions,
-              });
-            }
-          }
+      // Fetch blocks with transactions from backend (aggregated)
+      const response = await fetch(
+        `${API_BASE_URL}/api/devkit/blocks/since?coreEpoch=${prevCoreBlockRef.current}&evmBlock=${prevEvmBlockRef.current}`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(),
         }
+      );
+
+      if (!response.ok) {
+        console.error('[Monitor] Failed to fetch blocks:', response.statusText);
+        return;
       }
 
-      // Check for new Core blocks
-      if (newCoreBlock > prevCoreBlockRef.current && prevCoreBlockRef.current > 0) {
-        // Fetch new blocks (limit to last 5 to avoid flooding)
-        const startBlock = Math.max(prevCoreBlockRef.current + 1, newCoreBlock - 4);
-        for (let i = startBlock; i <= newCoreBlock; i++) {
-          const block = await fetchCoreBlock(i);
-          if (block) {
-            const blockTransactions: TransactionInfo[] = [];
+      const data = await response.json();
+      const { blocks } = data;
 
-            // Extract transactions from the block
-            if (block.transactions && Array.isArray(block.transactions)) {
-              for (const tx of block.transactions) {
-                if (typeof tx === 'object') {
-                  const txInfo: TransactionInfo = {
-                    hash: tx.hash || '',
-                    from: tx.from || '',
-                    to: tx.to || undefined,
-                    value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
-                    blockNumber: String(i),
-                    timestamp: Date.now(),
-                    chainType: 'core',
-                  };
-                  blockTransactions.push(txInfo);
-                  newTxs.push(txInfo);
-                }
-              }
-            }
+      console.log(`[Monitor] Received ${blocks.length} blocks with transactions from backend`);
 
-            // Only add blocks that have transactions
-            if (blockTransactions.length > 0) {
-              newBlocks.push({
-                blockNumber: String(i),
-                timestamp: Date.now(),
-                chainType: 'core',
-                transactionCount: blockTransactions.length,
-                transactions: blockTransactions,
-              });
-            }
-          }
-        }
-      }
-
-      // Update state with new blocks and transactions
-      if (newBlocks.length > 0) {
-        console.log(`[Monitor] Adding ${newBlocks.length} new blocks with transactions:`, newBlocks.map(b => `${b.chainType} #${b.blockNumber} (${b.transactionCount} txs)`));
-        setBlocks((prev) => [...newBlocks.reverse(), ...prev].slice(0, 100));
+      // Update state with new blocks
+      if (blocks.length > 0) {
+        console.log(`[Monitor] Adding blocks:`, blocks.map((b: any) => `${b.chainType} #${b.blockNumber} (${b.transactionCount} txs)`));
+        
+        setBlocks((prev) => [...blocks.reverse(), ...prev].slice(0, 100));
+        
+        // Count total transactions
+        const totalTxs = blocks.reduce((sum: number, b: any) => sum + b.transactionCount, 0);
+        
         setStats((prev) => ({
           ...prev,
-          totalBlocks: prev.totalBlocks + newBlocks.length,
+          totalBlocks: prev.totalBlocks + blocks.length,
+          totalTransactions: prev.totalTransactions + totalTxs,
         }));
       }
-
-      if (newTxs.length > 0) {
-        console.log(`[Monitor] Adding ${newTxs.length} new transactions`);
-        setTransactions((prev) => [...newTxs.reverse(), ...prev].slice(0, 100));
-        setStats((prev) => ({
-          ...prev,
-          totalTransactions: prev.totalTransactions + newTxs.length,
-        }));
-      }
+    } catch (error) {
+      console.error('[Monitor] Error processing blocks:', error);
     } finally {
       isProcessingRef.current = false;
     }
@@ -341,7 +225,6 @@ export function BlockchainMonitor() {
 
   const clearHistory = () => {
     setBlocks([]);
-    setTransactions([]);
     setStats((prev) => ({
       ...prev,
       totalBlocks: 0,
@@ -371,22 +254,6 @@ export function BlockchainMonitor() {
     setContractFilter('');
     setIsFilterActive(false);
   };
-
-  // Filter transactions based on address or contract
-  const filteredTransactions = isFilterActive
-    ? transactions.filter((tx) => {
-        const normalizedFilter = addressFilter.toLowerCase();
-        const normalizedContract = contractFilter.toLowerCase();
-        const matchesAddress =
-          !normalizedFilter ||
-          tx.from.toLowerCase().includes(normalizedFilter) ||
-          (tx.to && tx.to.toLowerCase().includes(normalizedFilter));
-        const matchesContract =
-          !normalizedContract ||
-          (tx.to && tx.to.toLowerCase() === normalizedContract);
-        return matchesAddress && matchesContract;
-      })
-    : transactions;
 
   // For non-local networks, require filters
   const requiresFilter = !isLocalNetwork;
@@ -539,7 +406,7 @@ export function BlockchainMonitor() {
               {stats.totalTransactions}
             </Text>
             <Text size="xs" c="dimmed">
-              {isFilterActive ? `${filteredTransactions.length} filtered` : `${transactions.length} in view`}
+              {blocks.reduce((sum, b) => sum + b.transactionCount, 0)} in view
             </Text>
           </Stack>
         </Card>

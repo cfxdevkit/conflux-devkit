@@ -331,6 +331,143 @@ export function createDevKitRoutes(
     }
   });
 
+  // Get blocks with transactions since specified epoch/block numbers
+  router.get('/blocks/since', async (req: AuthenticatedRequest, res) => {
+    try {
+      const { coreEpoch, evmBlock } = req.query;
+      const config = devkit.getConfig();
+      const coreRpcUrl = `http://localhost:${config.jsonrpcHttpPort || 12537}`;
+      const evmRpcUrl = `http://localhost:${config.jsonrpcHttpEthPort || 8545}`;
+
+      const blocksWithTxs: any[] = [];
+
+      // Helper to fetch Core epoch
+      async function fetchCoreEpoch(epochNumber: number) {
+        const response = await fetch(coreRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'cfx_getBlockByEpochNumber',
+            params: [`0x${epochNumber.toString(16)}`, true],
+            id: 1,
+          }),
+        });
+        const data = await response.json();
+        return data.result;
+      }
+
+      // Helper to fetch eSpace block
+      async function fetchEvmBlock(blockNumber: number) {
+        const response = await fetch(evmRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            params: [`0x${blockNumber.toString(16)}`, true],
+            id: 1,
+          }),
+        });
+        const data = await response.json();
+        return data.result;
+      }
+
+      // Fetch current epoch/block numbers
+      const [currentCoreResponse, currentEvmResponse] = await Promise.all([
+        fetch(coreRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'cfx_epochNumber',
+            params: [],
+            id: 1,
+          }),
+        }),
+        fetch(evmRpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_blockNumber',
+            params: [],
+            id: 1,
+          }),
+        }),
+      ]);
+
+      const currentCoreData = await currentCoreResponse.json();
+      const currentEvmData = await currentEvmResponse.json();
+
+      const currentCoreEpoch = parseInt(currentCoreData.result, 16);
+      const currentEvmBlock = parseInt(currentEvmData.result, 16);
+
+      const startCoreEpoch = coreEpoch ? parseInt(coreEpoch as string) + 1 : currentCoreEpoch;
+      const startEvmBlock = evmBlock ? parseInt(evmBlock as string) + 1 : currentEvmBlock;
+
+      // Fetch Core epochs with transactions (limit to reasonable range)
+      const coreEpochsToFetch = Math.min(currentCoreEpoch - startCoreEpoch + 1, 100);
+      for (let i = 0; i < coreEpochsToFetch; i++) {
+        const epoch = startCoreEpoch + i;
+        const block = await fetchCoreEpoch(epoch);
+        
+        if (block && block.transactions && block.transactions.length > 0) {
+          const transactions = block.transactions.map((tx: any) => ({
+            hash: tx.hash || '',
+            from: tx.from || '',
+            to: tx.to || undefined,
+            value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+          }));
+
+          blocksWithTxs.push({
+            blockNumber: String(epoch),
+            timestamp: Date.now(),
+            chainType: 'core',
+            transactionCount: transactions.length,
+            transactions,
+          });
+        }
+      }
+
+      // Fetch eSpace blocks with transactions (limit to reasonable range)
+      const evmBlocksToFetch = Math.min(currentEvmBlock - startEvmBlock + 1, 100);
+      for (let i = 0; i < evmBlocksToFetch; i++) {
+        const blockNum = startEvmBlock + i;
+        const block = await fetchEvmBlock(blockNum);
+        
+        if (block && block.transactions && block.transactions.length > 0) {
+          const transactions = block.transactions.map((tx: any) => ({
+            hash: tx.hash || '',
+            from: tx.from || '',
+            to: tx.to || undefined,
+            value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+          }));
+
+          blocksWithTxs.push({
+            blockNumber: String(blockNum),
+            timestamp: Date.now(),
+            chainType: 'evm',
+            transactionCount: transactions.length,
+            transactions,
+          });
+        }
+      }
+
+      res.json({
+        blocks: blocksWithTxs,
+        currentCoreEpoch,
+        currentEvmBlock,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch blocks:', error);
+      res.status(500).json({
+        error: 'Failed to fetch blocks',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
   // Get all accounts
   router.get('/accounts', async (req: AuthenticatedRequest, res) => {
     try {
