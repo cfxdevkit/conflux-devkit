@@ -94,13 +94,15 @@ function localOnlyError(res: any, operation: string) {
 }
 
 export function createDevKitRoutes(
-  devkit: DevKitCompat,
-  wsServer?: DevKitWebSocketServer
+  getDevKit: () => DevKitCompat,
+  wsServer?: DevKitWebSocketServer,
+  devkitManager?: any // DevKitManager type (imported lazily to avoid circular deps)
 ): Router {
   const router = Router();
 
   // Status endpoint
   router.get('/status', async (_req, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       // Get DevKit status - handle case when node is stopped
       let chainStatus;
@@ -121,10 +123,21 @@ export function createDevKitRoutes(
           'DevKit status check failed (node likely stopped):',
           error
         );
+
+        // Get wallet info even when node is stopped
+        const keystore = getKeystoreService();
+        const walletInfo = {
+          activeLabel: keystore.getActiveLabel(),
+          activeIndex: keystore.getActiveIndex(),
+          dataDir: await keystore.getDataDir(),
+          mnemonicHash: (await keystore.getMnemonicHash()).substring(0, 8),
+        };
+
         return res.json({
           status: 'stopped',
           running: false,
           mining: { isRunning: false, interval: 0, blocksMined: 0 },
+          wallet: walletInfo,
           chains: {
             core: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.chainId || 0 },
             evm: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.evmChainId || 0 },
@@ -239,6 +252,15 @@ export function createDevKitRoutes(
         }
       }
 
+      // Get active wallet information
+      const keystore = getKeystoreService();
+      const walletInfo = {
+        activeLabel: keystore.getActiveLabel(),
+        activeIndex: keystore.getActiveIndex(),
+        dataDir: await keystore.getDataDir(),
+        mnemonicHash: (await keystore.getMnemonicHash()).substring(0, 8),
+      };
+
       res.json({
         status: nodeStatus,
         running: isRunning,
@@ -246,6 +268,7 @@ export function createDevKitRoutes(
         network: currentNetwork,
         networkConfig: getNetworkConfig(currentNetwork),
         capabilities: getNetworkCapabilities(currentNetwork),
+        wallet: walletInfo,
         chains: {
           core: {
             ...chainStatus.core,
@@ -293,6 +316,7 @@ export function createDevKitRoutes(
   // RPC Proxy endpoint - allows frontend to make RPC calls through the backend
   // This avoids CORS issues when calling the local dev node directly
   router.post('/rpc/:chain', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const { chain } = req.params;
       const rpcRequest = req.body;
@@ -333,6 +357,7 @@ export function createDevKitRoutes(
 
   // Get blocks with transactions since specified epoch/block numbers
   router.get('/blocks/since', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const { coreEpoch, evmBlock } = req.query;
       const config = devkit.getConfig();
@@ -470,6 +495,7 @@ export function createDevKitRoutes(
 
   // Get all accounts
   router.get('/accounts', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const network = currentNetwork;
       const networkConfig = getNetworkConfig(network);
@@ -589,6 +615,7 @@ export function createDevKitRoutes(
 
   // Get account information
   router.get('/accounts/:index', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const indexParam = Array.isArray(req.params.index)
         ? req.params.index[0]
@@ -657,6 +684,7 @@ export function createDevKitRoutes(
   router.get(
     '/balance/address/:address',
     async (req: AuthenticatedRequest, res) => {
+      const devkit = getDevKit(); // Always get fresh instance
       const address = Array.isArray(req.params.address)
         ? req.params.address[0]
         : req.params.address;
@@ -764,6 +792,7 @@ export function createDevKitRoutes(
   router.get(
     '/accounts/:index/balance',
     async (req: AuthenticatedRequest, res) => {
+      const devkit = getDevKit(); // Always get fresh instance
       const indexParam = Array.isArray(req.params.index)
         ? req.params.index[0]
         : req.params.index;
@@ -903,6 +932,7 @@ export function createDevKitRoutes(
 
   // Faucet: fund any address on Core or eSpace (LOCAL ONLY)
   router.post('/faucet', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Faucet');
@@ -951,6 +981,7 @@ export function createDevKitRoutes(
 
   // Deploy contract endpoint
   router.post('/deploy', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const {
         abi,
@@ -992,6 +1023,7 @@ export function createDevKitRoutes(
   // Node info: client versions and network ids (core + eSpace)
   // Get version information (public endpoint - no auth required)
   router.get('/node/info', async (_req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const rpcUrls = devkit.getRpcUrls();
       const config = devkit.getConfig();
@@ -1057,6 +1089,7 @@ export function createDevKitRoutes(
 
   // Get current configuration
   router.get('/config', async (_req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const config = devkit.getConfig();
       const rpcUrls = devkit.getRpcUrls();
@@ -1091,6 +1124,7 @@ export function createDevKitRoutes(
 
   // Get configuration in a format suitable for CLI display
   router.get('/config/view', async (_req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const config = devkit.getConfig();
       const rpcUrls = devkit.getRpcUrls();
@@ -1142,6 +1176,7 @@ export function createDevKitRoutes(
 
   // Update configuration (requires node restart for most settings)
   router.post('/config/update', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const { 
         chainId, 
@@ -1224,6 +1259,7 @@ export function createDevKitRoutes(
 
   // Read contract function
   router.post('/contracts/read', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const {
         address,
@@ -1281,6 +1317,7 @@ export function createDevKitRoutes(
 
   // Write contract function
   router.post('/contracts/write', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const {
         address,
@@ -1354,6 +1391,7 @@ export function createDevKitRoutes(
 
   // Send transaction (authenticated users only)
   router.post('/transactions/send', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const { accountIndex = 0, to, value, chain = 'core' } = req.body;
 
@@ -1387,6 +1425,7 @@ export function createDevKitRoutes(
   router.post(
     '/accounts/:index/sign',
     async (req: AuthenticatedRequest, res) => {
+      const devkit = getDevKit(); // Always get fresh instance
       try {
           const indexParam = Array.isArray(req.params.index)
             ? req.params.index[0]
@@ -1435,6 +1474,7 @@ export function createDevKitRoutes(
 
   // Start node (if stopped) - LOCAL ONLY
   router.post('/node/start', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Node start');
@@ -1508,6 +1548,7 @@ export function createDevKitRoutes(
 
   // Stop node - LOCAL ONLY
   router.post('/node/stop', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Node stop');
@@ -1542,6 +1583,7 @@ export function createDevKitRoutes(
 
   // Reset node (stop, optionally clear data, restart) - LOCAL ONLY
   router.post('/node/reset', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Node reset');
@@ -1595,6 +1637,7 @@ export function createDevKitRoutes(
 
   // Clear blockchain data without restarting - LOCAL ONLY
   router.post('/node/clear-data', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Clear data');
@@ -1635,6 +1678,7 @@ export function createDevKitRoutes(
 
   // Start mining - LOCAL ONLY
   router.post('/mining/start', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Mining');
@@ -1688,6 +1732,7 @@ export function createDevKitRoutes(
 
   // Stop mining - LOCAL ONLY
   router.post('/mining/stop', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Mining');
@@ -1737,6 +1782,7 @@ export function createDevKitRoutes(
 
   // Set mining interval - LOCAL ONLY
   router.post('/mining/interval', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Mining interval');
@@ -1777,6 +1823,7 @@ export function createDevKitRoutes(
 
   // Mine specific blocks - LOCAL ONLY
   router.post('/mining/mine', async (req: AuthenticatedRequest, res) => {
+    const devkit = getDevKit(); // Always get fresh instance
     // Check if on local network
     if (!isLocalNetwork()) {
       return localOnlyError(res, 'Mining');
@@ -2132,7 +2179,7 @@ export function createDevKitRoutes(
     }
   });
 
-  // Add a new mnemonic to keystore
+  // Add a new mnemonic to keystore (with node restart support)
   router.post('/wallet/keystore/add', async (req: AuthenticatedRequest, res) => {
     try {
       const { mnemonic, label, setActive, generate } = req.body;
@@ -2149,32 +2196,61 @@ export function createDevKitRoutes(
         });
       }
 
-      const result = await keystore.addMnemonic({
-        mnemonic: mnemonicToAdd,
-        label,
-        setActive: setActive ?? false,
-      });
+      // Use DevKitManager if available and setActive is true
+      if (devkitManager && typeof devkitManager.addMnemonic === 'function' && setActive) {
+        logger.info('Adding new wallet via DevKitManager with auto-switch...');
 
-      // If generated, return the mnemonic (one time only!)
-      const response: any = {
-        success: true,
-        index: result.index,
-        label: result.label,
-        message: `Wallet "${result.label}" added successfully`,
-      };
+        const result = await devkitManager.addMnemonic({
+          mnemonic: mnemonicToAdd,
+          label,
+          setActive: true,
+        });
 
-      if (generate) {
-        // Get the newly generated mnemonic to show the user once
-        const entries = keystore.getEntries();
-        const newEntry = entries[result.index];
-        if (newEntry) {
-          // Show mnemonic only when generating new
-          response.mnemonic = keystore.showActiveMnemonic(true);
+        const response: any = {
+          success: true,
+          index: result.index,
+          label: result.label,
+          switchedTo: result.switchedTo,
+          message: result.switchedTo
+            ? `Wallet "${result.label}" added and activated (node restarted)`
+            : `Wallet "${result.label}" added successfully`,
+        };
+
+        // If generated, retrieve and return the mnemonic
+        if (generate) {
+          const newMnemonic = await keystore.showActiveMnemonic(true);
+          response.mnemonic = newMnemonic;
           response.warning = 'Save this mnemonic phrase securely. It will not be shown again.';
         }
-      }
 
-      res.json(response);
+        res.json(response);
+      } else {
+        // Fallback to keystore-only (legacy mode or setActive=false)
+        const result = await keystore.addMnemonic({
+          mnemonic: mnemonicToAdd,
+          label,
+          setActive: setActive ?? false,
+        });
+
+        const response: any = {
+          success: true,
+          index: result.index,
+          label: result.label,
+          message: `Wallet "${result.label}" added successfully`,
+        };
+
+        if (generate) {
+          // Get the newly generated mnemonic to show the user once
+          const entries = keystore.getEntries();
+          const newEntry = entries[result.index];
+          if (newEntry && setActive) {
+            response.mnemonic = await keystore.showActiveMnemonic(true);
+            response.warning = 'Save this mnemonic phrase securely. It will not be shown again.';
+          }
+        }
+
+        res.json(response);
+      }
     } catch (error) {
       logger.error('Failed to add mnemonic:', error);
       res.status(500).json({
@@ -2214,11 +2290,10 @@ export function createDevKitRoutes(
     }
   });
 
-  // Set active mnemonic
+  // Set active mnemonic (with node restart support)
   router.post('/wallet/keystore/select', async (req: AuthenticatedRequest, res) => {
     try {
       const { index } = req.body;
-      const keystore = getKeystoreService();
 
       if (typeof index !== 'number') {
         return res.status(400).json({
@@ -2227,14 +2302,36 @@ export function createDevKitRoutes(
         });
       }
 
-      await keystore.setActiveMnemonic(index);
+      // Use DevKitManager if available for proper node restart
+      if (devkitManager && typeof devkitManager.switchMnemonic === 'function') {
+        logger.info(`Switching to wallet index ${index} via DevKitManager...`);
 
-      res.json({
-        success: true,
-        activeIndex: index,
-        activeLabel: keystore.getActiveLabel(),
-        message: `Active wallet set to "${keystore.getActiveLabel()}"`,
-      });
+        const result = await devkitManager.switchMnemonic(index);
+
+        res.json({
+          success: true,
+          activeIndex: index,
+          activeLabel: result.activeLabel,
+          dataDir: result.dataDir,
+          nodeRestarted: result.nodeRestarted,
+          message: result.nodeRestarted
+            ? `Switched to "${result.activeLabel}" and restarted node`
+            : `Switched to "${result.activeLabel}"`,
+        });
+      } else {
+        // Fallback to keystore-only update (legacy mode)
+        logger.warn('DevKitManager not available, using legacy mnemonic switch (node will NOT restart)');
+        const keystore = getKeystoreService();
+        await keystore.setActiveMnemonic(index);
+
+        res.json({
+          success: true,
+          activeIndex: index,
+          activeLabel: keystore.getActiveLabel(),
+          nodeRestarted: false,
+          message: `Active wallet set to "${keystore.getActiveLabel()}" (manual node restart required)`,
+        });
+      }
     } catch (error) {
       logger.error('Failed to select mnemonic:', error);
       res.status(400).json({

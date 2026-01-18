@@ -388,4 +388,14 @@ export class DevelopmentAuthService {
       sessionId: `${user.sessionId.slice(0, 8)}...`,
     }));
   }
+
+  /**
+   * Update DevKit instance reference (called when wallet is switched)
+   */
+  updateDevKit(newDevKit: DevKitCompat): void {
+    logger.info('Updating DevKit reference in DevelopmentAuthService');
+    this.devkit = newDevKit;
+    // Note: Admin address comes from keystore, which is already updated
+    // No need to re-initialize admin here
+  }
 }

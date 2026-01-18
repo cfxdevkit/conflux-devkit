@@ -1,0 +1,61 @@
+fix: wallet switching now properly restarts node with isolated data directories
+
+BREAKING CHANGES:
+- Removed duplicate WalletSettings.tsx component (use WalletSettingsEnhanced.tsx)
+
+NEW FEATURES:
+- DevKitManager class for managing DevKit instance lifecycle
+- Automatic node restart when switching wallets while node is running
+- Isolated blockchain data directories per wallet (wallet-{hash})
+- Wallet information display in DevNode status UI
+- Real-time wallet status updates via WebSocket
+
+BUG FIXES:
+- Critical: Node now properly restarts when switching wallets while running
+- Fixed nodeRestarted flag returning false when it should be true
+- Fixed "Mining already running" error on wallet switch
+- WebSocket now correctly updates block tracking after wallet switch
+
+ARCHITECTURE CHANGES:
+- Created DevKitManager to manage DevKit instance lifecycle
+- Implemented callback pattern for updating service references
+- DevKit instance is now recreated (not reused) when wallet changes
+- Each wallet gets deterministic data directory based on mnemonic hash
+
+API CHANGES:
+- POST /api/devkit/wallet/keystore/select now returns:
+  * dataDir: full path to wallet's data directory
+  * nodeRestarted: true/false indicating if node was restarted
+  * Enhanced message describing what happened
+- GET /api/devkit/status now includes wallet field:
+  * activeLabel: wallet name
+  * activeIndex: wallet index in keystore
+  * dataDir: full data directory path
+  * mnemonicHash: first 8 chars of SHA-256(mnemonic)
+
+FILES CHANGED:
+- NEW: packages/backend/src/devkit-manager.ts (265 lines)
+- MODIFIED: packages/backend/src/server/BackendServer.ts
+- MODIFIED: packages/backend/src/server/WebSocketServer.ts
+- MODIFIED: packages/backend/src/auth/DevelopmentAuthService.ts
+- MODIFIED: packages/backend/src/routes/devkit.ts
+- MODIFIED: packages/frontend/src/components/DevNodeStatus.tsx
+- MODIFIED: packages/frontend/src/types/devnode.ts
+- DELETED: packages/frontend/src/components/WalletSettings.tsx (duplicate)
+
+TESTING:
+✅ Wallet switch with stopped node
+✅ Wallet switch with running node (auto-restart)
+✅ Mining state preservation across switches
+✅ Data directory isolation verified
+✅ UI displays wallet info correctly
+✅ WebSocket updates work after switch
+✅ Multiple sequential switches work correctly
+
+DOCUMENTATION:
+- CODEBASE_ANALYSIS.md: Initial problem analysis
+- IMPLEMENTATION_SUMMARY.md: Implementation strategy
+- FIXES_COMPLETE.md: Testing checklist and results
+- WALLET_SWITCHING_FINAL.md: Complete technical summary
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>

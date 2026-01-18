@@ -284,6 +284,24 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       set({ error: null });
       const { accounts, faucetAccount } = await apiClient.getAccounts();
 
+      // Check if we're on local network and if node is running
+      const currentStatus = get().status;
+      const isLocalNetwork = !currentStatus?.network || currentStatus.network === 'local';
+      const isNodeRunning = currentStatus?.isRunning ?? false;
+
+      // Skip balance fetching if on local network and node is not running
+      // This prevents console flooding with "node not running" warnings
+      const shouldFetchBalances = !isLocalNetwork || isNodeRunning;
+
+      if (!shouldFetchBalances) {
+        // Return accounts without balance data when node is stopped
+        set({ 
+          accounts, 
+          faucetAccount: faucetAccount ? { ...faucetAccount, index: -1 } : null 
+        });
+        return;
+      }
+
       // Fetch balances per account index and merge
       const accountsWithBalances = await Promise.all(
         accounts.map(async (account: DevNodeAccount) => {

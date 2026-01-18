@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import { wsClient } from '@/services/websocket';
-import { Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconCoin, IconNetwork } from '@tabler/icons-react';
+import { useDevNodeStore } from '@/stores/devnodeStore';
+import { Badge, Card, Code, Group, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { IconCoin, IconNetwork, IconWallet } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 
 const formatGasPriceGDrip = (value?: string | number) => {
@@ -71,20 +71,55 @@ export function DevNodeStatus() {
     };
   }, [status?.isRunning]);
 
-  if (!status?.isRunning) {
-    return (
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack align="center" gap="sm" py="xl">
-          <IconNetwork size={48} stroke={1.5} color="gray" />
-          <Text c="dimmed">Development node is not running</Text>
-        </Stack>
-      </Card>
-    );
-  }
-
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+    <Stack gap="md">
+      {/* Wallet Information Card - ALWAYS show when status is available */}
+      {status?.wallet && (
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Group justify="space-between">
+            <Group gap="xs">
+              <IconWallet size={20} />
+              <Title order={5}>Active Wallet</Title>
+            </Group>
+            <Badge color={status.isRunning ? "green" : "gray"} variant="light">
+              {status.wallet.activeLabel}
+            </Badge>
+          </Group>
+
+          <Stack gap="xs" mt="md">
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Data Directory
+              </Text>
+              <Tooltip label={status.wallet.dataDir} position="top">
+                <Code>.../{status.wallet.dataDir.split('/').pop()}</Code>
+              </Tooltip>
+            </Group>
+
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Wallet Hash
+              </Text>
+              <Code>{status.wallet.mnemonicHash}</Code>
+            </Group>
+          </Stack>
+        </Card>
+      )}
+
+      {/* Node Status - show message if not running */}
+      {!status?.isRunning && (
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Stack align="center" gap="sm" py="xl">
+            <IconNetwork size={48} stroke={1.5} color="gray" />
+            <Text c="dimmed">Development node is not running</Text>
+          </Stack>
+        </Card>
+      )}
+
+      {/* Blockchain Status - only show when running */}
+      {status?.isRunning && (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
           <Group justify="space-between">
             <Group gap="xs">
@@ -191,6 +226,8 @@ export function DevNodeStatus() {
           </Stack>
         </Stack>
       </Card>
-    </SimpleGrid>
+      </SimpleGrid>
+      )}
+    </Stack>
   );
 }

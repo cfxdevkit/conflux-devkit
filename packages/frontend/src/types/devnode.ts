@@ -19,6 +19,12 @@ export interface DevNodeStatus {
   network: NetworkType;
   networkConfig: NetworkConfig;
   capabilities: NetworkCapabilities;
+  wallet?: {
+    activeLabel: string;
+    activeIndex: number;
+    dataDir: string;
+    mnemonicHash: string;
+  };
   coreSpace: {
     chainId: number;
     rpcUrl: string;

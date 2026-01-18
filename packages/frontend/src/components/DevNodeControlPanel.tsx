@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { apiClient } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
@@ -39,6 +40,8 @@ import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
     IconChevronUp,
+    IconFolder,
+    IconKey,
     IconPick,
     IconPlayerPlay,
     IconPlayerStop,
@@ -46,7 +49,7 @@ import {
     IconSettings,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function DevNodeControlPanel() {
   const { user } = useAuthStore();
@@ -86,6 +89,31 @@ export function DevNodeControlPanel() {
   const [autoMineInterval, setAutoMineInterval] = useState(status?.miningInterval || 500);
   const [isTogglingAutoMine, setIsTogglingAutoMine] = useState(false);
   const [isSettingInterval, setIsSettingInterval] = useState(false);
+
+  // Wallet/mnemonic info state
+  const [walletInfo, setWalletInfo] = useState<{
+    activeLabel: string;
+    activeDataDir: string;
+  } | null>(null);
+
+  // Fetch wallet info on mount and when status changes
+  useEffect(() => {
+    const fetchWalletInfo = async () => {
+      try {
+        const [keystoreData, dataDirData] = await Promise.all([
+          apiClient.getKeystoreEntries(),
+          apiClient.getWalletDataDirs(),
+        ]);
+        setWalletInfo({
+          activeLabel: keystoreData.activeLabel,
+          activeDataDir: dataDirData.activeDataDir,
+        });
+      } catch (error) {
+        console.error('Failed to fetch wallet info:', error);
+      }
+    };
+    fetchWalletInfo();
+  }, [status]); // Re-fetch when status changes (e.g., after wallet switch)
 
   // Derive auto-mining state from status
   const isAutoMining = status?.miningMode === 'auto';
@@ -361,6 +389,32 @@ export function DevNodeControlPanel() {
               </Button>
             </Tooltip>
           </Group>
+
+          {/* Wallet/Mnemonic Info - Visual Feedback */}
+          {walletInfo && isLocalNetwork && (
+            <Card withBorder padding="xs" bg="blue.0" mt="xs">
+              <Stack gap="xs">
+                <Group gap="xs">
+                  <IconKey size={14} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                  <Text size="xs" fw={500} c="blue.7">
+                    Active Wallet:
+                  </Text>
+                  <Badge size="sm" variant="light" color="blue">
+                    {walletInfo.activeLabel}
+                  </Badge>
+                </Group>
+                <Group gap="xs">
+                  <IconFolder size={14} style={{ color: 'var(--mantine-color-gray-6)' }} />
+                  <Text size="xs" c="dimmed">
+                    Data Directory:
+                  </Text>
+                  <Text size="xs" c="dimmed" ff="monospace">
+                    {walletInfo.activeDataDir}
+                  </Text>
+                </Group>
+              </Stack>
+            </Card>
+          )}
 
           {/* Collapsible Configuration Section */}
           <Collapse in={configOpened}>

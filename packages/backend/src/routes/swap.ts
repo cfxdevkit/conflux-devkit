@@ -196,13 +196,14 @@ const ERC20_ABI = [
   },
 ] as const;
 
-export function createSwapRoutes(devkit: DevKitCompat): Router {
+export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
   const router = Router();
 
   /**
    * Get quote for swap
    */
   router.post('/quote', async (req: Request, res: Response) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       const { fromToken, toToken, amount, fee = 3000 } = req.body;
 
@@ -383,6 +384,7 @@ export function createSwapRoutes(devkit: DevKitCompat): Router {
    * Get token balances for server wallet
    */
   router.get('/balances', async (_req: Request, res: Response) => {
+    const devkit = getDevKit(); // Always get fresh instance
     try {
       // Get the admin account (account 0 from server)
       const adminAccount = devkit.account(0);
@@ -453,6 +455,7 @@ export function createSwapRoutes(devkit: DevKitCompat): Router {
    * Execute swap using server wallet
    */
   router.post('/execute', async (req: Request, res: Response) => {
+    const devkit = getDevKit();
     try {
       const { fromToken, toToken, amount, fee = 3000, slippage = 0.5 } = req.body;
 

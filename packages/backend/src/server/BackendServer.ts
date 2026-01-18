@@ -27,7 +27,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { DevelopmentAuthService } from '../auth/DevelopmentAuthService.js';
 import type { DevKitCompat } from '../devkit-compat.js';
-import { DevKitCompat as DevKitCompatClass } from '../devkit-compat.js';
+import { DevKitManager } from '../devkit-manager.js';
 import { createDevKitRoutes } from '../routes/devkit.js';
 import { createSwapRoutes } from '../routes/swap.js';
 import { logger } from '../utils/logger.js';
@@ -53,6 +53,7 @@ export class BackendServer {
   private app: express.Application;
   private server?: any;
   private wsServer?: DevKitWebSocketServer;
+  private devkitManager?: DevKitManager;
   private devkit?: DevKitCompat;
   private authService?: DevelopmentAuthService;
   private config: BackendServerConfig;
@@ -88,22 +89,43 @@ export class BackendServer {
 
   async start() {
     try {
-      // Initialize DevKit compatibility layer
+      // Initialize DevKit Manager
       logger.info(
-        'Initializing DevKit instance (node will start on-demand)...'
+        'Initializing DevKit Manager (node will start on-demand)...'
       );
-      // Sanitize sensitive values before logging (do not print mnemonic)
-      const safeDevKitConfig: BackendServerConfig['devkitConfig'] = {
-        ...this.config.devkitConfig,
-      };
-      if (safeDevKitConfig.mnemonic) {
-        // redact full mnemonic value
-        safeDevKitConfig.mnemonic = '[REDACTED]';
-      }
-      logger.info('DevKit config:', JSON.stringify(safeDevKitConfig, null, 2));
-      this.devkit = new DevKitCompatClass(this.config.devkitConfig);
-      // Note: Not calling devkit.start() here - UI will control node startup
-      logger.success('DevKit instance created (node stopped by default)');
+
+      this.devkitManager = new DevKitManager({
+        chainId: this.config.devkitConfig.chainId,
+        evmChainId: this.config.devkitConfig.evmChainId,
+        jsonrpcHttpPort: this.config.devkitConfig.jsonrpcHttpPort,
+        jsonrpcHttpEthPort: this.config.devkitConfig.jsonrpcHttpEthPort,
+        jsonrpcWsPort: this.config.devkitConfig.jsonrpcWsPort,
+        jsonrpcWsEthPort: this.config.devkitConfig.jsonrpcWsEthPort,
+        log: this.config.devkitConfig.log,
+      });
+
+      await this.devkitManager.initialize();
+      this.devkit = this.devkitManager.getDevKit();
+
+      // Register callback to update devkit reference when wallet is switched
+      this.devkitManager.onDevKitUpdate((newDevKit) => {
+        logger.info('Updating DevKit reference in BackendServer...');
+        this.devkit = newDevKit;
+
+        // Update WebSocket server reference
+        if (this.wsServer) {
+          this.wsServer.updateDevKit(newDevKit);
+        }
+
+        // Update auth service reference
+        if (this.authService) {
+          this.authService.updateDevKit(newDevKit);
+        }
+      });
+
+      const walletStatus = await this.devkitManager.getWalletStatus();
+      logger.success(`DevKit instance created with wallet: ${walletStatus.activeLabel}`);
+      logger.info(`Data directory: ${walletStatus.dataDir}`);
 
       // Initialize auth service
       this.authService = new DevelopmentAuthService(this.devkit);
@@ -214,12 +236,14 @@ export class BackendServer {
     // Apply authentication middleware to protected routes
     this.app.use('/api/devkit', this.authService.requireAuth);
 
-    // DevKit API routes
-    this.app.use('/api/devkit', createDevKitRoutes(this.devkit, this.wsServer));
+    // DevKit API routes (pass devkitManager for mnemonic switching support)
+    // Use getter function to always get fresh devkit instance (important after wallet switch)
+    this.app.use('/api/devkit', createDevKitRoutes(() => this.devkit!, this.wsServer, this.devkitManager));
 
     // Swap API routes (requires auth)
     this.app.use('/api/swap', this.authService.requireAuth);
-    this.app.use('/api/swap', createSwapRoutes(this.devkit));
+    // Use getter function to always get fresh devkit instance
+    this.app.use('/api/swap', createSwapRoutes(() => this.devkit!));
 
     // Public routes (no auth required)
     this.app.get('/api/status', async (_req, res) => {
@@ -389,16 +413,26 @@ export class BackendServer {
     }
 
     // Stop DevKit (if it was started)
-    if (this.devkit) {
-      try {
-        await this.devkit.stop();
-        logger.info('DevKit stopped');
-      } catch {
-        // DevKit might already be stopped, which is fine
-        logger.info('DevKit was already stopped');
+    if (this.devkitManager) {
+      const isRunning = await this.devkitManager.isNodeRunning();
+      if (isRunning && this.devkit) {
+        try {
+          await this.devkit.stop();
+          logger.info('DevKit stopped');
+        } catch {
+          // DevKit might already be stopped, which is fine
+          logger.info('DevKit was already stopped');
+        }
       }
     }
 
     logger.success('Backend server shutdown complete');
+  }
+
+  /**
+   * Get DevKit Manager instance (for route handlers)
+   */
+  getDevKitManager(): DevKitManager | undefined {
+    return this.devkitManager;
   }
 }

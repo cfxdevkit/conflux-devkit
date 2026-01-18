@@ -15,41 +15,42 @@
  */
 
 import { apiClient } from '@/services/api';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Checkbox,
-  Code,
-  CopyButton,
-  Group,
-  Modal,
-  PasswordInput,
-  SegmentedControl,
-  Stack,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon,
-  Title,
-  Tooltip,
+    ActionIcon,
+    Alert,
+    Badge,
+    Button,
+    Card,
+    Checkbox,
+    Code,
+    CopyButton,
+    Group,
+    Modal,
+    PasswordInput,
+    SegmentedControl,
+    Stack,
+    Table,
+    Text,
+    Textarea,
+    TextInput,
+    ThemeIcon,
+    Title,
+    Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconAlertCircle,
-  IconCheck,
-  IconCopy,
-  IconEye,
-  IconKey,
-  IconLock,
-  IconLockOpen,
-  IconPlus,
-  IconRefresh,
-  IconWallet,
+    IconAlertCircle,
+    IconCheck,
+    IconCopy,
+    IconEye,
+    IconKey,
+    IconLock,
+    IconLockOpen,
+    IconPlus,
+    IconRefresh,
+    IconWallet,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 
@@ -79,6 +80,9 @@ interface WalletStatus {
 }
 
 export function WalletSettingsEnhanced() {
+  // Get devnode status to check if node is running
+  const { status } = useDevNodeStore();
+  
   // Wallet state
   const [entries, setEntries] = useState<KeystoreEntry[]>([]);
   const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null);
@@ -163,6 +167,18 @@ export function WalletSettingsEnhanced() {
 
   const fetchAccounts = async () => {
     try {
+      // Check if we're on local network and if node is running
+      const isLocalNetwork = !status?.network || status.network === 'local';
+      const isNodeRunning = status?.isRunning ?? false;
+
+      // Skip balance fetching if on local network and node is not running
+      if (isLocalNetwork && !isNodeRunning) {
+        // Just fetch accounts without balances
+        const data = await apiClient.deriveAccounts(selectedNetwork, 5, 0);
+        setAccounts(data.accounts.map(account => ({ ...account, balance: '0' })));
+        return;
+      }
+
       const data = await apiClient.deriveAccounts(selectedNetwork, 5, 0);
       
       // Fetch balances from blockchain

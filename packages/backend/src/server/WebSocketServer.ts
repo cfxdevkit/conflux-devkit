@@ -603,6 +603,21 @@ export class DevKitWebSocketServer {
     }
   }
 
+  /**
+   * Update DevKit instance reference (called when wallet is switched)
+   */
+  updateDevKit(newDevKit: DevKitCompat): void {
+    logger.info('Updating DevKit reference in WebSocketServer');
+    this.devkit = newDevKit;
+
+    // Reset block tracking to avoid stale data
+    this.lastCoreEpoch = 0;
+    this.lastEvmBlock = 0;
+
+    // Force immediate status update with new devkit instance
+    this.forceStatusUpdate();
+  }
+
   close() {
     this.stopNodeStatsUpdates();
     this.stopBlockMonitoring();
