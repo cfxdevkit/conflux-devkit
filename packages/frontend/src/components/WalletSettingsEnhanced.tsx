@@ -80,8 +80,8 @@ interface WalletStatus {
 }
 
 export function WalletSettingsEnhanced() {
-  // Get devnode status to check if node is running
-  const { status } = useDevNodeStore();
+  // Get devnode status and config to check if node is running and get accountsCount
+  const { status, config } = useDevNodeStore();
   
   // Wallet state
   const [entries, setEntries] = useState<KeystoreEntry[]>([]);

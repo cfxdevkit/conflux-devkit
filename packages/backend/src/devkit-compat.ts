@@ -32,6 +32,7 @@ import { privateKeyToAccount as evmPrivateKeyToAccount } from 'viem/accounts';
 export interface DevKitConfig {
   chainId: number;
   evmChainId: number;
+  accountsCount?: number;
   jsonrpcHttpPort: number;
   jsonrpcHttpEthPort: number;
   jsonrpcWsPort?: number;
