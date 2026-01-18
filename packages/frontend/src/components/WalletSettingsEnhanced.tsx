@@ -126,10 +126,17 @@ export function WalletSettingsEnhanced() {
     if (selectedNetwork && !walletStatus?.isLocked) {
       fetchAccounts();
       
-      // Auto-refresh balances every 10 seconds
-      const interval = setInterval(() => {
-        fetchAccounts();
-      }, 10000);
+      // Auto-refresh balances every 10 seconds, but only if node is running (for local network)
+      const isLocalNetwork = !status?.network || status.network === 'local';
+      const isNodeRunning = status?.isRunning ?? false;
+      const shouldAutoRefresh = !isLocalNetwork || isNodeRunning;
+      
+      let interval: NodeJS.Timeout | null = null;
+      if (shouldAutoRefresh) {
+        interval = setInterval(() => {
+          fetchAccounts();
+        }, 10000);
+      }
       
       // Listen for manual balance update events (e.g., after faucet)
       const handleBalanceUpdate = () => {
@@ -138,11 +145,11 @@ export function WalletSettingsEnhanced() {
       window.addEventListener('wallet:balance-update', handleBalanceUpdate);
       
       return () => {
-        clearInterval(interval);
+        if (interval) clearInterval(interval);
         window.removeEventListener('wallet:balance-update', handleBalanceUpdate);
       };
     }
-  }, [selectedNetwork, walletStatus?.isLocked]);
+  }, [selectedNetwork, walletStatus?.isLocked, status?.isRunning, status?.network]);
 
   const fetchWalletData = async () => {
     setLoading(true);
@@ -167,19 +174,19 @@ export function WalletSettingsEnhanced() {
 
   const fetchAccounts = async () => {
     try {
-      // Check if we're on local network and if node is running
+      // Use accountsCount from node config, fallback to store config, then default to 10
+      const accountCount = status?.config?.accountsCount || config.accountsCount || 10;
+      const data = await apiClient.deriveAccounts(selectedNetwork, accountCount, 0);
+      
+      // Re-check status at fetch time (might have changed since useEffect ran)
       const isLocalNetwork = !status?.network || status.network === 'local';
       const isNodeRunning = status?.isRunning ?? false;
-
+      
       // Skip balance fetching if on local network and node is not running
       if (isLocalNetwork && !isNodeRunning) {
-        // Just fetch accounts without balances
-        const data = await apiClient.deriveAccounts(selectedNetwork, 5, 0);
         setAccounts(data.accounts.map(account => ({ ...account, balance: '0' })));
         return;
       }
-
-      const data = await apiClient.deriveAccounts(selectedNetwork, 5, 0);
       
       // Fetch balances from blockchain
       const accountsWithBalances = await Promise.all(
@@ -187,16 +194,11 @@ export function WalletSettingsEnhanced() {
           try {
             const balanceData = await apiClient.getBalanceByAddress(account.address);
             
-            // Check for errors in the response
-            if (balanceData.error) {
-              console.warn(`Balance fetch warning for ${account.address}:`, balanceData.error);
-            }
-            
             // Use the appropriate balance based on network
             const balance = selectedNetwork === 'core' ? balanceData.balances.core : balanceData.balances.evm;
             return { ...account, balance };
           } catch (error) {
-            console.error('Failed to fetch balance for', account.address, error);
+            // Silently return 0 balance on error (likely node stopped)
             return { ...account, balance: '0' };
           }
         })

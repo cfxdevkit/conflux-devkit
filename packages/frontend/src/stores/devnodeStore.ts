@@ -295,9 +295,10 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
 
       if (!shouldFetchBalances) {
         // Return accounts without balance data when node is stopped
+        // Still set faucet account but without balance
         set({ 
           accounts, 
-          faucetAccount: faucetAccount ? { ...faucetAccount, index: -1 } : null 
+          faucetAccount: faucetAccount ? { ...faucetAccount, index: -1, balance: { core: '0', eSpace: '0' } } : null 
         });
         return;
       }

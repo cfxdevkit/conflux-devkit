@@ -20,13 +20,21 @@ import { IconCheck, IconCopy, IconRefresh } from '@tabler/icons-react';
 import { useEffect } from 'react';
 
 export function AccountsTable() {
-  const { accounts, fetchAccounts } = useDevNodeStore();
+  const { accounts, fetchAccounts, status } = useDevNodeStore();
 
   useEffect(() => {
     fetchAccounts();
-    const interval = setInterval(fetchAccounts, 10000);
-    return () => clearInterval(interval);
-  }, [fetchAccounts]);
+    
+    // Only auto-refresh if on remote network OR if local node is running
+    const isLocalNetwork = !status?.network || status.network === 'local';
+    const isNodeRunning = status?.isRunning ?? false;
+    const shouldAutoRefresh = !isLocalNetwork || isNodeRunning;
+    
+    if (shouldAutoRefresh) {
+      const interval = setInterval(fetchAccounts, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [fetchAccounts, status?.isRunning, status?.network]);
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 10)}...${addr.slice(-8)}`;

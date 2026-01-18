@@ -289,6 +289,7 @@ export function createDevKitRoutes(
         config: {
           chainId: config.chainId,
           evmChainId: config.evmChainId,
+          accountsCount: config.accountsCount,
           jsonrpcHttpPort: config.jsonrpcHttpPort,
           jsonrpcWsPort: config.jsonrpcWsPort,
           jsonrpcHttpEthPort: config.jsonrpcHttpEthPort,
