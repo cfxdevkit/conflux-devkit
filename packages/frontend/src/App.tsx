@@ -15,24 +15,16 @@
  */
 
 import { AppShell, Badge, Button, Container, Group, Loader, Stack, Tabs, Text, Title } from '@mantine/core';
-import {
-  IconBrandGithub,
-  IconDatabase,
-  IconLogout,
-  IconSettings,
-  IconWallet,
-} from '@tabler/icons-react';
+import { IconBrandGithub, IconLogout, IconServer, IconSettings } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { AuthSection } from '@/components/AuthSection';
-import { BlockchainMonitor } from '@/components/BlockchainMonitor';
-import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
-import { DevNodeStatus } from '@/components/DevNodeStatus';
+import { Configuration } from '@/components/config/Configuration';
+import { Dashboard } from '@/components/Dashboard';
 import { FaucetButton } from '@/components/FaucetButton';
 import { FirstLoginModal } from '@/components/FirstLoginModal';
 import { NavbarNetworkDropdown } from '@/components/NavbarNetworkDropdown';
 import { SetupWizard } from '@/components/SetupWizard';
 import { TestMnemonicWarning } from '@/components/TestMnemonicWarning';
-import { WalletSettingsEnhanced } from '@/components/WalletSettingsEnhanced';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { apiClient } from '@/services/api';
 import { wsClient } from '@/services/websocket';
@@ -47,7 +39,7 @@ function App() {
   const { status: setupStatus, isLoading: setupLoading, fetchStatus: fetchSetupStatus } = useSetupStore();
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [isTestMnemonic, setIsTestMnemonic] = useState(false);
-  const [activeTab, setActiveTab] = useState('devnode');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // Check setup status on mount (before authentication)
   useEffect(() => {
@@ -227,34 +219,24 @@ function App() {
                 <>
                   <Tabs
                     value={activeTab}
-                    onChange={(value) => setActiveTab(value || 'devnode')}
+                    onChange={(value) => setActiveTab(value || 'dashboard')}
                     orientation="horizontal"
                   >
                     <Tabs.List>
-                      <Tabs.Tab value="devnode" leftSection={<IconSettings size={14} />}>
-                        DevNode
+                      <Tabs.Tab value="dashboard" leftSection={<IconServer size={14} />}>
+                        Dashboard
                       </Tabs.Tab>
-                      <Tabs.Tab value="wallet" leftSection={<IconWallet size={14} />}>
-                        Wallet
-                      </Tabs.Tab>
-                      <Tabs.Tab value="monitor" leftSection={<IconDatabase size={14} />}>
-                        Monitor
+                      <Tabs.Tab value="configuration" leftSection={<IconSettings size={14} />}>
+                        Configuration
                       </Tabs.Tab>
                     </Tabs.List>
 
-                    <Tabs.Panel value="devnode" pt="md">
-                      <Stack gap="lg">
-                        <DevNodeStatus />
-                        <DevNodeControlPanel />
-                      </Stack>
+                    <Tabs.Panel value="dashboard" pt="md">
+                      <Dashboard />
                     </Tabs.Panel>
 
-                    <Tabs.Panel value="wallet" pt="md">
-                      <WalletSettingsEnhanced />
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="monitor" pt="md">
-                      <BlockchainMonitor />
+                    <Tabs.Panel value="configuration" pt="md">
+                      <Configuration />
                     </Tabs.Panel>
                   </Tabs>
                 </>
@@ -274,7 +256,7 @@ function App() {
 
       {/* Persistent footer warning for test mnemonic */}
       {isAuthenticated && isTestMnemonic && (
-        <TestMnemonicWarning onConfigureClick={() => setActiveTab('wallet')} />
+        <TestMnemonicWarning onConfigureClick={() => setActiveTab('configuration')} />
       )}
 
       {/* First-login modal for test mnemonic warning */}

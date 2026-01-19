@@ -589,6 +589,192 @@ class ApiClient {
     };
   }
 
+  // ===== Wallet v2 API (from /api/wallet routes) =====
+
+  async getWalletList() {
+    const response = await this.client.get('/wallet/list');
+    return response.data as {
+      mnemonics: Array<{
+        id: string;
+        label: string;
+        type: 'generated' | 'imported' | 'test';
+        createdAt: string;
+        isActive: boolean;
+        nodeConfig?: {
+          accountsCount: number;
+          chainId: number;
+          evmChainId: number;
+          miningAuthor?: string;
+        };
+      }>;
+      count: number;
+      isLocked: boolean;
+      isEncrypted: boolean;
+    };
+  }
+
+  async getActiveWallet() {
+    const response = await this.client.get('/wallet/active');
+    return response.data as {
+      id: string;
+      label: string;
+      type: 'generated' | 'imported' | 'test';
+      createdAt: string;
+      nodeConfig?: {
+        accountsCount: number;
+        chainId: number;
+        evmChainId: number;
+        miningAuthor?: string;
+      };
+      isLocked: boolean;
+    };
+  }
+
+  async switchWallet(id: string) {
+    const response = await this.client.post(`/wallet/switch/${id}`);
+    return response.data as {
+      success: boolean;
+      message: string;
+      active: {
+        id: string;
+        label: string;
+        nodeConfig: {
+          accountsCount: number;
+          chainId: number;
+          evmChainId: number;
+          miningAuthor?: string;
+        };
+      };
+    };
+  }
+
+  async addWalletV2(data: {
+    mnemonic: string;
+    label: string;
+    nodeConfig: {
+      accountsCount: number;
+      chainId?: number;
+      evmChainId?: number;
+      miningAuthor?: string;
+    };
+    setAsActive?: boolean;
+  }) {
+    const response = await this.client.post('/wallet/add', data);
+    return response.data as {
+      success: boolean;
+      message: string;
+      mnemonic: {
+        id: string;
+        label: string;
+        nodeConfig: {
+          accountsCount: number;
+          chainId: number;
+          evmChainId: number;
+          miningAuthor?: string;
+        };
+        createdAt: string;
+      };
+    };
+  }
+
+  async deleteWalletV2(id: string, deleteData: boolean = false) {
+    const response = await this.client.delete(`/wallet/${id}`, {
+      params: { deleteData },
+    });
+    return response.data as {
+      success: boolean;
+      message: string;
+    };
+  }
+
+  async getWalletAccounts(id: string) {
+    const response = await this.client.get(`/wallet/${id}/accounts`);
+    return response.data as {
+      accounts: Array<{
+        index: number;
+        core: string;
+        evm: string;
+      }>;
+      count: number;
+    };
+  }
+
+  async getWalletNodeConfig(id: string) {
+    const response = await this.client.get(`/wallet/${id}/config`);
+    return response.data as {
+      config: {
+        accountsCount: number;
+        chainId: number;
+        evmChainId: number;
+        miningAuthor?: string;
+      };
+      canModify: boolean;
+      modificationInfo?: {
+        reason: string;
+        dataDir: string;
+      };
+    };
+  }
+
+  async updateWalletNodeConfig(
+    id: string,
+    updates: {
+      accountsCount?: number;
+      chainId?: number;
+      evmChainId?: number;
+      miningAuthor?: string;
+    }
+  ) {
+    const response = await this.client.put(`/wallet/${id}/config`, updates);
+    return response.data as {
+      success: boolean;
+      message: string;
+      config: {
+        accountsCount: number;
+        chainId: number;
+        evmChainId: number;
+        miningAuthor?: string;
+      };
+    };
+  }
+
+  // ===== Admin Management API =====
+
+  async getAdminList() {
+    const response = await this.client.get('/admin/list');
+    return response.data as {
+      admins: string[];
+      count: number;
+      currentAdmin: string;
+    };
+  }
+
+  async addAdmin(address: string) {
+    const response = await this.client.post('/admin/add', { address });
+    return response.data as {
+      success: boolean;
+      message: string;
+      address: string;
+    };
+  }
+
+  async removeAdmin(address: string) {
+    const response = await this.client.delete(`/admin/${address}`);
+    return response.data as {
+      success: boolean;
+      message: string;
+      address: string;
+    };
+  }
+
+  async checkAdmin(address: string) {
+    const response = await this.client.get(`/admin/check/${address}`);
+    return response.data as {
+      address: string;
+      isAdmin: boolean;
+    };
+  }
+
   // Generic request method for extensibility
   async request(method: string, url: string, data?: unknown) {
     const response = await this.client.request({
