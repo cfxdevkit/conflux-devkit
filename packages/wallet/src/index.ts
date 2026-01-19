@@ -25,44 +25,39 @@
  * @packageDocumentation
  */
 
+// Transaction Batching
+export { TransactionBatcher } from './batching/batcher.js';
+// Embedded Wallets
+export { EmbeddedWalletManager } from './embedded/custody.js';
 // Session Keys
 export { SessionKeyManager } from './session-keys/manager.js';
 
-// Transaction Batching
-export { TransactionBatcher } from './batching/batcher.js';
-
-// Embedded Wallets
-export { EmbeddedWalletManager } from './embedded/custody.js';
-
 // Types
 export type {
+  BatcherOptions,
+  BatchResult,
+  // Batching
+  BatchTransaction,
+  // Embedded Wallets
+  EmbeddedWallet,
+  EmbeddedWalletOptions,
   // Session Keys
   SessionKey,
   SessionKeyOptions,
   SessionKeyPermissions,
-
-  // Batching
-  BatchTransaction,
-  BatchResult,
-  BatcherOptions,
-
-  // Embedded Wallets
-  EmbeddedWallet,
-  WalletExport,
-  EmbeddedWalletOptions,
-
+  SignedTransaction,
   // Common
   SignTransactionRequest,
-  SignedTransaction,
+  WalletExport,
   WalletManagerOptions,
 } from './types/index.js';
 
 // Errors
 export {
-  WalletError,
-  SessionKeyError,
   BatcherError,
   EmbeddedWalletError,
+  SessionKeyError,
+  WalletError,
 } from './types/index.js';
 
 // Version

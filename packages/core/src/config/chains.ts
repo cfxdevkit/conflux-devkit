@@ -17,10 +17,10 @@
 // Centralized Chain Configuration
 // Matches Hardhat configuration with consistent naming across all clients
 
-import { defineChain } from 'cive/utils';
-import { defineChain as defineEvmChain } from 'viem';
 import type { Chain as CiveChain } from 'cive';
+import { defineChain } from 'cive/utils';
 import type { Chain as ViemChain } from 'viem';
+import { defineChain as defineEvmChain } from 'viem';
 
 export type SupportedChainId = 1029 | 1 | 2029 | 1030 | 71 | 2030;
 
@@ -221,19 +221,23 @@ export function isValidChainId(chainId: number): chainId is SupportedChainId {
 }
 
 export function getCoreChains(): ChainConfig[] {
-  return Object.values(SUPPORTED_CHAINS).filter(chain => chain.type === 'core');
+  return Object.values(SUPPORTED_CHAINS).filter(
+    (chain) => chain.type === 'core'
+  );
 }
 
 export function getEvmChains(): ChainConfig[] {
-  return Object.values(SUPPORTED_CHAINS).filter(chain => chain.type === 'evm');
+  return Object.values(SUPPORTED_CHAINS).filter(
+    (chain) => chain.type === 'evm'
+  );
 }
 
 export function getMainnetChains(): ChainConfig[] {
-  return Object.values(SUPPORTED_CHAINS).filter(chain => !chain.testnet);
+  return Object.values(SUPPORTED_CHAINS).filter((chain) => !chain.testnet);
 }
 
 export function getTestnetChains(): ChainConfig[] {
-  return Object.values(SUPPORTED_CHAINS).filter(chain => chain.testnet);
+  return Object.values(SUPPORTED_CHAINS).filter((chain) => chain.testnet);
 }
 
 // Convert to native chain objects
@@ -299,7 +303,9 @@ export class NetworkSelector {
 
     // If node is running and we're trying to switch to non-local, only allow if forced
     if (this.isNodeRunning && !this.isLocalChain(chainId) && !force) {
-      console.warn(`Cannot switch to chain ${chainId} while local node is running. Use force=true for wallet operations.`);
+      console.warn(
+        `Cannot switch to chain ${chainId} while local node is running. Use force=true for wallet operations.`
+      );
       return;
     }
 
@@ -312,7 +318,10 @@ export class NetworkSelector {
   /**
    * Called when local node starts - automatically switches to local chains
    */
-  onNodeStart(coreChainId: SupportedChainId = 2029, evmChainId: SupportedChainId = 2030): void {
+  onNodeStart(
+    coreChainId: SupportedChainId = 2029,
+    evmChainId: SupportedChainId = 2030
+  ): void {
     if (!this.isNodeRunning) {
       // Store previous chain for restoration later
       if (!this.isLocal()) {
@@ -418,13 +427,20 @@ export class NetworkSelector {
   // Get corresponding chain IDs
   getCorrespondingChainId(): SupportedChainId | null {
     switch (this.currentChainId) {
-      case 1029: return 1030; // Core mainnet -> eSpace mainnet
-      case 1030: return 1029; // eSpace mainnet -> Core mainnet
-      case 1: return 71;      // Core testnet -> eSpace testnet
-      case 71: return 1;      // eSpace testnet -> Core testnet
-      case 2029: return 2030; // Core local -> eSpace local
-      case 2030: return 2029; // eSpace local -> Core local
-      default: return null;
+      case 1029:
+        return 1030; // Core mainnet -> eSpace mainnet
+      case 1030:
+        return 1029; // eSpace mainnet -> Core mainnet
+      case 1:
+        return 71; // Core testnet -> eSpace testnet
+      case 71:
+        return 1; // eSpace testnet -> Core testnet
+      case 2029:
+        return 2030; // Core local -> eSpace local
+      case 2030:
+        return 2029; // eSpace local -> Core local
+      default:
+        return null;
     }
   }
 
@@ -432,7 +448,11 @@ export class NetworkSelector {
    * Update local chain configurations with actual node URLs
    * Called when ServerManager starts with specific ports
    */
-  updateLocalChainUrls(coreRpcPort: number, evmRpcPort: number, wsPort?: number): void {
+  updateLocalChainUrls(
+    coreRpcPort: number,
+    evmRpcPort: number,
+    wsPort?: number
+  ): void {
     // Update Core local chain
     const coreLocal = SUPPORTED_CHAINS[2029];
     if (coreLocal) {
@@ -442,7 +462,7 @@ export class NetworkSelector {
       }
     }
 
-    // Update eSpace local chain  
+    // Update eSpace local chain
     const evmLocal = SUPPORTED_CHAINS[2030];
     if (evmLocal) {
       evmLocal.rpcUrls.default.http = [`http://localhost:${evmRpcPort}`];

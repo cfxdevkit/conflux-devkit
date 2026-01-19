@@ -20,8 +20,9 @@
  * Reads data from smart contracts with customizable rendering
  */
 
-import React, { useState } from 'react';
 import type { ChainType } from '@conflux-devkit/core';
+import type React from 'react';
+import { useState } from 'react';
 import { useContract } from '../../hooks/useContract.js';
 import type { BaseComponentProps, RenderPropChild } from '../../types/index.js';
 

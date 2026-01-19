@@ -27,8 +27,8 @@
  */
 
 import { Router } from 'express';
-import type { BackendPlugin, PluginContext } from './types.js';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
+import type { BackendPlugin, PluginContext } from './types.js';
 
 export function createDevNodePlugin(): BackendPlugin {
   const router = Router();
@@ -44,7 +44,8 @@ export function createDevNodePlugin(): BackendPlugin {
       if (typeof context.devkit.startNode !== 'function') {
         return res.status(501).json({
           error: 'Dev node not available',
-          message: 'Local development node is not configured. Install @conflux-devkit/plugin-devnode.',
+          message:
+            'Local development node is not configured. Install @conflux-devkit/plugin-devnode.',
         });
       }
 
@@ -64,7 +65,7 @@ export function createDevNodePlugin(): BackendPlugin {
     }
   });
 
-  router.post('/node/stop', async (req: AuthenticatedRequest, res) => {
+  router.post('/node/stop', async (_req: AuthenticatedRequest, res) => {
     try {
       if (typeof context.devkit.stopNode !== 'function') {
         return res.status(501).json({
@@ -88,7 +89,7 @@ export function createDevNodePlugin(): BackendPlugin {
   });
 
   // Mining control routes
-  router.post('/mining/start', async (req: AuthenticatedRequest, res) => {
+  router.post('/mining/start', async (_req: AuthenticatedRequest, res) => {
     try {
       if (typeof context.devkit.startMining !== 'function') {
         return res.status(501).json({
@@ -111,7 +112,7 @@ export function createDevNodePlugin(): BackendPlugin {
     }
   });
 
-  router.post('/mining/stop', async (req: AuthenticatedRequest, res) => {
+  router.post('/mining/stop', async (_req: AuthenticatedRequest, res) => {
     try {
       if (typeof context.devkit.stopMining !== 'function') {
         return res.status(501).json({

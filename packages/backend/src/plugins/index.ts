@@ -20,8 +20,8 @@
  * Export plugin system and available plugins
  */
 
-export { PluginManager } from './plugin-manager.js';
 export { createDevNodePlugin } from './devnode-plugin.js';
+export { PluginManager } from './plugin-manager.js';
 
 export type {
   BackendPlugin,

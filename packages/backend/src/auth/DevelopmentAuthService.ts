@@ -21,10 +21,16 @@
  * - Production: Full signature verification required
  * - Development: Auto-connects with test accounts while maintaining security patterns
  * - No conditional code complexity - just environment-based configuration
+ *
+ * V2 Updates:
+ * - Multi-admin support (all admins have equal rights)
+ * - Admin addresses stored in KeystoreService
+ * - No admin private keys stored (wallet address authentication only)
+ * - CLI uses development session bypass (no wallet signing)
  */
 
-import type { NextFunction, Request, Response } from 'express';
 import crypto from 'node:crypto';
+import type { NextFunction, Request, Response } from 'express';
 import { verifyMessage } from 'viem';
 import type { DevKitCompat } from '../devkit-compat.js';
 import { getKeystoreService } from '../services/keystore-service.js';
@@ -55,13 +61,13 @@ interface AuthConfig {
 }
 
 export class DevelopmentAuthService {
-  private adminAddress?: string;
+  private adminAddresses: string[] = [];
   private challenges = new Map<string, AuthChallenge>();
   private sessions = new Map<string, AuthUser>();
   private config: AuthConfig;
-  private devkit: DevKitCompat;
+  private devkit: DevKitCompat | undefined;
 
-  constructor(devkit: DevKitCompat) {
+  constructor(devkit: DevKitCompat | undefined) {
     this.devkit = devkit;
 
     // Environment-based configuration
@@ -92,45 +98,48 @@ export class DevelopmentAuthService {
 
   async initialize() {
     try {
-      // Priority order for admin address:
-      // 1. KeystoreService admin wallet (highest priority)
-      // 2. Environment variable override
-      // 3. First account of default mnemonic (fallback)
-      
       const keystore = getKeystoreService();
-      const keystoreAdmin = keystore.getAdminAddress();
-      
-      if (keystoreAdmin) {
-        this.adminAddress = keystoreAdmin.toLowerCase();
-        logger.info('✅ Admin address from KeystoreService:', this.adminAddress);
-      } else {
-        // Fallback to environment variable
-        const envAdmin =
-          process.env.HARDHAT_ADMIN_ADDRESS || process.env.VITE_HARDHAT_ADMIN_ADDRESS;
 
-        if (envAdmin && /^0x[a-fA-F0-9]{40}$/.test(envAdmin)) {
-          this.adminAddress = envAdmin.toLowerCase();
-          logger.info('✅ Admin address set from environment variable:', this.adminAddress);
-        } else {
-          // Last resort: derive from mnemonic
-          try {
-            const ethereumAdminAddress = this.devkit.getEthereumAdminAddress();
-            this.adminAddress = ethereumAdminAddress.toLowerCase();
-            logger.info('✅ Admin address derived from Ethereum path (m/44\'/60\'/0\'/0/0):', this.adminAddress);
-          } catch (error) {
-            // Ultimate fallback to legacy test address
-            this.adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
-            logger.warn(
-              '⚠️ Failed to derive admin address; using legacy test address. Set admin via KeystoreService.',
-              { error }
-            );
-          }
+      // Check if setup is completed
+      const setupCompleted = await keystore.isSetupCompleted();
+
+      if (!setupCompleted) {
+        logger.warn('⚠️  Setup not completed - no admin addresses configured');
+        logger.info('Complete setup to configure admin addresses');
+        this.adminAddresses = [];
+
+        // In development mode, allow test accounts as fallback
+        if (this.config.autoConnectDev) {
+          logger.info(
+            '🔧 Development mode: allowing test accounts as temporary admins'
+          );
+          await this.createDevelopmentSession(this.config.testAccounts[0]);
         }
+
+        return;
       }
 
-      // Auto-connect in development
-      if (this.config.autoConnectDev) {
-        await this.createDevelopmentSession();
+      // Get all admin addresses from keystore (multi-admin support)
+      this.adminAddresses = await keystore.getAdminAddresses();
+
+      if (this.adminAddresses.length === 0) {
+        logger.warn('⚠️  No admin addresses found in keystore');
+        return;
+      }
+
+      // Normalize all addresses to lowercase
+      this.adminAddresses = this.adminAddresses.map((addr) =>
+        addr.toLowerCase()
+      );
+
+      logger.info('✅ Admin addresses loaded from KeystoreService:', {
+        count: this.adminAddresses.length,
+        addresses: this.adminAddresses,
+      });
+
+      // Auto-connect in development (use first admin)
+      if (this.config.autoConnectDev && this.adminAddresses.length > 0) {
+        await this.createDevelopmentSession(this.adminAddresses[0]);
       }
     } catch (error) {
       logger.error('Failed to initialize auth service:', error);
@@ -140,10 +149,10 @@ export class DevelopmentAuthService {
   /**
    * Create automatic session for development
    */
-  private async createDevelopmentSession() {
+  private async createDevelopmentSession(address: string) {
     const sessionId = crypto.randomBytes(32).toString('hex');
     const user: AuthUser = {
-      address: this.adminAddress ?? '',
+      address: address.toLowerCase(),
       isAdmin: true,
       sessionId,
     };
@@ -167,9 +176,9 @@ export class DevelopmentAuthService {
   getDevelopmentSession(): string | null {
     if (!this.config.autoConnectDev) return null;
 
-    // Find existing session for admin
+    // Find existing session for any admin
     for (const [sessionId, user] of this.sessions.entries()) {
-      if (user.address === this.adminAddress) {
+      if (this.isAdmin(user.address)) {
         return sessionId;
       }
     }
@@ -291,10 +300,18 @@ export class DevelopmentAuthService {
   }
 
   /**
-   * Check if address is admin
+   * Check if address is admin (multi-admin support)
    */
   private isAdmin(address: string): boolean {
-    return address.toLowerCase() === this.adminAddress;
+    const normalized = address.toLowerCase();
+    return this.adminAddresses.some((admin) => admin === normalized);
+  }
+
+  /**
+   * Get all admin addresses
+   */
+  getAdminAddresses(): string[] {
+    return [...this.adminAddresses];
   }
 
   /**
@@ -395,7 +412,41 @@ export class DevelopmentAuthService {
   updateDevKit(newDevKit: DevKitCompat): void {
     logger.info('Updating DevKit reference in DevelopmentAuthService');
     this.devkit = newDevKit;
-    // Note: Admin address comes from keystore, which is already updated
-    // No need to re-initialize admin here
+    // Note: Admin addresses come from keystore, which is already updated
+    // No need to re-initialize admin addresses here
+  }
+
+  /**
+   * Refresh admin addresses from keystore (call after admin changes)
+   */
+  async refreshAdminAddresses(): Promise<void> {
+    try {
+      const keystore = getKeystoreService();
+      const setupCompleted = await keystore.isSetupCompleted();
+
+      if (!setupCompleted) {
+        logger.warn('Setup not completed - cannot refresh admin addresses');
+        this.adminAddresses = [];
+        return;
+      }
+
+      const newAdmins = await keystore.getAdminAddresses();
+      this.adminAddresses = newAdmins.map((addr) => addr.toLowerCase());
+
+      logger.info('✅ Admin addresses refreshed:', {
+        count: this.adminAddresses.length,
+        addresses: this.adminAddresses,
+      });
+
+      // Invalidate sessions for removed admins
+      for (const [sessionId, user] of this.sessions.entries()) {
+        if (user.isAdmin && !this.isAdmin(user.address)) {
+          this.sessions.delete(sessionId);
+          logger.info(`🔒 Revoked session for removed admin: ${user.address}`);
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to refresh admin addresses:', error);
+    }
   }
 }

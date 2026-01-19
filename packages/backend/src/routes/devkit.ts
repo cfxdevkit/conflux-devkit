@@ -25,6 +25,7 @@ import type { AuthenticatedRequest } from '../auth/AuthService.js';
 import type { DevKitCompat } from '../devkit-compat.js';
 import type { DevKitWebSocketServer } from '../server/WebSocketServer.js';
 import { getKeystoreService } from '../services/keystore-service.js';
+import type { DerivedAccount } from '../types/keystore.js';
 import { logger } from '../utils/logger.js';
 
 // Network state management
@@ -40,13 +41,13 @@ function isLocalNetwork(): boolean {
 function getNetworkCapabilities(network: NetworkType) {
   const isLocal = network === 'local';
   return {
-    canMine: isLocal,           // Mining only on local
-    canUseFaucet: isLocal,      // Faucet only on local
-    canControlNode: isLocal,    // Node start/stop only on local
-    canResetNode: isLocal,      // Reset only on local
-    canDeploy: true,            // Deploy works on all networks
-    canMonitor: true,           // Monitor works on all networks
-    requiresWallet: !isLocal,   // Non-local networks need wallet for transactions
+    canMine: isLocal, // Mining only on local
+    canUseFaucet: isLocal, // Faucet only on local
+    canControlNode: isLocal, // Node start/stop only on local
+    canResetNode: isLocal, // Reset only on local
+    canDeploy: true, // Deploy works on all networks
+    canMonitor: true, // Monitor works on all networks
+    requiresWallet: !isLocal, // Non-local networks need wallet for transactions
   };
 }
 
@@ -58,7 +59,7 @@ function getNetworkConfig(network: NetworkType) {
         // eSpace (EVM) configuration
         evmChainId: 71,
         rpcUrl: 'https://evmtestnet.confluxrpc.com',
-        // Core Space configuration  
+        // Core Space configuration
         coreNetworkId: 1, // Testnet Core network ID
         coreRpcUrl: 'https://test.confluxrpc.com',
       };
@@ -139,8 +140,20 @@ export function createDevKitRoutes(
           mining: { isRunning: false, interval: 0, blocksMined: 0 },
           wallet: walletInfo,
           chains: {
-            core: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.chainId || 0 },
-            evm: { connected: false, status: 'stopped', blockNumber: 0, gasPrice: '0', chainId: config?.evmChainId || 0 },
+            core: {
+              connected: false,
+              status: 'stopped',
+              blockNumber: 0,
+              gasPrice: '0',
+              chainId: config?.chainId || 0,
+            },
+            evm: {
+              connected: false,
+              status: 'stopped',
+              blockNumber: 0,
+              gasPrice: '0',
+              chainId: config?.evmChainId || 0,
+            },
           },
           accounts: 0,
           timestamp: new Date().toISOString(),
@@ -329,7 +342,7 @@ export function createDevKitRoutes(
       // Determine RPC URL based on chain
       const config = devkit.getConfig();
       let rpcUrl: string;
-      
+
       if (chain === 'evm' || chain === 'espace') {
         rpcUrl = `http://localhost:${config.jsonrpcHttpEthPort || 8545}`;
       } else if (chain === 'core') {
@@ -349,9 +362,9 @@ export function createDevKitRoutes(
       res.json(data);
     } catch (error) {
       logger.error('RPC proxy error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'RPC request failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   });
@@ -423,27 +436,40 @@ export function createDevKitRoutes(
         }),
       ]);
 
-      const currentCoreData = (await currentCoreResponse.json()) as { result: string };
-      const currentEvmData = (await currentEvmResponse.json()) as { result: string };
+      const currentCoreData = (await currentCoreResponse.json()) as {
+        result: string;
+      };
+      const currentEvmData = (await currentEvmResponse.json()) as {
+        result: string;
+      };
 
       const currentCoreEpoch = parseInt(currentCoreData.result, 16);
       const currentEvmBlock = parseInt(currentEvmData.result, 16);
 
-      const startCoreEpoch = coreEpoch ? parseInt(coreEpoch as string) + 1 : currentCoreEpoch;
-      const startEvmBlock = evmBlock ? parseInt(evmBlock as string) + 1 : currentEvmBlock;
+      const startCoreEpoch = coreEpoch
+        ? parseInt(coreEpoch as string, 10) + 1
+        : currentCoreEpoch;
+      const startEvmBlock = evmBlock
+        ? parseInt(evmBlock as string, 10) + 1
+        : currentEvmBlock;
 
       // Fetch Core epochs with transactions (limit to reasonable range)
-      const coreEpochsToFetch = Math.min(currentCoreEpoch - startCoreEpoch + 1, 100);
+      const coreEpochsToFetch = Math.min(
+        currentCoreEpoch - startCoreEpoch + 1,
+        100
+      );
       for (let i = 0; i < coreEpochsToFetch; i++) {
         const epoch = startCoreEpoch + i;
         const block = await fetchCoreEpoch(epoch);
-        
-        if (block && block.transactions && block.transactions.length > 0) {
+
+        if (block?.transactions && block.transactions.length > 0) {
           const transactions = block.transactions.map((tx: any) => ({
             hash: tx.hash || '',
             from: tx.from || '',
             to: tx.to || undefined,
-            value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+            value: tx.value
+              ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+              : '0 CFX',
           }));
 
           blocksWithTxs.push({
@@ -457,17 +483,22 @@ export function createDevKitRoutes(
       }
 
       // Fetch eSpace blocks with transactions (limit to reasonable range)
-      const evmBlocksToFetch = Math.min(currentEvmBlock - startEvmBlock + 1, 100);
+      const evmBlocksToFetch = Math.min(
+        currentEvmBlock - startEvmBlock + 1,
+        100
+      );
       for (let i = 0; i < evmBlocksToFetch; i++) {
         const blockNum = startEvmBlock + i;
         const block = await fetchEvmBlock(blockNum);
-        
-        if (block && block.transactions && block.transactions.length > 0) {
+
+        if (block?.transactions && block.transactions.length > 0) {
           const transactions = block.transactions.map((tx: any) => ({
             hash: tx.hash || '',
             from: tx.from || '',
             to: tx.to || undefined,
-            value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+            value: tx.value
+              ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+              : '0 CFX',
           }));
 
           blocksWithTxs.push({
@@ -500,11 +531,11 @@ export function createDevKitRoutes(
     try {
       const network = currentNetwork;
       const networkConfig = getNetworkConfig(network);
-      
+
       // Get accounts from DevKit (these have the private keys we need)
       const devkitAccounts = devkit.getAccounts();
       const accountsData: any[] = [];
-      
+
       const requesterAddress = Array.isArray(req.wallet?.address)
         ? req.wallet?.address[0]
         : req.wallet?.address;
@@ -531,22 +562,22 @@ export function createDevKitRoutes(
         const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
           'viem/accounts'
         );
-        
+
         devkitAccounts.forEach((account) => {
           // Use the Core private key for Core address
           const corePrivateKey = account.privateKey as `0x${string}`;
-          
+
           // Use the EVM private key for EVM address (Ethereum derivation path)
           const evmPrivateKey = account.evmPrivateKey as `0x${string}`;
-          
+
           // Generate Core address for current network
           const coreAccount = corePrivateKeyToAccount(corePrivateKey, {
             networkId: networkConfig.coreNetworkId,
           });
-          
+
           // Generate EVM address using the correct EVM private key
           const evmAccount = evmPrivateKeyToAccount(evmPrivateKey);
-          
+
           accountsData.push({
             index: account.index,
             addresses: {
@@ -580,16 +611,19 @@ export function createDevKitRoutes(
           const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
             'viem/accounts'
           );
-          
+
           const faucetCorePrivateKey = faucet.privateKey as `0x${string}`;
           const faucetEvmPrivateKey = faucet.evmPrivateKey as `0x${string}`;
-          
-          const faucetCoreAccount = corePrivateKeyToAccount(faucetCorePrivateKey, {
-            networkId: networkConfig.coreNetworkId,
-          });
-          
+
+          const faucetCoreAccount = corePrivateKeyToAccount(
+            faucetCorePrivateKey,
+            {
+              networkId: networkConfig.coreNetworkId,
+            }
+          );
+
           const faucetEvmAccount = evmPrivateKeyToAccount(faucetEvmPrivateKey);
-          
+
           faucetAccount = {
             addresses: {
               core: faucetCoreAccount.address,
@@ -632,7 +666,7 @@ export function createDevKitRoutes(
       const requesterAddress = Array.isArray(req.wallet?.address)
         ? req.wallet?.address[0]
         : req.wallet?.address;
-      
+
       if (network === 'local') {
         // Use local DevKit account as-is
         res.json({
@@ -653,17 +687,17 @@ export function createDevKitRoutes(
         const { privateKeyToAccount: evmPrivateKeyToAccount } = await import(
           'viem/accounts'
         );
-        
+
         const corePrivateKey = devkitAccount.privateKey as `0x${string}`;
         const evmPrivateKey = devkitAccount.evmPrivateKey as `0x${string}`;
-        
+
         // Generate addresses for current network using correct private keys
         const coreAccount = corePrivateKeyToAccount(corePrivateKey, {
           networkId: networkConfig.coreNetworkId,
         });
-        
+
         const evmAccount = evmPrivateKeyToAccount(evmPrivateKey);
-        
+
         res.json({
           index,
           addresses: {
@@ -689,7 +723,7 @@ export function createDevKitRoutes(
       const address = Array.isArray(req.params.address)
         ? req.params.address[0]
         : req.params.address;
-      
+
       try {
         const network = currentNetwork;
         const networkConfig = getNetworkConfig(network);
@@ -708,7 +742,10 @@ export function createDevKitRoutes(
         if (network === 'local') {
           try {
             const status = await devkit.getStatus();
-            if (status.core.status !== 'running' && status.evm.status !== 'running') {
+            if (
+              status.core.status !== 'running' &&
+              status.evm.status !== 'running'
+            ) {
               return res.json({
                 address,
                 balances: { core: '0', evm: '0' },
@@ -941,20 +978,25 @@ export function createDevKitRoutes(
 
     try {
       logger.info('Faucet request received:', req.body);
-      const { address, amount } = req.body as { address?: string | string[]; amount?: string | string[] };
+      const { address, amount } = req.body as {
+        address?: string | string[];
+        amount?: string | string[];
+      };
       const addressValue = Array.isArray(address) ? address[0] : address;
       const amountValue = Array.isArray(amount) ? amount[0] : amount;
 
       if (!addressValue || !amountValue) {
         logger.error('Faucet request missing address or amount');
-        return res.status(400).json({ error: 'Address and amount are required' });
+        return res
+          .status(400)
+          .json({ error: 'Address and amount are required' });
       }
 
       logger.info(`Funding account ${addressValue} with ${amountValue} CFX`);
       // Use unified faucet that auto-detects address type (Core or eSpace)
       const txHash = await devkit.fundAccount(addressValue, amountValue);
       logger.info('Faucet transaction hash:', txHash);
-      
+
       // Mine a block to ensure the faucet transaction is included in the blockchain
       try {
         logger.info('Mining block to include faucet transaction');
@@ -1038,20 +1080,25 @@ export function createDevKitRoutes(
         return response.json() as Promise<any>;
       };
 
-      const [coreVersionResp, coreStatusResp, evmVersionResp, evmNetResp, evmChainIdResp] =
-        await Promise.all([
-          callRpc(rpcUrls.core, 'cfx_clientVersion').catch(() => null),
-          callRpc(rpcUrls.core, 'cfx_getStatus').catch(() => null),
-          callRpc(rpcUrls.evm, 'web3_clientVersion').catch(() => null),
-          callRpc(rpcUrls.evm, 'net_version').catch(() => null),
-          callRpc(rpcUrls.evm, 'eth_chainId').catch(() => null),
-        ]);
+      const [
+        coreVersionResp,
+        coreStatusResp,
+        evmVersionResp,
+        evmNetResp,
+        evmChainIdResp,
+      ] = await Promise.all([
+        callRpc(rpcUrls.core, 'cfx_clientVersion').catch(() => null),
+        callRpc(rpcUrls.core, 'cfx_getStatus').catch(() => null),
+        callRpc(rpcUrls.evm, 'web3_clientVersion').catch(() => null),
+        callRpc(rpcUrls.evm, 'net_version').catch(() => null),
+        callRpc(rpcUrls.evm, 'eth_chainId').catch(() => null),
+      ]);
 
       const parseHex = (hex?: string) => {
         if (!hex) return undefined;
         try {
           return parseInt(hex, 16);
-        } catch (err) {
+        } catch (_err) {
           return undefined;
         }
       };
@@ -1063,8 +1110,11 @@ export function createDevKitRoutes(
         ? parseHex(coreStatusResp.result.chainId as string)
         : config.chainId;
 
-      const evmNetworkId = evmNetResp?.result ? Number(evmNetResp.result as string) : undefined;
-      const evmChainId = parseHex(evmChainIdResp?.result as string) ?? config.evmChainId;
+      const evmNetworkId = evmNetResp?.result
+        ? Number(evmNetResp.result as string)
+        : undefined;
+      const evmChainId =
+        parseHex(evmChainIdResp?.result as string) ?? config.evmChainId;
 
       res.json({
         core: {
@@ -1095,7 +1145,7 @@ export function createDevKitRoutes(
       const config = devkit.getConfig();
       const rpcUrls = devkit.getRpcUrls();
       const miningStatus = devkit.getMiningStatus();
-      
+
       res.json({
         node: {
           chainId: config.chainId,
@@ -1131,7 +1181,7 @@ export function createDevKitRoutes(
       const rpcUrls = devkit.getRpcUrls();
       const miningStatus = devkit.getMiningStatus();
       const keystore = getKeystoreService();
-      
+
       // Format for CLI-style display
       const configView = {
         'Network Configuration': {
@@ -1147,24 +1197,24 @@ export function createDevKitRoutes(
         },
         'RPC URLs': {
           'Core Space': rpcUrls.core,
-          'eSpace': rpcUrls.evm,
+          eSpace: rpcUrls.evm,
         },
         'Mining Configuration': {
-          'Mode': miningStatus?.isRunning ? 'Auto' : 'Manual',
+          Mode: miningStatus?.isRunning ? 'Auto' : 'Manual',
           'Interval (ms)': miningStatus?.interval ?? 'N/A',
-          'Status': miningStatus?.isRunning ? 'Running' : 'Stopped',
+          Status: miningStatus?.isRunning ? 'Running' : 'Stopped',
         },
-        'Wallet': {
+        Wallet: {
           'Active Wallet': keystore.getActiveLabel(),
-          'Wallets Count': keystore.getEntries().length,
+          'Wallets Count': (await keystore.getEntries()).length,
           'Data Directory': await keystore.getDataDir(),
-          'Mnemonic Hash': (await keystore.getMnemonicHash()).substring(0, 8) + '...',
+          'Mnemonic Hash': `${(await keystore.getMnemonicHash()).substring(0, 8)}...`,
         },
-        'Logging': {
-          'Enabled': config.log,
+        Logging: {
+          Enabled: config.log,
         },
       };
-      
+
       res.json(configView);
     } catch (error) {
       logger.error('Failed to get config view:', error);
@@ -1179,10 +1229,10 @@ export function createDevKitRoutes(
   router.post('/config/update', async (req: AuthenticatedRequest, res) => {
     const devkit = getDevKit(); // Always get fresh instance
     try {
-      const { 
-        chainId, 
-        evmChainId, 
-        jsonrpcHttpPort, 
+      const {
+        chainId,
+        evmChainId,
+        jsonrpcHttpPort,
         jsonrpcHttpEthPort,
         logging,
         miningInterval,
@@ -1209,7 +1259,11 @@ export function createDevKitRoutes(
       }
 
       if (jsonrpcHttpPort !== undefined) {
-        if (typeof jsonrpcHttpPort !== 'number' || jsonrpcHttpPort < 1 || jsonrpcHttpPort > 65535) {
+        if (
+          typeof jsonrpcHttpPort !== 'number' ||
+          jsonrpcHttpPort < 1 ||
+          jsonrpcHttpPort > 65535
+        ) {
           return res.status(400).json({ error: 'Invalid jsonrpcHttpPort' });
         }
         updates.jsonrpcHttpPort = jsonrpcHttpPort;
@@ -1217,7 +1271,11 @@ export function createDevKitRoutes(
       }
 
       if (jsonrpcHttpEthPort !== undefined) {
-        if (typeof jsonrpcHttpEthPort !== 'number' || jsonrpcHttpEthPort < 1 || jsonrpcHttpEthPort > 65535) {
+        if (
+          typeof jsonrpcHttpEthPort !== 'number' ||
+          jsonrpcHttpEthPort < 1 ||
+          jsonrpcHttpEthPort > 65535
+        ) {
           return res.status(400).json({ error: 'Invalid jsonrpcHttpEthPort' });
         }
         updates.jsonrpcHttpEthPort = jsonrpcHttpEthPort;
@@ -1232,22 +1290,25 @@ export function createDevKitRoutes(
       // Mining interval can be updated without restart
       if (miningInterval !== undefined) {
         if (typeof miningInterval !== 'number' || miningInterval < 100) {
-          return res.status(400).json({ error: 'Mining interval must be at least 100ms' });
+          return res
+            .status(400)
+            .json({ error: 'Mining interval must be at least 100ms' });
         }
         await devkit.setMiningInterval(miningInterval);
       }
 
       // Note: Node configuration updates require restart to take effect
       // The actual config update would need to be persisted and applied on restart
-      
+
       res.json({
         success: true,
         updates,
         requiresRestart: requiresRestart.length > 0,
         restartRequired: requiresRestart,
-        message: requiresRestart.length > 0 
-          ? `Configuration updated. Restart the node for these changes to take effect: ${requiresRestart.join(', ')}`
-          : 'Configuration updated',
+        message:
+          requiresRestart.length > 0
+            ? `Configuration updated. Restart the node for these changes to take effect: ${requiresRestart.join(', ')}`
+            : 'Configuration updated',
       });
     } catch (error) {
       logger.error('Failed to update configuration:', error);
@@ -1277,7 +1338,7 @@ export function createDevKitRoutes(
       }
 
       const network = currentNetwork;
-      
+
       if (network === 'local') {
         // Use DevKit for local network
         const chainType = chain as 'core' | 'evm';
@@ -1290,22 +1351,31 @@ export function createDevKitRoutes(
         });
 
         // Convert BigInt values to strings for JSON serialization
-        const serializableResult = JSON.parse(JSON.stringify(result, (_key, value) =>
-          typeof value === 'bigint' ? value.toString() : value
-        ));
+        const serializableResult = JSON.parse(
+          JSON.stringify(result, (_key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+          )
+        );
 
         // Send response with custom JSON handling for BigInt
         res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify({
-          result: serializableResult,
-          functionName,
-          chain,
-        }, (_key, value) => typeof value === 'bigint' ? value.toString() : value));
+        res.send(
+          JSON.stringify(
+            {
+              result: serializableResult,
+              functionName,
+              chain,
+            },
+            (_key, value) =>
+              typeof value === 'bigint' ? value.toString() : value
+          )
+        );
       } else {
         // For external networks, we need to implement contract reading
         // For now, return an error since external contract interaction isn't implemented
         res.status(501).json({
-          error: 'Contract interaction on external networks not yet implemented',
+          error:
+            'Contract interaction on external networks not yet implemented',
         });
       }
     } catch (error) {
@@ -1336,7 +1406,7 @@ export function createDevKitRoutes(
       }
 
       const network = currentNetwork;
-      
+
       if (network === 'local') {
         // Use DevKit for local network
         const chainType = chain as 'core' | 'evm';
@@ -1359,7 +1429,8 @@ export function createDevKitRoutes(
         // For external networks, we need to implement contract writing
         // For now, return an error since external contract interaction isn't implemented
         res.status(501).json({
-          error: 'Contract interaction on external networks not yet implemented',
+          error:
+            'Contract interaction on external networks not yet implemented',
         });
       }
     } catch (error) {
@@ -1374,7 +1445,9 @@ export function createDevKitRoutes(
   router.get('/contracts/:address', async (req, res) => {
     try {
       const { address } = req.params;
-      const chainParam = Array.isArray(req.query.chain) ? req.query.chain[0] : req.query.chain;
+      const chainParam = Array.isArray(req.query.chain)
+        ? req.query.chain[0]
+        : req.query.chain;
       const chain = (chainParam ?? 'core') as string;
 
       // For now, just return basic info
@@ -1428,11 +1501,14 @@ export function createDevKitRoutes(
     async (req: AuthenticatedRequest, res) => {
       const devkit = getDevKit(); // Always get fresh instance
       try {
-          const indexParam = Array.isArray(req.params.index)
-            ? req.params.index[0]
-            : req.params.index;
-          const accountIndex = parseInt(indexParam ?? '', 10);
-        const { message, chain = 'core' } = req.body as { message?: string | string[]; chain?: string | string[] };
+        const indexParam = Array.isArray(req.params.index)
+          ? req.params.index[0]
+          : req.params.index;
+        const accountIndex = parseInt(indexParam ?? '', 10);
+        const { message, chain = 'core' } = req.body as {
+          message?: string | string[];
+          chain?: string | string[];
+        };
         const messageValue = Array.isArray(message) ? message[0] : message;
 
         if (!messageValue) {
@@ -1603,7 +1679,7 @@ export function createDevKitRoutes(
         if (status.core.status === 'running') {
           await devkit.stop();
         }
-      } catch (error) {
+      } catch (_error) {
         // Node might already be stopped
         logger.info('Node was not running, proceeding with reset');
       }
@@ -1852,9 +1928,10 @@ export function createDevKitRoutes(
 
       const miningStatus = devkit.getMiningStatus();
       res.json({
-        message: numTxs !== undefined
-          ? `Mined blocks with transaction packing (numTxs=${numTxs})`
-          : `Mined ${blocks} empty blocks`,
+        message:
+          numTxs !== undefined
+            ? `Mined blocks with transaction packing (numTxs=${numTxs})`
+            : `Mined ${blocks} empty blocks`,
         blocks,
         numTxs,
         status: miningStatus,
@@ -1987,7 +2064,7 @@ export function createDevKitRoutes(
       const keystore = getKeystoreService();
       const adminAddress = keystore.getAdminAddress();
       const hasAdminKey = keystore.getAdminPrivateKey() !== null;
-      
+
       res.json({
         adminAddress,
         hasAdminKey,
@@ -2033,25 +2110,28 @@ export function createDevKitRoutes(
   });
 
   // Reset admin to default (first account of active mnemonic)
-  router.post('/wallet/admin/reset', async (_req: AuthenticatedRequest, res) => {
-    try {
-      const keystore = getKeystoreService();
-      await keystore.resetAdminToDefault();
-      const adminAddress = keystore.getAdminAddress();
+  router.post(
+    '/wallet/admin/reset',
+    async (_req: AuthenticatedRequest, res) => {
+      try {
+        const keystore = getKeystoreService();
+        await keystore.resetAdminToDefault();
+        const adminAddress = keystore.getAdminAddress();
 
-      res.json({
-        success: true,
-        adminAddress,
-        message: 'Admin reset to first account of active mnemonic',
-      });
-    } catch (error) {
-      logger.error('Failed to reset admin:', error);
-      res.status(400).json({
-        error: 'Failed to reset admin',
-        details: error instanceof Error ? error.message : String(error),
-      });
+        res.json({
+          success: true,
+          adminAddress,
+          message: 'Admin reset to first account of active mnemonic',
+        });
+      } catch (error) {
+        logger.error('Failed to reset admin:', error);
+        res.status(400).json({
+          error: 'Failed to reset admin',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
-  });
+  );
 
   // ============================================
   // ENCRYPTION ENDPOINTS
@@ -2073,341 +2153,406 @@ export function createDevKitRoutes(
   });
 
   // Get encryption status
-  router.get('/wallet/encryption/status', async (_req: AuthenticatedRequest, res) => {
-    try {
-      const keystore = getKeystoreService();
-      res.json({
-        enabled: keystore.isEncrypted(),
-        unlocked: keystore.isUnlocked(),
-      });
-    } catch (error) {
-      logger.error('Failed to get encryption status:', error);
-      res.status(500).json({
-        error: 'Failed to get encryption status',
-        details: error instanceof Error ? error.message : String(error),
-      });
+  router.get(
+    '/wallet/encryption/status',
+    async (_req: AuthenticatedRequest, res) => {
+      try {
+        const keystore = getKeystoreService();
+        res.json({
+          enabled: keystore.isEncrypted(),
+          unlocked: !keystore.isLocked(),
+        });
+      } catch (error) {
+        logger.error('Failed to get encryption status:', error);
+        res.status(500).json({
+          error: 'Failed to get encryption status',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
-  });
+  );
 
   // Enable encryption
-  router.post('/wallet/encryption/enable', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { password } = req.body;
-      const keystore = getKeystoreService();
+  router.post(
+    '/wallet/encryption/enable',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { password } = req.body;
+        const keystore = getKeystoreService();
 
-      if (!password || typeof password !== 'string') {
-        return res.status(400).json({
-          error: 'Invalid password',
-          message: 'Password is required',
+        if (!password || typeof password !== 'string') {
+          return res.status(400).json({
+            error: 'Invalid password',
+            message: 'Password is required',
+          });
+        }
+
+        await keystore.enableEncryption(password);
+
+        res.json({
+          success: true,
+          message: 'Encryption enabled successfully',
+        });
+      } catch (error) {
+        logger.error('Failed to enable encryption:', error);
+        res.status(400).json({
+          error: 'Failed to enable encryption',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      await keystore.enableEncryption(password);
-
-      res.json({
-        success: true,
-        message: 'Encryption enabled successfully',
-      });
-    } catch (error) {
-      logger.error('Failed to enable encryption:', error);
-      res.status(400).json({
-        error: 'Failed to enable encryption',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Disable encryption
-  router.post('/wallet/encryption/disable', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { password } = req.body;
-      const keystore = getKeystoreService();
+  router.post(
+    '/wallet/encryption/disable',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { password } = req.body;
+        const keystore = getKeystoreService();
 
-      if (!password || typeof password !== 'string') {
-        return res.status(400).json({
-          error: 'Invalid password',
-          message: 'Password is required',
+        if (!password || typeof password !== 'string') {
+          return res.status(400).json({
+            error: 'Invalid password',
+            message: 'Password is required',
+          });
+        }
+
+        await keystore.disableEncryption(password);
+
+        res.json({
+          success: true,
+          message: 'Encryption disabled successfully',
+        });
+      } catch (error) {
+        logger.error('Failed to disable encryption:', error);
+        res.status(400).json({
+          error: 'Failed to disable encryption',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      await keystore.disableEncryption(password);
-
-      res.json({
-        success: true,
-        message: 'Encryption disabled successfully',
-      });
-    } catch (error) {
-      logger.error('Failed to disable encryption:', error);
-      res.status(400).json({
-        error: 'Failed to disable encryption',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Unlock encrypted keystore
-  router.post('/wallet/encryption/unlock', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { password } = req.body;
-      const keystore = getKeystoreService();
+  router.post(
+    '/wallet/encryption/unlock',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { password } = req.body;
+        const keystore = getKeystoreService();
 
-      if (!password || typeof password !== 'string') {
-        return res.status(400).json({
-          error: 'Invalid password',
-          message: 'Password is required',
+        if (!password || typeof password !== 'string') {
+          return res.status(400).json({
+            error: 'Invalid password',
+            message: 'Password is required',
+          });
+        }
+
+        await keystore.unlock(password);
+
+        res.json({
+          success: true,
+          message: 'Keystore unlocked successfully',
+        });
+      } catch (error) {
+        logger.error('Failed to unlock keystore:', error);
+        res.status(400).json({
+          error: 'Failed to unlock keystore',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      const unlocked = await keystore.unlock(password);
-
-      if (!unlocked) {
-        return res.status(401).json({
-          error: 'Invalid password',
-          message: 'The provided password is incorrect',
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Keystore unlocked successfully',
-      });
-    } catch (error) {
-      logger.error('Failed to unlock keystore:', error);
-      res.status(400).json({
-        error: 'Failed to unlock keystore',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Add a new mnemonic to keystore (with node restart support)
-  router.post('/wallet/keystore/add', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { mnemonic, label, setActive, generate } = req.body;
-      const keystore = getKeystoreService();
+  router.post(
+    '/wallet/keystore/add',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { mnemonic, label, setActive, generate } = req.body;
+        const keystore = getKeystoreService();
 
-      // If generate is true, create a new mnemonic
-      const mnemonicToAdd = generate ? undefined : mnemonic;
+        // If generate is true, create a new mnemonic
+        const mnemonicToAdd = generate ? undefined : mnemonic;
 
-      // Validate mnemonic if provided
-      if (mnemonicToAdd && !keystore.validateMnemonic(mnemonicToAdd)) {
-        return res.status(400).json({
-          error: 'Invalid mnemonic',
-          message: 'The provided mnemonic phrase is not valid BIP-39',
-        });
-      }
-
-      // Use DevKitManager if available and setActive is true
-      if (devkitManager && typeof devkitManager.addMnemonic === 'function' && setActive) {
-        logger.info('Adding new wallet via DevKitManager with auto-switch...');
-
-        const result = await devkitManager.addMnemonic({
-          mnemonic: mnemonicToAdd,
-          label,
-          setActive: true,
-        });
-
-        const response: any = {
-          success: true,
-          index: result.index,
-          label: result.label,
-          switchedTo: result.switchedTo,
-          message: result.switchedTo
-            ? `Wallet "${result.label}" added and activated (node restarted)`
-            : `Wallet "${result.label}" added successfully`,
-        };
-
-        // If generated, retrieve and return the mnemonic
-        if (generate) {
-          const newMnemonic = await keystore.showActiveMnemonic(true);
-          response.mnemonic = newMnemonic;
-          response.warning = 'Save this mnemonic phrase securely. It will not be shown again.';
+        // Validate mnemonic if provided
+        if (mnemonicToAdd && !keystore.validateMnemonic(mnemonicToAdd)) {
+          return res.status(400).json({
+            error: 'Invalid mnemonic',
+            message: 'The provided mnemonic phrase is not valid BIP-39',
+          });
         }
 
-        res.json(response);
-      } else {
-        // Fallback to keystore-only (legacy mode or setActive=false)
-        const result = await keystore.addMnemonic({
-          mnemonic: mnemonicToAdd,
-          label,
-          setActive: setActive ?? false,
-        });
+        // Use DevKitManager if available and setActive is true
+        if (
+          devkitManager &&
+          typeof devkitManager.addMnemonic === 'function' &&
+          setActive
+        ) {
+          logger.info(
+            'Adding new wallet via DevKitManager with auto-switch...'
+          );
 
-        const response: any = {
-          success: true,
-          index: result.index,
-          label: result.label,
-          message: `Wallet "${result.label}" added successfully`,
-        };
+          const result = await devkitManager.addMnemonic({
+            mnemonic: mnemonicToAdd,
+            label,
+            setActive: true,
+          });
 
-        if (generate) {
-          // Get the newly generated mnemonic to show the user once
-          const entries = keystore.getEntries();
-          const newEntry = entries[result.index];
-          if (newEntry && setActive) {
-            response.mnemonic = await keystore.showActiveMnemonic(true);
-            response.warning = 'Save this mnemonic phrase securely. It will not be shown again.';
+          const response: any = {
+            success: true,
+            index: result.index,
+            label: result.label,
+            switchedTo: result.switchedTo,
+            message: result.switchedTo
+              ? `Wallet "${result.label}" added and activated (node restarted)`
+              : `Wallet "${result.label}" added successfully`,
+          };
+
+          // If generated, retrieve and return the mnemonic
+          if (generate) {
+            const newMnemonic = await keystore.showActiveMnemonic();
+            response.mnemonic = newMnemonic;
+            response.warning =
+              'Save this mnemonic phrase securely. It will not be shown again.';
           }
-        }
 
-        res.json(response);
+          res.json(response);
+        } else {
+          // Fallback to keystore-only (legacy mode or setActive=false)
+          const result = await keystore.addMnemonic({
+            mnemonic: mnemonicToAdd,
+            label,
+            setAsActive: setActive ?? false,
+            nodeConfig: {
+              accountsCount: 10,
+              chainId: 2029,
+              evmChainId: 2030,
+            },
+          });
+
+          const response: any = {
+            success: true,
+            id: result.id,
+            label: result.label,
+            message: `Wallet "${result.label}" added successfully`,
+          };
+
+          if (generate) {
+            // Get the newly generated mnemonic to show the user once
+            const entries = await keystore.getEntries();
+            const newEntry = entries.find((e) => e.id === result.id);
+            if (newEntry && setActive) {
+              response.mnemonic = await keystore.showActiveMnemonic();
+              response.warning =
+                'Save this mnemonic phrase securely. It will not be shown again.';
+            }
+          }
+
+          res.json(response);
+        }
+      } catch (error) {
+        logger.error('Failed to add mnemonic:', error);
+        res.status(500).json({
+          error: 'Failed to add mnemonic',
+          details: error instanceof Error ? error.message : String(error),
+        });
       }
-    } catch (error) {
-      logger.error('Failed to add mnemonic:', error);
-      res.status(500).json({
-        error: 'Failed to add mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Delete a mnemonic from keystore
-  router.delete('/wallet/keystore/:index', async (req: AuthenticatedRequest, res) => {
-    try {
-      const indexParam = req.params.index;
-      const index = parseInt(Array.isArray(indexParam) ? indexParam[0] : indexParam, 10);
-      const keystore = getKeystoreService();
+  router.delete(
+    '/wallet/keystore/:index',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const indexParam = req.params.index;
+        const index = parseInt(
+          Array.isArray(indexParam) ? indexParam[0] : indexParam,
+          10
+        );
+        const keystore = getKeystoreService();
 
-      if (isNaN(index)) {
-        return res.status(400).json({
-          error: 'Invalid index',
-          message: 'Index must be a number',
+        if (Number.isNaN(index)) {
+          return res.status(400).json({
+            error: 'Invalid index',
+            message: 'Index must be a number',
+          });
+        }
+
+        // Convert index to mnemonic ID
+        const entries = await keystore.getEntries();
+        if (index < 0 || index >= entries.length) {
+          return res.status(400).json({
+            error: 'Invalid index',
+            message: `Index ${index} is out of range`,
+          });
+        }
+        const mnemonicId = entries[index].id;
+        await keystore.deleteMnemonic(mnemonicId);
+
+        res.json({
+          success: true,
+          message: `Wallet at index ${index} deleted`,
+          activeIndex: keystore.getActiveIndex(),
+        });
+      } catch (error) {
+        logger.error('Failed to delete mnemonic:', error);
+        res.status(400).json({
+          error: 'Failed to delete mnemonic',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      await keystore.deleteMnemonic(index);
-
-      res.json({
-        success: true,
-        message: `Wallet at index ${index} deleted`,
-        activeIndex: keystore.getActiveIndex(),
-      });
-    } catch (error) {
-      logger.error('Failed to delete mnemonic:', error);
-      res.status(400).json({
-        error: 'Failed to delete mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Set active mnemonic (with node restart support)
-  router.post('/wallet/keystore/select', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { index } = req.body;
-
-      if (typeof index !== 'number') {
-        return res.status(400).json({
-          error: 'Invalid index',
-          message: 'Index must be a number',
-        });
-      }
-
-      // Use DevKitManager if available for proper node restart
-      if (devkitManager && typeof devkitManager.switchMnemonic === 'function') {
-        logger.info(`Switching to wallet index ${index} via DevKitManager...`);
-
-        const result = await devkitManager.switchMnemonic(index);
-
-        res.json({
-          success: true,
-          activeIndex: index,
-          activeLabel: result.activeLabel,
-          dataDir: result.dataDir,
-          nodeRestarted: result.nodeRestarted,
-          message: result.nodeRestarted
-            ? `Switched to "${result.activeLabel}" and restarted node`
-            : `Switched to "${result.activeLabel}"`,
-        });
-      } else {
-        // Fallback to keystore-only update (legacy mode)
-        logger.warn('DevKitManager not available, using legacy mnemonic switch (node will NOT restart)');
+  router.post(
+    '/wallet/keystore/select',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { index } = req.body;
         const keystore = getKeystoreService();
-        await keystore.setActiveMnemonic(index);
 
-        res.json({
-          success: true,
-          activeIndex: index,
-          activeLabel: keystore.getActiveLabel(),
-          nodeRestarted: false,
-          message: `Active wallet set to "${keystore.getActiveLabel()}" (manual node restart required)`,
+        if (typeof index !== 'number') {
+          return res.status(400).json({
+            error: 'Invalid index',
+            message: 'Index must be a number',
+          });
+        }
+
+        // Convert index to mnemonic ID
+        const entries = await keystore.getEntries();
+        if (index < 0 || index >= entries.length) {
+          return res.status(400).json({
+            error: 'Invalid index',
+            message: `Index ${index} is out of range`,
+          });
+        }
+        const mnemonicId = entries[index].id;
+
+        // Use DevKitManager if available for proper node restart
+        if (
+          devkitManager &&
+          typeof devkitManager.switchMnemonic === 'function'
+        ) {
+          logger.info(
+            `Switching to wallet index ${index} (${mnemonicId}) via DevKitManager...`
+          );
+
+          const result = await devkitManager.switchMnemonic(mnemonicId);
+
+          res.json({
+            success: true,
+            activeIndex: index,
+            activeLabel: result.activeLabel,
+            dataDir: result.dataDir,
+            nodeRestarted: result.nodeRestarted,
+            message: result.nodeRestarted
+              ? `Switched to "${result.activeLabel}" and restarted node`
+              : `Switched to "${result.activeLabel}"`,
+          });
+        } else {
+          // Fallback to keystore-only update (legacy mode)
+          logger.warn(
+            'DevKitManager not available, using legacy mnemonic switch (node will NOT restart)'
+          );
+          await keystore.setActiveMnemonic(index);
+
+          res.json({
+            success: true,
+            activeIndex: index,
+            activeLabel: keystore.getActiveLabel(),
+            nodeRestarted: false,
+            message: `Active wallet set to "${keystore.getActiveLabel()}" (manual node restart required)`,
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to select mnemonic:', error);
+        res.status(400).json({
+          error: 'Failed to select mnemonic',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-    } catch (error) {
-      logger.error('Failed to select mnemonic:', error);
-      res.status(400).json({
-        error: 'Failed to select mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Update mnemonic label
-  router.patch('/wallet/keystore/:index/label', async (req: AuthenticatedRequest, res) => {
-    try {
-      const indexParam = req.params.index;
-      const index = parseInt(Array.isArray(indexParam) ? indexParam[0] : indexParam, 10);
-      const { label } = req.body;
-      const keystore = getKeystoreService();
+  router.patch(
+    '/wallet/keystore/:index/label',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const indexParam = req.params.index;
+        const index = parseInt(
+          Array.isArray(indexParam) ? indexParam[0] : indexParam,
+          10
+        );
+        const { label } = req.body;
+        const keystore = getKeystoreService();
 
-      if (isNaN(index) || !label) {
-        return res.status(400).json({
-          error: 'Invalid parameters',
-          message: 'Index must be a number and label is required',
+        if (Number.isNaN(index) || !label) {
+          return res.status(400).json({
+            error: 'Invalid parameters',
+            message: 'Index must be a number and label is required',
+          });
+        }
+
+        await keystore.updateLabel(index, label);
+
+        res.json({
+          success: true,
+          index,
+          label,
+          message: `Wallet label updated to "${label}"`,
+        });
+      } catch (error) {
+        logger.error('Failed to update label:', error);
+        res.status(400).json({
+          error: 'Failed to update label',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      await keystore.updateLabel(index, label);
-
-      res.json({
-        success: true,
-        index,
-        label,
-        message: `Wallet label updated to "${label}"`,
-      });
-    } catch (error) {
-      logger.error('Failed to update label:', error);
-      res.status(400).json({
-        error: 'Failed to update label',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Show active mnemonic (requires confirmation)
-  router.post('/wallet/keystore/show-mnemonic', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { confirmed } = req.body;
-      const keystore = getKeystoreService();
+  router.post(
+    '/wallet/keystore/show-mnemonic',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { confirmed } = req.body;
+        const keystore = getKeystoreService();
 
-      if (!confirmed) {
-        return res.status(400).json({
-          error: 'Confirmation required',
-          message: 'You must confirm to view the mnemonic phrase',
-          requiresConfirmation: true,
+        if (!confirmed) {
+          return res.status(400).json({
+            error: 'Confirmation required',
+            message: 'You must confirm to view the mnemonic phrase',
+            requiresConfirmation: true,
+          });
+        }
+
+        const mnemonic = await keystore.showActiveMnemonic();
+
+        res.json({
+          mnemonic,
+          label: keystore.getActiveLabel(),
+          warning: 'Keep this mnemonic phrase secure and never share it.',
+        });
+      } catch (error) {
+        logger.error('Failed to show mnemonic:', error);
+        res.status(500).json({
+          error: 'Failed to show mnemonic',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      const mnemonic = keystore.showActiveMnemonic(true);
-
-      res.json({
-        mnemonic,
-        label: keystore.getActiveLabel(),
-        warning: 'Keep this mnemonic phrase secure and never share it.',
-      });
-    } catch (error) {
-      logger.error('Failed to show mnemonic:', error);
-      res.status(500).json({
-        error: 'Failed to show mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
 
   // Derive a single account
   router.get('/wallet/derive', async (req: AuthenticatedRequest, res) => {
     try {
-      const { network, index, customPath } = req.query;
+      const { network, index } = req.query;
       const keystore = getKeystoreService();
 
       if (!network || !['core', 'espace'].includes(network as string)) {
@@ -2417,19 +2562,19 @@ export function createDevKitRoutes(
         });
       }
 
-      const networkConfig = getNetworkConfig(currentNetwork);
-      const account = await keystore.deriveAccount({
-        network: network as 'core' | 'espace',
-        index: index ? parseInt(index as string, 10) : 0,
-        customPath: customPath as string | undefined,
-        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
-      });
+      const accountIndex = index ? parseInt(index as string, 10) : 0;
+      const account = await keystore.deriveAccount(
+        accountIndex,
+        network as 'core' | 'espace'
+      );
 
       res.json({
-        address: account.address,
-        path: account.path,
+        address: network === 'core' ? account.core : account.evm,
+        path:
+          account.path ||
+          `m/44'/${network === 'core' ? '503' : '60'}'/0'/0/${accountIndex}`,
         index: account.index,
-        network: account.network,
+        network: network,
         // Note: privateKey is intentionally omitted for security
         // Use /wallet/private-key endpoint to get it
       });
@@ -2445,7 +2590,7 @@ export function createDevKitRoutes(
   // Derive multiple accounts
   router.get('/wallet/derive/batch', async (req: AuthenticatedRequest, res) => {
     try {
-      const { network, count, startIndex } = req.query;
+      const { network, count } = req.query;
       const keystore = getKeystoreService();
 
       if (!network || !['core', 'espace'].includes(network as string)) {
@@ -2455,21 +2600,23 @@ export function createDevKitRoutes(
         });
       }
 
-      const networkConfig = getNetworkConfig(currentNetwork);
-      const accounts = await keystore.deriveAccounts({
-        network: network as 'core' | 'espace',
-        count: count ? Math.min(parseInt(count as string, 10), 100) : 10,
-        startIndex: startIndex ? parseInt(startIndex as string, 10) : 0,
-        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
-      });
+      const accountCount = count
+        ? Math.min(parseInt(count as string, 10), 100)
+        : 10;
+      const accounts = await keystore.deriveAccounts(
+        accountCount,
+        network as 'core' | 'espace'
+      );
 
       // Return addresses only, not private keys
       res.json({
-        accounts: accounts.map(acc => ({
-          address: acc.address,
-          path: acc.path,
+        accounts: accounts.map((acc: DerivedAccount) => ({
+          address: network === 'core' ? acc.core : acc.evm,
+          path:
+            acc.path ||
+            `m/44'/${network === 'core' ? '503' : '60'}'/0'/0/${acc.index}`,
           index: acc.index,
-          network: acc.network,
+          network: network,
         })),
         activeWallet: keystore.getActiveLabel(),
       });
@@ -2485,7 +2632,7 @@ export function createDevKitRoutes(
   // Get private key (requires explicit request)
   router.post('/wallet/private-key', async (req: AuthenticatedRequest, res) => {
     try {
-      const { network, index, customPath, confirmed } = req.body;
+      const { network, index, confirmed } = req.body;
       const keystore = getKeystoreService();
 
       if (!confirmed) {
@@ -2503,19 +2650,19 @@ export function createDevKitRoutes(
         });
       }
 
-      const networkConfig = getNetworkConfig(currentNetwork);
-      const account = await keystore.deriveAccount({
-        network: network as 'core' | 'espace',
-        index: index ?? 0,
-        customPath,
-        networkId: network === 'core' ? networkConfig.coreNetworkId : undefined,
-      });
+      const accountIndex = index ?? 0;
+      const account = await keystore.deriveAccount(
+        accountIndex,
+        network as 'core' | 'espace'
+      );
 
       res.json({
         privateKey: account.privateKey,
-        address: account.address,
-        path: account.path,
-        network: account.network,
+        address: network === 'core' ? account.core : account.evm,
+        path:
+          account.path ||
+          `m/44'/${network === 'core' ? '503' : '60'}'/0'/0/${accountIndex}`,
+        network: network,
         warning: 'Keep this private key secure and never share it.',
       });
     } catch (error) {
@@ -2528,53 +2675,62 @@ export function createDevKitRoutes(
   });
 
   // Generate a new mnemonic (preview, not saved)
-  router.get('/wallet/generate-mnemonic', async (_req: AuthenticatedRequest, res) => {
-    try {
-      const keystore = getKeystoreService();
-      const mnemonic = keystore.generateMnemonic();
+  router.get(
+    '/wallet/generate-mnemonic',
+    async (_req: AuthenticatedRequest, res) => {
+      try {
+        const keystore = getKeystoreService();
+        const mnemonic = keystore.generateMnemonic();
 
-      res.json({
-        mnemonic,
-        message: 'This mnemonic is not saved. Use POST /wallet/keystore/add to save it.',
-        wordCount: mnemonic.split(' ').length,
-      });
-    } catch (error) {
-      logger.error('Failed to generate mnemonic:', error);
-      res.status(500).json({
-        error: 'Failed to generate mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  });
-
-  // Validate a mnemonic phrase
-  router.post('/wallet/validate-mnemonic', async (req: AuthenticatedRequest, res) => {
-    try {
-      const { mnemonic } = req.body;
-      const keystore = getKeystoreService();
-
-      if (!mnemonic) {
-        return res.status(400).json({
-          error: 'Mnemonic required',
-          message: 'Please provide a mnemonic phrase to validate',
+        res.json({
+          mnemonic,
+          message:
+            'This mnemonic is not saved. Use POST /wallet/keystore/add to save it.',
+          wordCount: mnemonic.split(' ').length,
+        });
+      } catch (error) {
+        logger.error('Failed to generate mnemonic:', error);
+        res.status(500).json({
+          error: 'Failed to generate mnemonic',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-
-      const isValid = keystore.validateMnemonic(mnemonic);
-
-      res.json({
-        valid: isValid,
-        wordCount: mnemonic.split(' ').length,
-        message: isValid ? 'Valid BIP-39 mnemonic' : 'Invalid mnemonic phrase',
-      });
-    } catch (error) {
-      logger.error('Failed to validate mnemonic:', error);
-      res.status(500).json({
-        error: 'Failed to validate mnemonic',
-        details: error instanceof Error ? error.message : String(error),
-      });
     }
-  });
+  );
+
+  // Validate a mnemonic phrase
+  router.post(
+    '/wallet/validate-mnemonic',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { mnemonic } = req.body;
+        const keystore = getKeystoreService();
+
+        if (!mnemonic) {
+          return res.status(400).json({
+            error: 'Mnemonic required',
+            message: 'Please provide a mnemonic phrase to validate',
+          });
+        }
+
+        const isValid = keystore.validateMnemonic(mnemonic);
+
+        res.json({
+          valid: isValid,
+          wordCount: mnemonic.split(' ').length,
+          message: isValid
+            ? 'Valid BIP-39 mnemonic'
+            : 'Invalid mnemonic phrase',
+        });
+      } catch (error) {
+        logger.error('Failed to validate mnemonic:', error);
+        res.status(500).json({
+          error: 'Failed to validate mnemonic',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  );
 
   return router;
 }

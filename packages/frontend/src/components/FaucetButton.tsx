@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-    Alert,
-    Badge,
-    Button,
-    Group,
-    Modal,
-    NumberInput,
-    Stack,
-    Text,
-    TextInput,
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  Stack,
+  Text,
+  TextInput,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconDroplet } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 /**
  * Faucet button for navbar with modal containing faucet controls
@@ -77,10 +77,10 @@ export function FaucetButton() {
         message: `${amountStr} CFX sent to ${recipientAddress.slice(0, 10)}... (${chain === 'core' ? 'Core Space' : 'eSpace'})`,
         color: 'green',
       });
-      
+
       // Trigger balance refresh globally
       window.dispatchEvent(new CustomEvent('wallet:balance-update'));
-      
+
       setRecipientAddress('');
       setAmount(10);
       close();

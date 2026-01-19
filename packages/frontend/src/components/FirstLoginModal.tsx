@@ -117,7 +117,8 @@ export function FirstLoginModal({
     <Stack gap="md">
       <Alert icon={<IconAlertTriangle size={20} />} title="Test Mnemonic Detected" color="yellow">
         <Text size="sm">
-          You are using the default test mnemonic. This is insecure and should only be used for development.
+          You are using the default test mnemonic. This is insecure and should only be used for
+          development.
         </Text>
         <Text size="sm" mt="xs">
           The test mnemonic is publicly known and should never be used with real funds.
@@ -195,11 +196,7 @@ export function FirstLoginModal({
         <Button variant="subtle" onClick={() => setMode('warning')}>
           Back
         </Button>
-        <Button
-          onClick={handleSetCustom}
-          loading={loading}
-          disabled={!customMnemonic.trim()}
-        >
+        <Button onClick={handleSetCustom} loading={loading} disabled={!customMnemonic.trim()}>
           Set Mnemonic
         </Button>
       </Group>
@@ -210,7 +207,8 @@ export function FirstLoginModal({
     <Stack gap="md">
       <Alert icon={<IconKey size={20} />} title="Your New Mnemonic" color="blue">
         <Text size="sm" mb="xs">
-          Write down this mnemonic phrase and store it in a safe place. You'll need it to recover your wallet.
+          Write down this mnemonic phrase and store it in a safe place. You'll need it to recover
+          your wallet.
         </Text>
         <Text
           size="sm"
@@ -252,7 +250,8 @@ export function FirstLoginModal({
   const renderEncryption = () => (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
-        Encrypt the current mnemonic with a password. You'll need this password to unlock your wallet after restart.
+        Encrypt the current mnemonic with a password. You'll need this password to unlock your
+        wallet after restart.
       </Text>
 
       <PasswordInput

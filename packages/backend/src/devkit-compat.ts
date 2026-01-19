@@ -23,16 +23,26 @@
  * new plugin-based architecture.
  */
 
-import { ServerManager, type AccountInfo, type MiningStatus, type ServerConfig } from '@conflux-devkit/plugin-devnode';
-import { http as coreHttp, createPublicClient as createCorePublicClient, formatCFX } from 'cive';
-import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
 import { promises as fs } from 'node:fs';
+import {
+  type AccountInfo,
+  type MiningStatus,
+  type ServerConfig,
+  ServerManager,
+} from '@conflux-devkit/plugin-devnode';
+import {
+  http as coreHttp,
+  createPublicClient as createCorePublicClient,
+  formatCFX,
+} from 'cive';
+import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
 import { createPublicClient, createWalletClient, http as viemHttp } from 'viem';
 import { privateKeyToAccount as evmPrivateKeyToAccount } from 'viem/accounts';
 export interface DevKitConfig {
   chainId: number;
   evmChainId: number;
   accountsCount?: number;
+  miningAuthor?: string; // Custom mining rewards address
   jsonrpcHttpPort: number;
   jsonrpcHttpEthPort: number;
   jsonrpcWsPort?: number;
@@ -60,7 +70,11 @@ export interface DevKitAccount {
     signMessage: (message: string) => Promise<string>;
   };
   getBalance: (chain: 'core' | 'evm') => Promise<string>;
-  transfer: (to: string, value: string, chain: 'core' | 'evm') => Promise<string>;
+  transfer: (
+    to: string,
+    value: string,
+    chain: 'core' | 'evm'
+  ) => Promise<string>;
 }
 
 /**
@@ -81,6 +95,10 @@ export class DevKitCompat {
 
   constructor(config: DevKitConfig) {
     this._config = config;
+
+    // Extract accountsCount and miningAuthor from config
+    this.accountsCount = config.accountsCount ?? 10;
+    this.miningAuthor = config.miningAuthor;
 
     // Map BackendServerConfig to ServerConfig
     // Following xcfx-node test pattern: no auto block generation
@@ -145,9 +163,29 @@ export class DevKitCompat {
     }
 
     // If accountsCount changed, need to recreate ServerManager
-    if (options?.accountsCount !== undefined && options.accountsCount !== this.accountsCount) {
-      console.log(`Updating accounts count from ${this.accountsCount} to ${options.accountsCount}`);
+    if (
+      options?.accountsCount !== undefined &&
+      options.accountsCount !== this.accountsCount
+    ) {
+      console.log(
+        `Updating accounts count from ${this.accountsCount} to ${options.accountsCount}`
+      );
       this.accountsCount = Math.max(1, Math.min(20, options.accountsCount)); // Clamp 1-20
+
+      // CRITICAL: Stop old ServerManager if it's running before creating new one
+      // Otherwise old instance holds ports and new one fails to start
+      try {
+        const oldStatus = this.serverManager.getStatus();
+        if (oldStatus === 'running') {
+          console.log(
+            'Stopping old ServerManager before recreating with new config...'
+          );
+          await this.serverManager.stop();
+        }
+      } catch (error) {
+        console.warn('Failed to check/stop old ServerManager:', error);
+        // Continue anyway - might not be running
+      }
 
       // Recreate ServerManager with new accounts count
       const serverConfig: ServerConfig = {
@@ -163,11 +201,25 @@ export class DevKitCompat {
         miningAuthor: this.miningAuthor,
         dataDir: this._config.dataDir,
       };
-      
+
       this.serverManager = new ServerManager(serverConfig);
     } else if (this.miningAuthor) {
       // If only miningAuthor changed, recreate ServerManager
       console.log(`Setting mining author to: ${this.miningAuthor}`);
+
+      // CRITICAL: Stop old ServerManager if it's running before creating new one
+      try {
+        const oldStatus = this.serverManager.getStatus();
+        if (oldStatus === 'running') {
+          console.log(
+            'Stopping old ServerManager before recreating with new mining author...'
+          );
+          await this.serverManager.stop();
+        }
+      } catch (error) {
+        console.warn('Failed to check/stop old ServerManager:', error);
+      }
+
       const serverConfig: ServerConfig = {
         chainId: this._config.chainId,
         evmChainId: this._config.evmChainId,
@@ -181,7 +233,7 @@ export class DevKitCompat {
         miningAuthor: this.miningAuthor,
         dataDir: this._config.dataDir,
       };
-      
+
       this.serverManager = new ServerManager(serverConfig);
     }
 
@@ -190,7 +242,7 @@ export class DevKitCompat {
     if (options && !options.configChanged) {
       console.log('Starting node with options:', options);
     }
-    
+
     await this.serverManager.start();
   }
 
@@ -270,7 +322,7 @@ export class DevKitCompat {
    */
   async mineBlocks(blocks: number = 1, numTxs?: number): Promise<void> {
     const rpcUrls = this.getRpcUrls();
-    
+
     // Dynamically import cive test client
     const { createTestClient, http } = await import('cive');
     const testClient = createTestClient({
@@ -292,7 +344,9 @@ export class DevKitCompat {
   /**
    * Get all accounts with their addresses
    */
-  getAccounts(): Array<AccountInfo & { address: { core: string; evm: string } }> {
+  getAccounts(): Array<
+    AccountInfo & { address: { core: string; evm: string } }
+  > {
     const accounts = this.serverManager.getAccounts();
     return accounts.map((acc) => ({
       ...acc,
@@ -309,7 +363,9 @@ export class DevKitCompat {
   account(index: number): DevKitAccount {
     const accounts = this.serverManager.getAccounts();
     if (index < 0 || index >= accounts.length) {
-      throw new Error(`Invalid account index: ${index}. Valid range: 0-${accounts.length - 1}`);
+      throw new Error(
+        `Invalid account index: ${index}. Valid range: 0-${accounts.length - 1}`
+      );
     }
 
     const acc = accounts[index];
@@ -334,7 +390,9 @@ export class DevKitCompat {
       core: {
         signMessage: async (message: string) => {
           // Use cive wallet client for signing
-          const { createWalletClient: createCoreWalletClient } = await import('cive');
+          const { createWalletClient: createCoreWalletClient } = await import(
+            'cive'
+          );
           const walletClient = createCoreWalletClient({
             account: coreAccount,
             transport: coreHttp(rpcUrls.core),
@@ -356,20 +414,29 @@ export class DevKitCompat {
           const client = createCorePublicClient({
             transport: coreHttp(rpcUrls.core),
           });
-          const balance = await client.getBalance({ address: acc.coreAddress as any });
+          const balance = await client.getBalance({
+            address: acc.coreAddress as any,
+          });
           return formatCFX(balance);
         } else {
           const client = createPublicClient({
             transport: viemHttp(rpcUrls.evm),
           });
           const { formatUnits } = await import('viem');
-          const balance = await client.getBalance({ address: acc.evmAddress as `0x${string}` });
+          const balance = await client.getBalance({
+            address: acc.evmAddress as `0x${string}`,
+          });
           return formatUnits(balance, 18);
         }
       },
-      transfer: async (to: string, value: string, chain: 'core' | 'evm'): Promise<string> => {
+      transfer: async (
+        to: string,
+        value: string,
+        chain: 'core' | 'evm'
+      ): Promise<string> => {
         if (chain === 'core') {
-          const { createWalletClient: createCoreWalletClient, parseCFX } = await import('cive');
+          const { createWalletClient: createCoreWalletClient, parseCFX } =
+            await import('cive');
           const walletClient = createCoreWalletClient({
             account: coreAccount,
             transport: coreHttp(rpcUrls.core),
@@ -403,7 +470,9 @@ export class DevKitCompat {
    * Get faucet/mining account (dedicated mining account with derivation path m/44'/503'/1'/0/0)
    * This is separate from genesis accounts and receives all mining rewards
    */
-  async getFaucetAccount(): Promise<AccountInfo & { address: { core: string; evm: string } }> {
+  async getFaucetAccount(): Promise<
+    AccountInfo & { address: { core: string; evm: string } }
+  > {
     // Get the actual mining account from ServerManager
     const miningAcc = this.serverManager.getFaucetAccount();
     return {
@@ -422,33 +491,50 @@ export class DevKitCompat {
   async fundAccount(address: string, amount: string): Promise<string> {
     // Get the actual mining/faucet account
     const faucet = await this.getFaucetAccount();
-    console.log('fundAccount called:', { address, amount, faucetAddress: faucet.address });
-    
+    console.log('fundAccount called:', {
+      address,
+      amount,
+      faucetAddress: faucet.address,
+    });
+
     // Import address validators
     const { isAddress: isCoreAddress } = await import('cive/utils');
     const { isAddress: isEspaceAddress } = await import('viem');
-    const { hexAddressToBase32, encodeFunctionData } = await import('cive/utils');
-    
+    const { hexAddressToBase32, encodeFunctionData } = await import(
+      'cive/utils'
+    );
+
     const isCore = isCoreAddress(address);
     const isEspace = isEspaceAddress(address);
-    
+
     if (!isCore && !isEspace) {
-      throw new Error('Invalid address format (must be Core or eSpace address)');
+      throw new Error(
+        'Invalid address format (must be Core or eSpace address)'
+      );
     }
-    
+
     const rpcUrls = this.getRpcUrls();
-    const { createWalletClient: createCoreWalletClient, parseCFX, http: coreHttp } = await import('cive');
-    const { privateKeyToAccount: corePrivateKeyToAccount } = await import('cive/accounts');
-    
-    const faucetCoreAccount = corePrivateKeyToAccount(faucet.privateKey as `0x${string}`, {
-      networkId: this._config.chainId || 2029,
-    });
-    
+    const {
+      createWalletClient: createCoreWalletClient,
+      parseCFX,
+      http: coreHttp,
+    } = await import('cive');
+    const { privateKeyToAccount: corePrivateKeyToAccount } = await import(
+      'cive/accounts'
+    );
+
+    const faucetCoreAccount = corePrivateKeyToAccount(
+      faucet.privateKey as `0x${string}`,
+      {
+        networkId: this._config.chainId || 2029,
+      }
+    );
+
     const walletClient = createCoreWalletClient({
       account: faucetCoreAccount,
       transport: coreHttp(rpcUrls.core),
     });
-    
+
     if (isCore) {
       // Direct Core space transfer
       const hash = await walletClient.sendTransaction({
@@ -507,7 +593,13 @@ export class DevKitCompat {
     account?: number;
     chain: 'core' | 'evm';
   }): Promise<{ core?: string; evm?: string }> {
-    const { abi, bytecode, args = [], account: accountIndex = 0, chain } = params;
+    const {
+      abi,
+      bytecode,
+      args = [],
+      account: accountIndex = 0,
+      chain,
+    } = params;
     const acc = this.account(accountIndex);
     const rpcUrls = this.getRpcUrls();
 
@@ -534,7 +626,9 @@ export class DevKitCompat {
       return { evm: (receipt as any).contractAddress || undefined };
     } else {
       // Core deployment
-      const { createWalletClient: createCoreWalletClient } = await import('cive');
+      const { createWalletClient: createCoreWalletClient } = await import(
+        'cive'
+      );
       const coreAccount = corePrivateKeyToAccount(acc.privateKey, {
         networkId: this._config.chainId || 2029,
       });
@@ -556,7 +650,8 @@ export class DevKitCompat {
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      const coreContractAddress = (receipt as any).contractAddress || (receipt as any).contractCreated;
+      const coreContractAddress =
+        (receipt as any).contractAddress || (receipt as any).contractCreated;
       return { core: coreContractAddress || undefined };
     }
   }
@@ -608,7 +703,14 @@ export class DevKitCompat {
     account?: number;
     chain: 'core' | 'evm';
   }): Promise<string> {
-    const { address, abi, functionName, args = [], account: accountIndex = 0, chain } = params;
+    const {
+      address,
+      abi,
+      functionName,
+      args = [],
+      account: accountIndex = 0,
+      chain,
+    } = params;
     const acc = this.account(accountIndex);
     const rpcUrls = this.getRpcUrls();
 
@@ -629,7 +731,9 @@ export class DevKitCompat {
 
       return hash;
     } else {
-      const { createWalletClient: createCoreWalletClient } = await import('cive');
+      const { createWalletClient: createCoreWalletClient } = await import(
+        'cive'
+      );
       const coreAccount = corePrivateKeyToAccount(acc.privateKey, {
         networkId: this._config.chainId || 2029,
       });

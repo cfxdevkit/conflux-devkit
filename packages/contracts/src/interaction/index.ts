@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-export { ContractReader } from './reader.js';
-export { ContractWriter } from './writer.js';
 export type {
+  ContractInfo,
+  ERC20TokenInfo,
+  ERC721TokenInfo,
+  EventFilter,
+  EventLog,
+  NFTMetadata,
   ReadOptions,
   WriteOptions,
   WriteResult,
-  ContractInfo,
-  EventFilter,
-  EventLog,
-  ERC20TokenInfo,
-  ERC721TokenInfo,
-  NFTMetadata,
 } from '../types/index.js';
+export { ContractReader } from './reader.js';
+export { ContractWriter } from './writer.js';

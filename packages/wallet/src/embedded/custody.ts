@@ -15,14 +15,14 @@
  */
 
 import { createPublicClient, createWalletClient, http } from 'viem';
-import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { mainnet } from 'viem/chains';
 import type {
   EmbeddedWallet,
-  WalletExport,
   EmbeddedWalletOptions,
-  SignTransactionRequest,
   SignedTransaction,
+  SignTransactionRequest,
+  WalletExport,
 } from '../types/index.js';
 import { EmbeddedWalletError } from '../types/index.js';
 
@@ -86,7 +86,7 @@ export class EmbeddedWalletManager {
    */
   async createWallet(
     userId: string,
-    password: string,
+    password: string
   ): Promise<Omit<EmbeddedWallet, 'encryptedPrivateKey'>> {
     // Check if wallet already exists
     if (this.wallets.has(userId)) {
@@ -102,7 +102,7 @@ export class EmbeddedWalletManager {
     // Production should use proper encryption libraries (crypto-js, node:crypto, etc.)
     const { encrypted, iv, salt } = await this.encryptPrivateKey(
       privateKey,
-      password,
+      password
     );
 
     // Create EVM address
@@ -140,7 +140,9 @@ export class EmbeddedWalletManager {
    * @param userId - User identifier
    * @returns Wallet info or undefined
    */
-  getWallet(userId: string): Omit<EmbeddedWallet, 'encryptedPrivateKey'> | undefined {
+  getWallet(
+    userId: string
+  ): Omit<EmbeddedWallet, 'encryptedPrivateKey'> | undefined {
     const wallet = this.wallets.get(userId);
     if (!wallet) return undefined;
 
@@ -170,7 +172,7 @@ export class EmbeddedWalletManager {
   async signTransaction(
     userId: string,
     password: string,
-    request: SignTransactionRequest,
+    request: SignTransactionRequest
   ): Promise<SignedTransaction> {
     const wallet = this.wallets.get(userId);
     if (!wallet) {
@@ -186,7 +188,7 @@ export class EmbeddedWalletManager {
       wallet.encryptedPrivateKey,
       password,
       wallet.encryption.iv,
-      wallet.encryption.salt,
+      wallet.encryption.salt
     );
 
     // Create account
@@ -212,7 +214,7 @@ export class EmbeddedWalletManager {
     return {
       rawTransaction: signature,
       hash: `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`,
       from: account.address,
       chain: request.chain,
@@ -243,7 +245,7 @@ export class EmbeddedWalletManager {
 
     const { encrypted, iv, salt } = await this.encryptPrivateKey(
       exportData,
-      password,
+      password
     );
 
     return {
@@ -318,21 +320,25 @@ export class EmbeddedWalletManager {
    */
   private async encryptPrivateKey(
     data: string,
-    password: string,
+    password: string
   ): Promise<{ encrypted: string; iv: string; salt: string }> {
     // Generate random IV and salt
     const iv = Array.from({ length: 16 }, () =>
-      Math.floor(Math.random() * 256).toString(16).padStart(2, '0'),
+      Math.floor(Math.random() * 256)
+        .toString(16)
+        .padStart(2, '0')
     ).join('');
 
     const salt = Array.from({ length: 32 }, () =>
-      Math.floor(Math.random() * 256).toString(16).padStart(2, '0'),
+      Math.floor(Math.random() * 256)
+        .toString(16)
+        .padStart(2, '0')
     ).join('');
 
     // In production, use proper key derivation (PBKDF2, scrypt, argon2)
     // and encryption (AES-256-GCM)
     const mockEncrypted = Buffer.from(
-      JSON.stringify({ data, password, iv, salt }),
+      JSON.stringify({ data, password, iv, salt })
     ).toString('base64');
 
     return {
@@ -351,12 +357,12 @@ export class EmbeddedWalletManager {
     encrypted: string,
     password: string,
     iv: string,
-    salt: string,
+    salt: string
   ): Promise<string> {
     try {
       // In production, use proper decryption
       const decoded = JSON.parse(
-        Buffer.from(encrypted, 'base64').toString('utf-8'),
+        Buffer.from(encrypted, 'base64').toString('utf-8')
       );
 
       if (decoded.password !== password) {

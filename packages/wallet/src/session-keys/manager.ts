@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { privateKeyToAccount } from 'viem/accounts';
 import type { ChainType } from '@conflux-devkit/core';
+import { privateKeyToAccount } from 'viem/accounts';
 import type {
   SessionKey,
   SessionKeyOptions,
   SessionKeyPermissions,
-  SignTransactionRequest,
   SignedTransaction,
+  SignTransactionRequest,
 } from '../types/index.js';
 import { SessionKeyError } from '../types/index.js';
 
@@ -74,11 +74,11 @@ export class SessionKeyManager {
    */
   generateSessionKey(
     parentAddress: string,
-    options: SessionKeyOptions,
+    options: SessionKeyOptions
   ): SessionKey {
     // Generate random private key for session
     const privateKey = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}` as `0x${string}`;
 
     const account = privateKeyToAccount(privateKey);
@@ -141,7 +141,7 @@ export class SessionKeyManager {
    */
   listSessionKeys(parentAddress: string): SessionKey[] {
     return Array.from(this.sessionKeys.values()).filter(
-      (sk) => sk.parentAddress.toLowerCase() === parentAddress.toLowerCase(),
+      (sk) => sk.parentAddress.toLowerCase() === parentAddress.toLowerCase()
     );
   }
 
@@ -153,7 +153,7 @@ export class SessionKeyManager {
    */
   listActiveSessionKeys(parentAddress: string): SessionKey[] {
     return this.listSessionKeys(parentAddress).filter(
-      (sk) => sk.isActive && new Date() <= sk.expiresAt,
+      (sk) => sk.isActive && new Date() <= sk.expiresAt
     );
   }
 
@@ -166,7 +166,7 @@ export class SessionKeyManager {
    */
   private validateTransaction(
     sessionKey: SessionKey,
-    request: SignTransactionRequest,
+    request: SignTransactionRequest
   ): void {
     // Check if session key is active
     if (!sessionKey.isActive) {
@@ -195,7 +195,11 @@ export class SessionKeyManager {
     const { permissions } = sessionKey;
 
     // Check value limit
-    if (permissions.maxValue && request.value && request.value > permissions.maxValue) {
+    if (
+      permissions.maxValue &&
+      request.value &&
+      request.value > permissions.maxValue
+    ) {
       throw new SessionKeyError('Transaction value exceeds maximum', {
         sessionKeyId: sessionKey.id,
         maxValue: permissions.maxValue.toString(),
@@ -206,7 +210,7 @@ export class SessionKeyManager {
     // Check contract whitelist
     if (permissions.contracts && permissions.contracts.length > 0) {
       const isWhitelisted = permissions.contracts.some(
-        (addr) => addr.toLowerCase() === request.to.toLowerCase(),
+        (addr) => addr.toLowerCase() === request.to.toLowerCase()
       );
       if (!isWhitelisted) {
         throw new SessionKeyError('Contract not whitelisted', {
@@ -226,7 +230,7 @@ export class SessionKeyManager {
       // Extract function selector (first 4 bytes / 8 hex chars + 0x)
       const selector = request.data.slice(0, 10);
       const isAllowed = permissions.operations.some(
-        (op) => op.toLowerCase() === selector.toLowerCase(),
+        (op) => op.toLowerCase() === selector.toLowerCase()
       );
       if (!isAllowed) {
         throw new SessionKeyError('Operation not allowed', {
@@ -248,7 +252,7 @@ export class SessionKeyManager {
    */
   async signWithSessionKey(
     sessionKeyId: string,
-    request: SignTransactionRequest,
+    request: SignTransactionRequest
   ): Promise<SignedTransaction> {
     const sessionKey = this.sessionKeys.get(sessionKeyId);
     if (!sessionKey) {
@@ -283,7 +287,7 @@ export class SessionKeyManager {
     return {
       rawTransaction: signature,
       hash: `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`,
       from: account.address,
       chain: request.chain,
@@ -316,7 +320,9 @@ export class SessionKeyManager {
    */
   getStats() {
     const all = Array.from(this.sessionKeys.values());
-    const active = all.filter((sk) => sk.isActive && new Date() <= sk.expiresAt);
+    const active = all.filter(
+      (sk) => sk.isActive && new Date() <= sk.expiresAt
+    );
     const expired = all.filter((sk) => new Date() > sk.expiresAt);
 
     return {

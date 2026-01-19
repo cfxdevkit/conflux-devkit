@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { DevKitProvider } from '../providers/DevKitProvider.js';
 import { useBalance } from './useBalance.js';
 

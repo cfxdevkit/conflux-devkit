@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { SessionKeyManager } from './manager.js';
 
 describe('SessionKeyManager', () => {
@@ -56,8 +56,13 @@ describe('SessionKeyManager', () => {
         chain: 'evm',
       });
 
-      const expectedExpiry = new Date(sessionKey.createdAt.getTime() + ttl * 1000);
-      expect(sessionKey.expiresAt.getTime()).toBeCloseTo(expectedExpiry.getTime(), -2);
+      const expectedExpiry = new Date(
+        sessionKey.createdAt.getTime() + ttl * 1000
+      );
+      expect(sessionKey.expiresAt.getTime()).toBeCloseTo(
+        expectedExpiry.getTime(),
+        -2
+      );
     });
 
     it('should apply permissions', () => {
@@ -179,7 +184,7 @@ describe('SessionKeyManager', () => {
         manager.signWithSessionKey('non-existent-id', {
           to: '0xRecipient',
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('Session key not found');
     });
 
@@ -193,7 +198,7 @@ describe('SessionKeyManager', () => {
         manager.signWithSessionKey(sessionKey.id, {
           to: '0xRecipient',
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('expired');
     });
 
@@ -208,7 +213,7 @@ describe('SessionKeyManager', () => {
         manager.signWithSessionKey(sessionKey.id, {
           to: '0xRecipient',
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('not active');
     });
 
@@ -226,7 +231,7 @@ describe('SessionKeyManager', () => {
           to: '0xRecipient',
           value: 200n,
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('exceeds maximum');
     });
 
@@ -243,7 +248,7 @@ describe('SessionKeyManager', () => {
         manager.signWithSessionKey(sessionKey.id, {
           to: '0xNotWhitelisted',
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('not whitelisted');
     });
 
@@ -257,7 +262,7 @@ describe('SessionKeyManager', () => {
         manager.signWithSessionKey(sessionKey.id, {
           to: '0xRecipient',
           chain: 'evm',
-        }),
+        })
       ).rejects.toThrow('Chain mismatch');
     });
   });
@@ -278,7 +283,10 @@ describe('SessionKeyManager', () => {
     it('should return session key statistics', () => {
       manager.generateSessionKey(parentAddress, { ttl: 3600, chain: 'evm' });
       manager.generateSessionKey(parentAddress, { ttl: -1, chain: 'evm' });
-      const revoked = manager.generateSessionKey(parentAddress, { ttl: 3600, chain: 'evm' });
+      const revoked = manager.generateSessionKey(parentAddress, {
+        ttl: 3600,
+        chain: 'evm',
+      });
       manager.revokeSessionKey(revoked.id);
 
       const stats = manager.getStats();

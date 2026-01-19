@@ -21,7 +21,7 @@
  * Swappi is a Uniswap V2-style DEX on Conflux.
  */
 
-import { parseUnits, formatUnits, type Address } from 'viem';
+import { type Address, formatUnits, parseUnits } from 'viem';
 import { logger } from '../utils/logger.js';
 
 // Swappi Contract Addresses - Network specific
@@ -189,7 +189,13 @@ export class SwapService {
    */
   async getQuote(params: SwapQuoteParams): Promise<SwapQuote> {
     try {
-      const { tokenIn, tokenOut, amountIn, slippage = 0.5, network = 'testnet' } = params;
+      const {
+        tokenIn,
+        tokenOut,
+        amountIn,
+        slippage = 0.5,
+        network = 'testnet',
+      } = params;
 
       // Simple path: tokenIn -> tokenOut
       const path: Address[] = [tokenIn, tokenOut];
@@ -197,10 +203,11 @@ export class SwapService {
       // In production, call Swappi router's getAmountsOut
       // For now, simulate quote (assumes 1:1 ratio with 0.3% fee)
       const amountInBN = parseUnits(amountIn, 18);
-      const fee = amountInBN * 3n / 1000n; // 0.3% fee
+      const fee = (amountInBN * 3n) / 1000n; // 0.3% fee
       const amountOutBN = amountInBN - fee;
 
-      const slippageBN = (amountOutBN * BigInt(Math.floor(slippage * 100))) / 10000n;
+      const slippageBN =
+        (amountOutBN * BigInt(Math.floor(slippage * 100))) / 10000n;
       const amountOutMinBN = amountOutBN - slippageBN;
 
       return {
@@ -213,7 +220,9 @@ export class SwapService {
       };
     } catch (error) {
       logger.error('Failed to get swap quote:', error);
-      throw new Error(`Failed to get quote: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get quote: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -239,12 +248,12 @@ export class SwapService {
       }
 
       // Calculate deadline (current time + deadline minutes)
-      const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
+      const _deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline * 60;
 
       // In production, call swapExactTokensForTokens on Swappi router
       // For now, simulate swap execution
       const hash = `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`;
 
       logger.info('Swap executed', {
@@ -263,7 +272,9 @@ export class SwapService {
       };
     } catch (error) {
       logger.error('Swap execution failed:', error);
-      throw new Error(`Swap failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Swap failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

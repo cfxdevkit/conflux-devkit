@@ -14,47 +14,47 @@
  * limitations under the License.
  */
 
-import { apiClient } from '@/services/api';
-import { useAuthStore } from '@/stores/authStore';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-    ActionIcon,
-    Alert,
-    Badge,
-    Button,
-    Card,
-    Collapse,
-    Divider,
-    Group,
-    Modal,
-    NumberInput,
-    SegmentedControl,
-    Stack,
-    Switch,
-    Text,
-    TextInput,
-    Tooltip,
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Collapse,
+  Divider,
+  Group,
+  Modal,
+  NumberInput,
+  SegmentedControl,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-    IconAlertCircle,
-    IconChevronUp,
-    IconFolder,
-    IconKey,
-    IconPick,
-    IconPlayerPlay,
-    IconPlayerStop,
-    IconRefresh,
-    IconSettings,
-    IconTrash,
+  IconAlertCircle,
+  IconChevronUp,
+  IconFolder,
+  IconKey,
+  IconPick,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconRefresh,
+  IconSettings,
+  IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { apiClient } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function DevNodeControlPanel() {
   const { user } = useAuthStore();
   const isAdmin = user?.isAdmin ?? false;
-  
+
   const {
     status,
     config,
@@ -82,7 +82,7 @@ export function DevNodeControlPanel() {
 
   const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
   const [configOpened, { toggle: toggleConfig }] = useDisclosure(false);
-  
+
   // Mining controls
   const [blocksToMine, setBlocksToMine] = useState(1);
   const [miningMode, setMiningMode] = useState<'empty' | 'withTxs'>('empty');
@@ -210,9 +210,10 @@ export function DevNodeControlPanel() {
       await mineBlocks(blocksToMine, numTxs);
       notifications.show({
         title: 'Mining Complete',
-        message: miningMode === 'withTxs' 
-          ? `Mined ${blocksToMine} block(s) with pending transactions`
-          : `Mined ${blocksToMine} empty block(s)`,
+        message:
+          miningMode === 'withTxs'
+            ? `Mined ${blocksToMine} block(s) with pending transactions`
+            : `Mined ${blocksToMine} empty block(s)`,
         color: 'green',
       });
     } catch (error: any) {
@@ -308,7 +309,8 @@ export function DevNodeControlPanel() {
             <strong>Keep Data:</strong> Restart preserving blockchain state.
           </Text>
           <Text size="xs" c="dimmed">
-            <strong>Clear Data:</strong> Delete <code>.conflux-dev</code> and start fresh from block 0.
+            <strong>Clear Data:</strong> Delete <code>.conflux-dev</code> and start fresh from block
+            0.
           </Text>
         </Stack>
       </Modal>
@@ -317,7 +319,8 @@ export function DevNodeControlPanel() {
         <Stack gap="md">
           {!isLocalNetwork && (
             <Alert icon={<IconAlertCircle size={16} />} color="blue" title="Remote Network Mode">
-              Connected to {status?.network}. Node control and mining features are only available on local network.
+              Connected to {status?.network}. Node control and mining features are only available on
+              local network.
             </Alert>
           )}
           {isLocalNetwork && !isAdmin && (
@@ -325,7 +328,7 @@ export function DevNodeControlPanel() {
               Only admin users can control the development node. Advanced features are disabled.
             </Alert>
           )}
-          
+
           {/* Header */}
           <Group justify="space-between">
             <Group gap="xs">
@@ -338,12 +341,7 @@ export function DevNodeControlPanel() {
                 </Badge>
               )}
               <Tooltip label={configOpened ? 'Hide configuration' : 'Show configuration'}>
-                <ActionIcon 
-                  variant="subtle" 
-                  color="gray" 
-                  onClick={toggleConfig}
-                  size="sm"
-                >
+                <ActionIcon variant="subtle" color="gray" onClick={toggleConfig} size="sm">
                   {configOpened ? <IconChevronUp size={16} /> : <IconSettings size={16} />}
                 </ActionIcon>
               </Tooltip>
@@ -355,7 +353,10 @@ export function DevNodeControlPanel() {
 
           {/* Node Control Buttons */}
           <Group grow>
-            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
+            <Tooltip
+              label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''}
+              disabled={canControlNode && isAdmin}
+            >
               <Button
                 leftSection={<IconPlayerPlay size={16} />}
                 onClick={handleStart}
@@ -366,7 +367,10 @@ export function DevNodeControlPanel() {
                 Start
               </Button>
             </Tooltip>
-            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
+            <Tooltip
+              label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''}
+              disabled={canControlNode && isAdmin}
+            >
               <Button
                 leftSection={<IconPlayerStop size={16} />}
                 onClick={handleStop}
@@ -377,7 +381,10 @@ export function DevNodeControlPanel() {
                 Stop
               </Button>
             </Tooltip>
-            <Tooltip label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''} disabled={canControlNode && isAdmin}>
+            <Tooltip
+              label={!canControlNode ? 'Local network only' : !isAdmin ? 'Admin only' : ''}
+              disabled={canControlNode && isAdmin}
+            >
               <Button
                 leftSection={<IconRefresh size={16} />}
                 onClick={handleRestart}
@@ -465,7 +472,7 @@ export function DevNodeControlPanel() {
                   <TextInput
                     label="Mining Author (Optional)"
                     description="Core address to receive mining rewards (defaults to faucet account)"
-                    placeholder="net2029:aa..." 
+                    placeholder="net2029:aa..."
                     value={config.miningAuthor ?? ''}
                     onChange={(e) => setConfig({ miningAuthor: e.target.value || undefined })}
                     disabled={isRunning}
@@ -547,15 +554,15 @@ export function DevNodeControlPanel() {
           {isRunning && canMine && (
             <>
               <Divider label="Mining Control" labelPosition="center" />
-              
+
               {!isAdmin && (
                 <Alert icon={<IconAlertCircle size={16} />} color="yellow" title="Admin Only">
                   Mining controls are only available to admin users.
                 </Alert>
               )}
-              
+
               {/* Unified Mining Control Card */}
-              <Card withBorder padding="sm" bg={isAutoMining ? "blue.0" : "gray.0"}>
+              <Card withBorder padding="sm" bg={isAutoMining ? 'blue.0' : 'gray.0'}>
                 <Stack gap="sm">
                   {/* Mining Mode Toggle */}
                   <Group justify="space-between">
@@ -564,10 +571,9 @@ export function DevNodeControlPanel() {
                         {isAutoMining ? 'Auto Mining' : 'Manual Mining'}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {isAutoMining 
+                        {isAutoMining
                           ? 'Automatically mine blocks at regular intervals'
-                          : 'Mine blocks on demand'
-                        }
+                          : 'Mine blocks on demand'}
                       </Text>
                     </div>
                     <Switch
@@ -638,10 +644,9 @@ export function DevNodeControlPanel() {
                         />
                       </Group>
                       <Text size="xs" c="dimmed">
-                        {miningMode === 'empty' 
+                        {miningMode === 'empty'
                           ? 'Mine empty blocks (advances block height only)'
-                          : 'Mine blocks that pack pending transactions from txpool'
-                        }
+                          : 'Mine blocks that pack pending transactions from txpool'}
                       </Text>
                       <Tooltip label={!isAdmin ? 'Admin only' : ''} disabled={isAdmin}>
                         <Button

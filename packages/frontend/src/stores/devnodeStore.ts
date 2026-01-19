@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-import { apiClient } from '@/services/api';
-import type { DevNodeAccount, DevNodeInfo, DevNodeStatus, FaucetRequest, NetworkType, NodeConfig } from '@/types/devnode';
 import { create } from 'zustand';
+import { apiClient } from '@/services/api';
+import type {
+  DevNodeAccount,
+  DevNodeInfo,
+  DevNodeStatus,
+  FaucetRequest,
+  NetworkType,
+  NodeConfig,
+} from '@/types/devnode';
 
 interface DevNodeStore {
   status: DevNodeStatus | null;
@@ -107,18 +114,19 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     try {
       console.log('Starting node...');
       set({ isStarting: true, error: null });
-      
+
       const finalConfig = { ...get().config, ...configOverrides };
-      
+
       // Check if configuration has changed from the last start
       const lastConfigStr = localStorage.getItem('lastNodeConfig');
       const lastConfig = lastConfigStr ? JSON.parse(lastConfigStr) : null;
-      const configChanged = !lastConfig || JSON.stringify(lastConfig) !== JSON.stringify(finalConfig);
-      
+      const configChanged =
+        !lastConfig || JSON.stringify(lastConfig) !== JSON.stringify(finalConfig);
+
       if (configChanged) {
         console.log('Configuration changed, requesting data cleanup...');
       }
-      
+
       const result = await apiClient.startNode({ ...finalConfig, configChanged });
       console.log('Start node result:', result);
 
@@ -131,7 +139,7 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       let nodeStarted = false;
 
       while (attempts < maxAttempts && !nodeStarted) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
         const status = await apiClient.getDevKitStatus();
         console.log(`Polling node status (attempt ${attempts + 1}/30):`, status.isRunning);
 
@@ -296,9 +304,11 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
       if (!shouldFetchBalances) {
         // Return accounts without balance data when node is stopped
         // Still set faucet account but without balance
-        set({ 
-          accounts, 
-          faucetAccount: faucetAccount ? { ...faucetAccount, index: -1, balance: { core: '0', eSpace: '0' } } : null 
+        set({
+          accounts,
+          faucetAccount: faucetAccount
+            ? { ...faucetAccount, index: -1, balance: { core: '0', eSpace: '0' } }
+            : null,
         });
         return;
       }
@@ -406,19 +416,21 @@ export const useDevNodeStore = create<DevNodeStore>((set, get) => ({
     try {
       set({ isSwitchingNetwork: true, error: null });
       const result = await apiClient.switchNetwork(network);
-      
+
       console.log('[Store] switchNetwork result:', result);
       console.log('[Store] Updating status with network:', result.network);
-      
+
       // Update status with new network info
       set((state) => {
         console.log('[Store] Current status before update:', state.status);
-        const newStatus = state.status ? {
-          ...state.status,
-          network: result.network,
-          networkConfig: result.config,
-          capabilities: result.capabilities,
-        } : null;
+        const newStatus = state.status
+          ? {
+              ...state.status,
+              network: result.network,
+              networkConfig: result.config,
+              capabilities: result.capabilities,
+            }
+          : null;
         console.log('[Store] New status after update:', newStatus);
         return {
           status: newStatus,

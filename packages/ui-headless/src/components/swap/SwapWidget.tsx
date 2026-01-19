@@ -20,7 +20,8 @@
  * Token swap interface with customizable rendering
  */
 
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { useDevKitContext } from '../../providers/DevKitProvider.js';
 import { useWalletContext } from '../../providers/WalletProvider.js';
 import type { BaseComponentProps, RenderPropChild } from '../../types/index.js';
@@ -34,7 +35,11 @@ export interface SwapQuote {
 }
 
 export interface SwapWidgetRenderProps {
-  getQuote: (tokenIn: string, tokenOut: string, amountIn: string) => Promise<void>;
+  getQuote: (
+    tokenIn: string,
+    tokenOut: string,
+    amountIn: string
+  ) => Promise<void>;
   executeSwap: () => Promise<void>;
   quote?: SwapQuote;
   isLoadingQuote: boolean;
@@ -92,7 +97,11 @@ export function SwapWidget({
     amountIn: string;
   }>();
 
-  const getQuote = async (tokenIn: string, tokenOut: string, amountIn: string) => {
+  const getQuote = async (
+    tokenIn: string,
+    tokenOut: string,
+    amountIn: string
+  ) => {
     if (!isConnected) {
       setError(new Error('Wallet not connected'));
       return;
@@ -122,7 +131,12 @@ export function SwapWidget({
   };
 
   const executeSwap = async () => {
-    if (!quote || !currentQuoteParams || !isConnected || accountIndex === undefined) {
+    if (
+      !quote ||
+      !currentQuoteParams ||
+      !isConnected ||
+      accountIndex === undefined
+    ) {
       setError(new Error('Missing required data for swap'));
       return;
     }
@@ -134,7 +148,7 @@ export function SwapWidget({
       // In production, call backend API to execute swap on Swappi
       // For now, simulate swap
       const mockHash = `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`;
 
       setHash(mockHash);

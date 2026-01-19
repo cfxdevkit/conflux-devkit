@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContractDeployer } from './deploy.js';
 
 describe('ContractDeployer', () => {
@@ -105,7 +105,9 @@ describe('ContractDeployer', () => {
 
     it('should handle partial failures', async () => {
       // Mock to simulate failure
-      vi.spyOn(deployer as any, 'deploy').mockRejectedValueOnce(new Error('Deployment failed'));
+      vi.spyOn(deployer as any, 'deploy').mockRejectedValueOnce(
+        new Error('Deployment failed')
+      );
 
       const result = await deployer.deployToMultipleChains({
         bytecode: '0x6080604052...',
@@ -181,7 +183,7 @@ describe('ContractDeployer', () => {
       const isVerified = await deployer.verifyBytecode(
         '0xContractAddress',
         bytecode,
-        'evm',
+        'evm'
       );
 
       // Current implementation always returns true

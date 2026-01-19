@@ -59,7 +59,10 @@ export class WalletService {
               evmBalance,
             };
           } catch (error) {
-            logger.warn(`Failed to fetch balances for account ${account.index}:`, error);
+            logger.warn(
+              `Failed to fetch balances for account ${account.index}:`,
+              error
+            );
             return {
               index: account.index,
               coreAddress: account.coreAddress,
@@ -74,7 +77,9 @@ export class WalletService {
       return accountsWithBalances;
     } catch (error) {
       logger.error('Failed to get accounts:', error);
-      throw new Error(`Failed to get accounts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get accounts: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -103,7 +108,9 @@ export class WalletService {
         evmBalance,
       };
     } catch (error) {
-      throw new Error(`Failed to get account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get account: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -128,7 +135,9 @@ export class WalletService {
     try {
       // Check if we have a local node
       if (typeof this.devkit.fundAccount !== 'function') {
-        throw new Error('Fund account is only available with local development node');
+        throw new Error(
+          'Fund account is only available with local development node'
+        );
       }
 
       await this.devkit.fundAccount(address, amount, chain);
@@ -142,7 +151,9 @@ export class WalletService {
         chain,
       };
     } catch (error) {
-      throw new Error(`Failed to fund account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to fund account: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }

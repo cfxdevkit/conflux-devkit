@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+import { AppShell, Badge, Button, Container, Group, Loader, Stack, Tabs, Text, Title } from '@mantine/core';
+import {
+  IconBrandGithub,
+  IconDatabase,
+  IconLogout,
+  IconSettings,
+  IconWallet,
+} from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { AuthSection } from '@/components/AuthSection';
 import { BlockchainMonitor } from '@/components/BlockchainMonitor';
 import { DevNodeControlPanel } from '@/components/DevNodeControlPanel';
@@ -21,6 +30,7 @@ import { DevNodeStatus } from '@/components/DevNodeStatus';
 import { FaucetButton } from '@/components/FaucetButton';
 import { FirstLoginModal } from '@/components/FirstLoginModal';
 import { NavbarNetworkDropdown } from '@/components/NavbarNetworkDropdown';
+import { SetupWizard } from '@/components/SetupWizard';
 import { TestMnemonicWarning } from '@/components/TestMnemonicWarning';
 import { WalletSettingsEnhanced } from '@/components/WalletSettingsEnhanced';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
@@ -28,29 +38,33 @@ import { apiClient } from '@/services/api';
 import { wsClient } from '@/services/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { useDevNodeStore } from '@/stores/devnodeStore';
-import { AppShell, Badge, Button, Container, Group, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconBrandGithub, IconDatabase, IconLogout, IconSettings, IconWallet } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useSetupStore } from '@/stores/setupStore';
 
 function App() {
   const { isAuthenticated, logout } = useWalletAuth();
   const { user } = useAuthStore();
   const { status, updateStatus, fetchStatus, fetchAccounts } = useDevNodeStore();
+  const { status: setupStatus, isLoading: setupLoading, fetchStatus: fetchSetupStatus } = useSetupStore();
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [isTestMnemonic, setIsTestMnemonic] = useState(false);
   const [activeTab, setActiveTab] = useState('devnode');
 
-  // Check wallet status on authentication
+  // Check setup status on mount (before authentication)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    fetchSetupStatus();
+  }, [fetchSetupStatus]);
+
+  // Check wallet status on authentication (only if setup is completed)
+  useEffect(() => {
+    if (!isAuthenticated || !setupStatus?.setupCompleted) return;
 
     const checkWalletStatus = async () => {
       try {
         const walletStatus = await apiClient.getWalletStatus();
-        
+
         // Track test mnemonic status for footer warning
         setIsTestMnemonic(walletStatus.isTestMnemonic === true);
-        
+
         // Show warning if using test mnemonic and not encrypted
         if (walletStatus.isTestMnemonic === true && !walletStatus.encryptionEnabled) {
           // Only show once per session
@@ -66,7 +80,7 @@ function App() {
     };
 
     checkWalletStatus();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, setupStatus?.setupCompleted]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -77,11 +91,14 @@ function App() {
 
     // Connect to WebSocket for real-time updates
     console.log('[App] Connecting to WebSocket...');
-    wsClient.connect().then(() => {
-      console.log('[App] WebSocket connected successfully');
-    }).catch((err) => {
-      console.error('[App] WebSocket connection failed:', err);
-    });
+    wsClient
+      .connect()
+      .then(() => {
+        console.log('[App] WebSocket connected successfully');
+      })
+      .catch((err) => {
+        console.error('[App] WebSocket connection failed:', err);
+      });
 
     // Subscribe to nodeStats broadcasts from backend
     const unsubStats = wsClient.on('nodeStats', (data) => {
@@ -188,50 +205,70 @@ function App() {
 
       <AppShell.Main>
         <Container size="xl">
-          <Stack gap="lg" py="md">
-            <AuthSection />
+          {/* Loading state while checking setup status */}
+          {setupLoading && setupStatus === null && (
+            <Stack align="center" gap="md" py="xl">
+              <Loader size="lg" />
+              <Text c="dimmed">Checking setup status...</Text>
+            </Stack>
+          )}
 
-            {isAuthenticated && (
-              <>
-                <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'devnode')} orientation="horizontal">
-                  <Tabs.List>
-                    <Tabs.Tab value="devnode" leftSection={<IconSettings size={14} />}>
-                      DevNode
-                    </Tabs.Tab>
-                    <Tabs.Tab value="wallet" leftSection={<IconWallet size={14} />}>
-                      Wallet
-                    </Tabs.Tab>
-                    <Tabs.Tab value="monitor" leftSection={<IconDatabase size={14} />}>
-                      Monitor
-                    </Tabs.Tab>
-                  </Tabs.List>
+          {/* Setup Wizard - shown when setup is not completed */}
+          {!setupLoading && setupStatus && !setupStatus.setupCompleted && (
+            <SetupWizard />
+          )}
 
-                  <Tabs.Panel value="devnode" pt="md">
-                    <Stack gap="lg">
-                      <DevNodeStatus />
-                      <DevNodeControlPanel />
-                    </Stack>
-                  </Tabs.Panel>
+          {/* Main app content - shown when setup is completed */}
+          {setupStatus?.setupCompleted && (
+            <Stack gap="lg" py="md">
+              <AuthSection />
 
-                  <Tabs.Panel value="wallet" pt="md">
-                    <WalletSettingsEnhanced />
-                  </Tabs.Panel>
+              {isAuthenticated && (
+                <>
+                  <Tabs
+                    value={activeTab}
+                    onChange={(value) => setActiveTab(value || 'devnode')}
+                    orientation="horizontal"
+                  >
+                    <Tabs.List>
+                      <Tabs.Tab value="devnode" leftSection={<IconSettings size={14} />}>
+                        DevNode
+                      </Tabs.Tab>
+                      <Tabs.Tab value="wallet" leftSection={<IconWallet size={14} />}>
+                        Wallet
+                      </Tabs.Tab>
+                      <Tabs.Tab value="monitor" leftSection={<IconDatabase size={14} />}>
+                        Monitor
+                      </Tabs.Tab>
+                    </Tabs.List>
 
-                  <Tabs.Panel value="monitor" pt="md">
-                    <BlockchainMonitor />
-                  </Tabs.Panel>
-                </Tabs>
-              </>
-            )}
+                    <Tabs.Panel value="devnode" pt="md">
+                      <Stack gap="lg">
+                        <DevNodeStatus />
+                        <DevNodeControlPanel />
+                      </Stack>
+                    </Tabs.Panel>
 
-            {!isAuthenticated && (
-              <Stack align="center" gap="md" py="xl">
-                <Text size="lg" c="dimmed">
-                  Connect your wallet to manage the development node
-                </Text>
-              </Stack>
-            )}
-          </Stack>
+                    <Tabs.Panel value="wallet" pt="md">
+                      <WalletSettingsEnhanced />
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="monitor" pt="md">
+                      <BlockchainMonitor />
+                    </Tabs.Panel>
+                  </Tabs>
+                </>
+              )}
+
+              {!isAuthenticated && (
+                <Stack align="center" gap="md" py="xl">
+                  <Text size="lg" c="dimmed">
+                    Connect your wallet to manage the development node
+                  </Text>
+                </Stack>
+              )}
+            </Stack>
+          )}
         </Container>
       </AppShell.Main>
 

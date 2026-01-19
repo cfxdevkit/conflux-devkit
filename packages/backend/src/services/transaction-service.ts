@@ -52,24 +52,28 @@ export class TransactionService {
       // Send transaction
       // In production, use proper transaction sending logic
       const hash = `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`;
 
       logger.info(`Transaction sent: ${hash}`, {
         chain: options.chain,
-        from: options.chain === 'core' ? account.coreAddress : account.evmAddress,
+        from:
+          options.chain === 'core' ? account.coreAddress : account.evmAddress,
         to: options.to,
       });
 
       return {
         hash,
-        from: options.chain === 'core' ? account.coreAddress : account.evmAddress,
+        from:
+          options.chain === 'core' ? account.coreAddress : account.evmAddress,
         to: options.to,
         chain: options.chain,
       };
     } catch (error) {
       logger.error('Transaction failed:', error);
-      throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -87,19 +91,25 @@ export class TransactionService {
         chain,
       };
     } catch (error) {
-      throw new Error(`Failed to get receipt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get receipt: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
    * Estimate gas for transaction
    */
-  async estimateGas(options: Omit<SendTransactionOptions, 'account' | 'gasLimit' | 'gasPrice'>) {
+  async estimateGas(
+    _options: Omit<SendTransactionOptions, 'account' | 'gasLimit' | 'gasPrice'>
+  ) {
     try {
       // In production, use proper gas estimation
       return 21000n;
     } catch (error) {
-      throw new Error(`Gas estimation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Gas estimation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }

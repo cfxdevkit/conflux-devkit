@@ -39,11 +39,11 @@
 
 import { ServerManager } from './server-manager.js';
 import type {
+  AccountInfo,
+  FaucetBalances,
+  MiningStatus,
   NodeConfig,
   StartOptions,
-  MiningStatus,
-  FaucetBalances,
-  AccountInfo,
 } from './types.js';
 
 /**

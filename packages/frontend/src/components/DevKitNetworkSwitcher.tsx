@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-import { useDevNodeStore } from '@/stores/devnodeStore';
-import type { NetworkType } from '@/types/devnode';
 import { Alert, Badge, Button, Card, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-    IconAlertCircle,
-    IconCloud,
-    IconServer,
-    IconTestPipe,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconCloud, IconServer, IconTestPipe } from '@tabler/icons-react';
+import { useDevNodeStore } from '@/stores/devnodeStore';
+import type { NetworkType } from '@/types/devnode';
 
 /**
  * DevKit backend network switcher
@@ -75,7 +70,7 @@ export function DevKitNetworkSwitcher() {
       await switchNetwork(networkId);
       notifications.show({
         title: 'Network Switched',
-        message: `Connected to ${networks.find(n => n.id === networkId)?.name}`,
+        message: `Connected to ${networks.find((n) => n.id === networkId)?.name}`,
         color: 'green',
       });
     } catch (error: any) {
@@ -99,16 +94,19 @@ export function DevKitNetworkSwitcher() {
               Select the network for backend operations
             </Text>
           </div>
-          <Badge color={networks.find(n => n.id === currentNetwork)?.color || 'gray'} variant="filled">
-            {networks.find(n => n.id === currentNetwork)?.name || currentNetwork}
+          <Badge
+            color={networks.find((n) => n.id === currentNetwork)?.color || 'gray'}
+            variant="filled"
+          >
+            {networks.find((n) => n.id === currentNetwork)?.name || currentNetwork}
           </Badge>
         </Group>
 
         {currentNetwork !== 'local' && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
             <Text size="xs">
-              Mining, faucet, and node control are disabled on {currentNetwork}.
-              Switch to local network for full development features.
+              Mining, faucet, and node control are disabled on {currentNetwork}. Switch to local
+              network for full development features.
             </Text>
           </Alert>
         )}

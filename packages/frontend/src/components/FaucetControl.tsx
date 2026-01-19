@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-import { useDevNodeStore } from '@/stores/devnodeStore';
-import { Alert, Button, Card, Group, NumberInput, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Card,
+  Group,
+  NumberInput,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconDroplet } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 /**
  * Compact faucet control for requesting test tokens
@@ -87,7 +97,7 @@ export function FaucetControl() {
             Faucet is only available on local network
           </Alert>
         )}
-        
+
         <Group justify="space-between" align="flex-start">
           <div>
             <Text size="sm" fw={600}>
@@ -99,9 +109,18 @@ export function FaucetControl() {
           </div>
           {canUseFaucet && (
             <div style={{ textAlign: 'right' }}>
-              <Text size="xs" c="dimmed">Available Balance</Text>
-              <Text size="sm" fw={600} style={{ fontFamily: 'monospace', color: 'var(--mantine-color-green-6)' }}>
-                {faucetAccount?.balance?.core ? parseFloat(faucetAccount.balance.core).toFixed(2) : '0.00'} CFX
+              <Text size="xs" c="dimmed">
+                Available Balance
+              </Text>
+              <Text
+                size="sm"
+                fw={600}
+                style={{ fontFamily: 'monospace', color: 'var(--mantine-color-green-6)' }}
+              >
+                {faucetAccount?.balance?.core
+                  ? parseFloat(faucetAccount.balance.core).toFixed(2)
+                  : '0.00'}{' '}
+                CFX
               </Text>
             </div>
           )}
@@ -128,8 +147,12 @@ export function FaucetControl() {
             style={{ width: 90 }}
             disabled={!canUseFaucet}
           />
-          <Tooltip 
-            label={!canUseFaucet ? 'Local network only' : 'Auto-detects Core (cfx...) vs eSpace (0x...) addresses'}
+          <Tooltip
+            label={
+              !canUseFaucet
+                ? 'Local network only'
+                : 'Auto-detects Core (cfx...) vs eSpace (0x...) addresses'
+            }
             multiline
             w={180}
           >

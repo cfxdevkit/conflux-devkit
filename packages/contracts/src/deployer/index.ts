@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-export { ContractDeployer } from './deploy.js';
 export type {
   DeploymentOptions,
   DeploymentResult,
   MultiChainDeploymentOptions,
   MultiChainDeploymentResult,
 } from '../types/index.js';
+export { ContractDeployer } from './deploy.js';

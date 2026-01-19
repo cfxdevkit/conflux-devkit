@@ -40,61 +40,114 @@ try {
 // Main exports for library usage
 export { AuthService } from './auth/AuthService.js';
 export { DevelopmentAuthService } from './auth/DevelopmentAuthService.js';
-export { BackendServer } from './server/BackendServer.js';
+// Middleware exports
+export {
+  createSetupCheckMiddleware,
+  requireSetup,
+} from './middleware/setup-check.js';
+// Route creators for custom implementations
+export { createAdminRoutes } from './routes/admin.js';
+export { createDevKitRoutes } from './routes/devkit.js';
+export { createSetupRoutes } from './routes/setup.js';
+export { createSwapRoutes } from './routes/swap.js';
+export { createWalletRoutes } from './routes/wallet.js';
 export type { BackendServerConfig } from './server/BackendServer.js';
+export { BackendServer } from './server/BackendServer.js';
 export { DevKitWebSocketServer } from './server/WebSocketServer.js';
-export { getKeystoreService, initializeKeystoreService, KeystoreLockedError, KeystoreService } from './services/keystore-service.js';
+export {
+  getKeystoreService,
+  KeystoreLockedError,
+  KeystoreService,
+} from './services/keystore-service.js';
+// Type exports
+export type {
+  AddMnemonicData,
+  ConfigModificationCheck,
+  DerivedAccount,
+  KeystoreV2,
+  MnemonicEntry,
+  MnemonicSummary,
+  NodeConfig,
+  SetupData,
+  ValidationResult,
+} from './types/keystore.js';
 export { logger } from './utils/logger.js';
 
-// Route creators for custom implementations
-export { createDevKitRoutes } from './routes/devkit.js';
-export { createSwapRoutes } from './routes/swap.js';
-
 import { BackendServer } from './server/BackendServer.js';
-import { getKeystoreService, initializeKeystoreService } from './services/keystore-service.js';
+import { getKeystoreService } from './services/keystore-service.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
   try {
     logger.info('🚀 Starting Conflux DevKit Backend Core...');
 
-    // Initialize keystore service
-    await initializeKeystoreService();
+    // Initialize keystore service (v2 - no initialization function needed, uses singleton)
     const keystoreService = getKeystoreService();
+    await keystoreService.initialize();
     logger.info('📝 Keystore service initialized');
 
-    // Get active mnemonic and data directory from keystore
-    // If encrypted and locked, use default mnemonic temporarily
-    let activeMnemonic: string;
-    let dataDir: string;
-    
-    if (keystoreService.isEncrypted() && !keystoreService.isUnlocked()) {
-      logger.warn('⚠️  Keystore is encrypted and locked. Using default mnemonic until unlocked.');
-      logger.warn('⚠️  Please unlock via API: POST /api/devkit/wallet/encryption/unlock');
-      activeMnemonic = 'test test test test test test test test test test test junk';
-      dataDir = await keystoreService.getDataDir(activeMnemonic);
+    // Check if setup is completed
+    const setupCompleted = await keystoreService.isSetupCompleted();
+
+    // Default config for when setup is not completed
+    let devkitConfig = {
+      chainId: 2029, // Local development Core Space chain ID
+      evmChainId: 2030, // Local development eSpace chain ID
+      jsonrpcHttpPort: 12537,
+      jsonrpcWsPort: 12535,
+      jsonrpcHttpEthPort: 8545,
+      jsonrpcWsEthPort: 8546,
+      log: false,
+      mnemonic: undefined as string | undefined,
+      dataDir: undefined as string | undefined,
+    };
+
+    if (!setupCompleted) {
+      logger.warn('⚠️  Initial setup not completed');
+      logger.info('Complete setup via:');
+      logger.info('  • Web UI: http://localhost:5173/setup');
+      logger.info('  • API: POST /api/setup/complete');
+      // Server will start but node endpoints will be blocked until setup
     } else {
-      activeMnemonic = await keystoreService.getActiveMnemonic();
-      dataDir = await keystoreService.getDataDir();
-      logger.info(`📁 Using wallet: "${keystoreService.getActiveLabel()}" with data directory: ${dataDir}`);
+      // Get active mnemonic and its configuration
+      const mnemonicEntry = await keystoreService.getActiveMnemonic();
+      const nodeConfig = mnemonicEntry.nodeConfig;
+
+      // Check if locked (encrypted but not unlocked)
+      if (keystoreService.isLocked()) {
+        logger.warn('⚠️  Keystore is encrypted and locked');
+        logger.warn(
+          '⚠️  Please unlock via API: POST /api/devkit/wallet/encryption/unlock'
+        );
+        // Server will start but cannot use encrypted mnemonic until unlocked
+      } else {
+        const mnemonic = await keystoreService.getDecryptedMnemonic(
+          mnemonicEntry.id
+        );
+        const dataDir = await keystoreService.getDataDir();
+
+        devkitConfig = {
+          chainId: nodeConfig.chainId,
+          evmChainId: nodeConfig.evmChainId,
+          jsonrpcHttpPort: 12537,
+          jsonrpcWsPort: 12535,
+          jsonrpcHttpEthPort: 8545,
+          jsonrpcWsEthPort: 8546,
+          log: false,
+          mnemonic,
+          dataDir,
+        };
+
+        logger.info(
+          `📁 Using wallet: "${mnemonicEntry.label}" with data directory: ${dataDir}`
+        );
+      }
     }
 
     const server = new BackendServer({
       port: parseInt(process.env.PORT || '3001', 10),
       wsPort: parseInt(process.env.WS_PORT || '3002', 10),
-      devkitConfig: {
-        chainId: 2029, // Local development Core Space chain ID
-        evmChainId: 2030, // Local development eSpace chain ID
-        jsonrpcHttpPort: 12537,
-        jsonrpcWsPort: 12535,
-        jsonrpcHttpEthPort: 8545,
-        jsonrpcWsEthPort: 8546,
-        log: false,
-        // Use mnemonic from keystore service
-        mnemonic: activeMnemonic,
-        // Use mnemonic-specific data directory
-        dataDir: dataDir,
-      },
+      devkitConfig,
     });
 
     await server.start();

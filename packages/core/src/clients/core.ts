@@ -18,25 +18,25 @@
 // Based on proven patterns from DevKit CLI, adapted for unified interface
 
 import {
-    type Address,
-    type Chain,
-    type TestClient as CiveTestClient,
-    createPublicClient,
-    createTestClient,
-    createWalletClient,
-    formatCFX,
-    http,
-    parseCFX,
-    type PublicClient,
-    type WalletClient
+  type Address,
+  type Chain,
+  type TestClient as CiveTestClient,
+  createPublicClient,
+  createTestClient,
+  createWalletClient,
+  formatCFX,
+  http,
+  type PublicClient,
+  parseCFX,
+  type WalletClient,
 } from 'cive';
 import { type Account, privateKeyToAccount } from 'cive/accounts';
 import {
-    defineChain,
-    encodeFunctionData,
-    formatUnits,
-    hexAddressToBase32,
-    isAddress as isCoreAddress,
+  defineChain,
+  encodeFunctionData,
+  formatUnits,
+  hexAddressToBase32,
+  isAddress as isCoreAddress,
 } from 'cive/utils';
 import { isAddress as isEspaceAddress } from 'viem';
 
@@ -57,19 +57,19 @@ const confluxTestnet = defineChain({
 
 import { getChainConfig, type SupportedChainId } from '../config/chains.js';
 import type {
-    BaseTransaction,
-    BlockEvent,
-    ChainClient,
-    ClientConfig,
-    CoreClientInstance,
-    EventCallback,
-    TestClient,
-    TestConfig,
-    TransactionEvent,
-    TransactionReceipt,
-    WalletClient as UnifiedWalletClient,
-    UnwatchFunction,
-    WalletConfig,
+  BaseTransaction,
+  BlockEvent,
+  ChainClient,
+  ClientConfig,
+  CoreClientInstance,
+  EventCallback,
+  TestClient,
+  TestConfig,
+  TransactionEvent,
+  TransactionReceipt,
+  WalletClient as UnifiedWalletClient,
+  UnwatchFunction,
+  WalletConfig,
 } from '../types/index.js';
 import { NodeError } from '../types/index.js';
 

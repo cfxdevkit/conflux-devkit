@@ -65,7 +65,7 @@ export class ContractDeployer {
         {
           chain: options.chain,
           error: error instanceof Error ? error.message : 'Unknown error',
-        },
+        }
       );
     }
   }
@@ -77,7 +77,7 @@ export class ContractDeployer {
    * @returns Multi-chain deployment results
    */
   async deployToMultipleChains(
-    options: MultiChainDeploymentOptions,
+    options: MultiChainDeploymentOptions
   ): Promise<MultiChainDeploymentResult> {
     const results: MultiChainDeploymentResult = {
       successCount: 0,
@@ -115,7 +115,7 @@ export class ContractDeployer {
    * Deploy contract to Core Space (Conflux native)
    */
   private async deployToCore(
-    options: DeploymentOptions,
+    options: DeploymentOptions
   ): Promise<DeploymentResult> {
     // Note: This is a simplified implementation
     // In production, you would:
@@ -126,11 +126,11 @@ export class ContractDeployer {
 
     // Simulate deployment for now
     const address = `cfx:${Array.from({ length: 40 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     const transactionHash = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     return {
@@ -148,7 +148,7 @@ export class ContractDeployer {
    * Deploy contract to eSpace (EVM-compatible)
    */
   private async deployToEvm(
-    options: DeploymentOptions,
+    options: DeploymentOptions
   ): Promise<DeploymentResult> {
     // Note: This is a simplified implementation
     // In production, you would use viem's deployContract
@@ -156,11 +156,11 @@ export class ContractDeployer {
 
     // Simulate deployment for now
     const address = `0x${Array.from({ length: 40 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     const transactionHash = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     return {
@@ -201,7 +201,7 @@ export class ContractDeployer {
   async verifyBytecode(
     address: string,
     expectedBytecode: string,
-    chain: 'core' | 'evm',
+    chain: 'core' | 'evm'
   ): Promise<boolean> {
     try {
       // In production, fetch deployed bytecode and compare

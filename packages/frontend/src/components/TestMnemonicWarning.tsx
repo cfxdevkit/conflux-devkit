@@ -38,7 +38,8 @@ export function TestMnemonicWarning({ onConfigureClick }: TestMnemonicWarningPro
         },
       }}
     >
-      ⚠️ <strong>Test Mnemonic Active</strong> - You are using the default test mnemonic. This is insecure for production.{' '}
+      ⚠️ <strong>Test Mnemonic Active</strong> - You are using the default test mnemonic. This is
+      insecure for production.{' '}
       <Anchor component="button" onClick={onConfigureClick} fw={600}>
         Configure Wallet →
       </Anchor>

@@ -20,12 +20,12 @@
  * Manages loading, unloading, and lifecycle of backend plugins
  */
 
+import { logger } from '../utils/logger.js';
 import type {
   BackendPlugin,
-  PluginContext,
   PluginManager as IPluginManager,
+  PluginContext,
 } from './types.js';
-import { logger } from '../utils/logger.js';
 
 export class PluginManager implements IPluginManager {
   private plugins: Map<string, BackendPlugin> = new Map();

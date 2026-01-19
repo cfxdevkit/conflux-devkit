@@ -20,9 +20,9 @@
  * Displays account information with customizable rendering
  */
 
-import React from 'react';
-import { useWalletContext } from '../../providers/WalletProvider.js';
+import type React from 'react';
 import { useBalance } from '../../hooks/useBalance.js';
+import { useWalletContext } from '../../providers/WalletProvider.js';
 import type { BaseComponentProps, RenderPropChild } from '../../types/index.js';
 
 export interface AccountCardRenderProps {

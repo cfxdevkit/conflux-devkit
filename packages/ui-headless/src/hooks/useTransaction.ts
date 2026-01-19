@@ -20,8 +20,8 @@
  * Sends transactions and tracks their status
  */
 
-import { useState } from 'react';
 import type { ChainType } from '@conflux-devkit/core';
+import { useState } from 'react';
 import { useDevKitContext } from '../providers/DevKitProvider.js';
 import { useWalletContext } from '../providers/WalletProvider.js';
 
@@ -69,7 +69,9 @@ export function useTransaction(): UseTransactionReturn {
   const [error, setError] = useState<Error>();
   const [transaction, setTransaction] = useState<TransactionResult>();
 
-  const send = async (options: SendTransactionOptions): Promise<TransactionResult> => {
+  const send = async (
+    options: SendTransactionOptions
+  ): Promise<TransactionResult> => {
     if (accountIndex === undefined) {
       throw new Error('Wallet not connected');
     }
@@ -82,7 +84,7 @@ export function useTransaction(): UseTransactionReturn {
       // For now, simulate transaction
       const result: TransactionResult = {
         hash: `0x${Array.from({ length: 64 }, () =>
-          Math.floor(Math.random() * 16).toString(16),
+          Math.floor(Math.random() * 16).toString(16)
         ).join('')}`,
         status: 'pending',
       };
@@ -96,7 +98,8 @@ export function useTransaction(): UseTransactionReturn {
 
       return result;
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Transaction failed');
+      const errorObj =
+        err instanceof Error ? err : new Error('Transaction failed');
       setError(errorObj);
       throw errorObj;
     } finally {

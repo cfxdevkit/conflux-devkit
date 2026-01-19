@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import type { NodeConfig } from '@/types/devnode';
 import axios, { type AxiosInstance } from 'axios';
+import type { NodeConfig } from '@/types/devnode';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -88,6 +88,90 @@ class ApiClient {
     return response.data;
   }
 
+  // ===== Setup API =====
+
+  async getSetupStatus() {
+    const response = await this.client.get('/setup/status');
+    return response.data as {
+      setupCompleted: boolean;
+      status?: {
+        mnemonicsCount: number;
+        adminsCount: number;
+        isLocked: boolean;
+        isEncrypted: boolean;
+        activeMnemonic?: string;
+      };
+      message?: string;
+      setupEndpoint?: string;
+      generateMnemonicEndpoint?: string;
+    };
+  }
+
+  async generateSetupMnemonic() {
+    const response = await this.client.post('/setup/generate-mnemonic');
+    return response.data as {
+      mnemonic: string;
+      wordCount: number;
+      warning: string;
+    };
+  }
+
+  async validateSetup(data: {
+    adminAddress?: string;
+    mnemonic?: string;
+    mnemonicLabel?: string;
+    nodeConfig?: {
+      accountsCount?: number;
+      chainId?: number;
+      evmChainId?: number;
+      miningAuthor?: string;
+    };
+    encryption?: {
+      enabled: boolean;
+      password?: string;
+    };
+  }) {
+    const response = await this.client.post('/setup/validate', data);
+    return response.data as {
+      valid: boolean;
+      errors: string[];
+      warnings?: string[];
+    };
+  }
+
+  async completeSetup(data: {
+    adminAddress: string;
+    mnemonic: string;
+    mnemonicLabel?: string;
+    nodeConfig?: {
+      accountsCount?: number;
+      chainId?: number;
+      evmChainId?: number;
+      miningAuthor?: string;
+    };
+    encryption?: {
+      enabled: boolean;
+      password?: string;
+    };
+  }) {
+    const response = await this.client.post('/setup/complete', data);
+    return response.data as {
+      success: boolean;
+      message: string;
+      setupData: {
+        adminAddress: string;
+        mnemonicLabel: string;
+        nodeConfig: {
+          accountsCount: number;
+          chainId: number;
+          evmChainId: number;
+          miningAuthor?: string;
+        };
+        encryptionEnabled: boolean;
+      };
+    };
+  }
+
   // DevKit endpoints (matching backend routes at /api/devkit/*)
   async getDevKitStatus() {
     const response = await this.client.get('/devkit/status');
@@ -156,17 +240,25 @@ class ApiClient {
 
   async resetNode(clearData: boolean = false) {
     // Node reset can take time, especially if clearing data
-    const response = await this.client.post('/devkit/node/reset', { clearData }, {
-      timeout: 60000, // 60 second timeout
-    });
+    const response = await this.client.post(
+      '/devkit/node/reset',
+      { clearData },
+      {
+        timeout: 60000, // 60 second timeout
+      }
+    );
     return response.data as { message: string; dataCleared: boolean; status: unknown };
   }
 
   async clearData() {
     // Clear blockchain data without restarting the node
-    const response = await this.client.post('/devkit/node/clear-data', {}, {
-      timeout: 30000, // 30 second timeout
-    });
+    const response = await this.client.post(
+      '/devkit/node/clear-data',
+      {},
+      {
+        timeout: 30000, // 30 second timeout
+      }
+    );
     return response.data as { message: string };
   }
 
@@ -349,7 +441,12 @@ class ApiClient {
     };
   }
 
-  async addMnemonic(options: { mnemonic?: string; label?: string; setActive?: boolean; generate?: boolean }) {
+  async addMnemonic(options: {
+    mnemonic?: string;
+    label?: string;
+    setActive?: boolean;
+    generate?: boolean;
+  }) {
     const response = await this.client.post('/devkit/wallet/keystore/add', options);
     return response.data as {
       success: boolean;
@@ -400,7 +497,7 @@ class ApiClient {
     const params = new URLSearchParams({ network });
     if (index !== undefined) params.append('index', String(index));
     if (customPath) params.append('customPath', customPath);
-    
+
     const response = await this.client.get(`/devkit/wallet/derive?${params.toString()}`);
     return response.data as {
       address: string;
@@ -414,7 +511,7 @@ class ApiClient {
     const params = new URLSearchParams({ network });
     if (count !== undefined) params.append('count', String(count));
     if (startIndex !== undefined) params.append('startIndex', String(startIndex));
-    
+
     const response = await this.client.get(`/devkit/wallet/derive/batch?${params.toString()}`);
     return response.data as {
       accounts: Array<{

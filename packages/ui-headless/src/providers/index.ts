@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
+export type {
+  DevKitContextValue,
+  DevKitProviderProps,
+} from './DevKitProvider.js';
 export { DevKitProvider, useDevKitContext } from './DevKitProvider.js';
-export { WalletProvider, useWalletContext } from './WalletProvider.js';
-
-export type { DevKitProviderProps, DevKitContextValue } from './DevKitProvider.js';
-export type { WalletProviderProps, WalletContextValue } from './WalletProvider.js';
+export type {
+  WalletContextValue,
+  WalletProviderProps,
+} from './WalletProvider.js';
+export { useWalletContext, WalletProvider } from './WalletProvider.js';

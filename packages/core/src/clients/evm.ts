@@ -21,38 +21,35 @@ import {
   type Address,
   type Chain,
   createPublicClient,
-  createWalletClient,
   createTestClient,
-  formatEther,
-  http,
-  parseEther,
-  type PublicClient,
-  type WalletClient,
-  type TestClient as ViemTestClient,
-} from 'viem';
-import {
+  createWalletClient,
   defineChain,
   encodeFunctionData,
+  formatEther,
+  http,
   isAddress as isEvmAddress,
+  type PublicClient,
+  parseEther,
+  type TestClient as ViemTestClient,
+  type WalletClient,
 } from 'viem';
 import { type Account, privateKeyToAccount } from 'viem/accounts';
-
+import { getChainConfig, type SupportedChainId } from '../config/chains.js';
 import type {
-  ChainClient,
-  WalletClient as UnifiedWalletClient,
-  TestClient,
-  ClientConfig,
-  WalletConfig,
-  TestConfig,
   BaseTransaction,
-  TransactionReceipt,
   BlockEvent,
-  TransactionEvent,
-  EventCallback,
+  ChainClient,
+  ClientConfig,
   EspaceClientInstance,
+  EventCallback,
+  TestClient,
+  TestConfig,
+  TransactionEvent,
+  TransactionReceipt,
+  WalletClient as UnifiedWalletClient,
+  WalletConfig,
 } from '../types/index.js';
 import { NodeError } from '../types/index.js';
-import { getChainConfig, type SupportedChainId } from '../config/chains.js';
 
 // Define eSpace chains if not available from viem/chains
 const espaceMainnet = defineChain({
@@ -88,7 +85,7 @@ export class EspaceClient implements ChainClient {
 
   constructor(config: ClientConfig) {
     this.chainId = config.chainId;
-    
+
     // Create chain configuration based on provided chain ID
     if (config.chainId === 1030) {
       this.chain = espaceMainnet;
@@ -130,7 +127,11 @@ export class EspaceClient implements ChainClient {
 
   async getBalance(address: Address): Promise<string> {
     if (!isEvmAddress(address)) {
-      throw new NodeError('Invalid EVM address format', 'INVALID_ADDRESS', 'evm');
+      throw new NodeError(
+        'Invalid EVM address format',
+        'INVALID_ADDRESS',
+        'evm'
+      );
     }
 
     try {
@@ -179,7 +180,7 @@ export class EspaceClient implements ChainClient {
         status: receipt.status === 'success' ? 'success' : 'reverted',
         gasUsed: receipt.gasUsed,
         contractAddress: receipt.contractAddress || undefined,
-        logs: receipt.logs.map(log => ({
+        logs: receipt.logs.map((log) => ({
           address: log.address,
           topics: log.topics,
           data: log.data,
@@ -243,10 +244,17 @@ export class EspaceClient implements ChainClient {
 
   // Base implementation - should be overridden by WalletClient
   async sendTransaction(_tx: BaseTransaction): Promise<string> {
-    throw new NodeError('sendTransaction not available on public client', 'METHOD_NOT_AVAILABLE', 'evm');
+    throw new NodeError(
+      'sendTransaction not available on public client',
+      'METHOD_NOT_AVAILABLE',
+      'evm'
+    );
   }
 
-  async getTokenBalance(_address: string, _tokenAddress: string): Promise<string> {
+  async getTokenBalance(
+    _address: string,
+    _tokenAddress: string
+  ): Promise<string> {
     try {
       const balance = await this.publicClient.readContract({
         address: _tokenAddress as Address,
@@ -275,18 +283,22 @@ export class EspaceClient implements ChainClient {
 
   watchBlocks(callback: EventCallback<BlockEvent>): () => void {
     const unwatch = this.publicClient.watchBlocks({
-      onBlock: (block) => callback({
-        chainType: 'evm',
-        blockNumber: block.number || 0n,
-        blockHash: block.hash || '',
-        timestamp: Number(block.timestamp || 0),
-        transactionCount: block.transactions?.length || 0,
-      }),
+      onBlock: (block) =>
+        callback({
+          chainType: 'evm',
+          blockNumber: block.number || 0n,
+          blockHash: block.hash || '',
+          timestamp: Number(block.timestamp || 0),
+          transactionCount: block.transactions?.length || 0,
+        }),
     });
     return unwatch;
   }
 
-  async watchTransaction(_hash: string, _callback: (receipt: TransactionReceipt) => void): Promise<() => void> {
+  async watchTransaction(
+    _hash: string,
+    _callback: (receipt: TransactionReceipt) => void
+  ): Promise<() => void> {
     // This is a simplified implementation - viem doesn't have a direct watchTransaction
     // In practice, you'd poll for the transaction receipt
     const pollTransaction = async () => {
@@ -298,7 +310,7 @@ export class EspaceClient implements ChainClient {
         setTimeout(pollTransaction, 1000);
       }
     };
-    
+
     setTimeout(pollTransaction, 1000);
     return () => {}; // Return a no-op unwatch function
   }
@@ -309,7 +321,11 @@ export class EspaceClient implements ChainClient {
 
   // Base implementation - should be overridden by TestClient
   watchTransactions(_callback: EventCallback<TransactionEvent>): () => void {
-    throw new NodeError('watchTransactions not available on public client', 'METHOD_NOT_AVAILABLE', 'evm');
+    throw new NodeError(
+      'watchTransactions not available on public client',
+      'METHOD_NOT_AVAILABLE',
+      'evm'
+    );
   }
 
   isValidAddress(address: string): boolean {
@@ -329,7 +345,10 @@ export class EspaceClient implements ChainClient {
  * EVM Space Wallet Client
  * Extends EspaceClient with transaction and account functionality
  */
-export class EspaceWalletClient extends EspaceClient implements UnifiedWalletClient {
+export class EspaceWalletClient
+  extends EspaceClient
+  implements UnifiedWalletClient
+{
   private readonly walletClient: WalletClient;
   private readonly account: Account;
 
@@ -483,7 +502,12 @@ export class EspaceWalletClient extends EspaceClient implements UnifiedWalletCli
   async faucetToCore(coreAddress: string, amount: string): Promise<string> {
     // Basic Core address format validation (cfx:...)
     if (!coreAddress.startsWith('cfx:') || coreAddress.length < 30) {
-      throw new NodeError('Invalid Core address format', 'INVALID_ADDRESS', 'evm', { coreAddress });
+      throw new NodeError(
+        'Invalid Core address format',
+        'INVALID_ADDRESS',
+        'evm',
+        { coreAddress }
+      );
     }
 
     try {
@@ -557,7 +581,9 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
 
   async setNextBlockTimestamp(timestamp: number): Promise<void> {
     try {
-      await this.testClient.setNextBlockTimestamp({ timestamp: BigInt(timestamp) });
+      await this.testClient.setNextBlockTimestamp({
+        timestamp: BigInt(timestamp),
+      });
     } catch (error) {
       throw new NodeError(
         `Failed to set next block timestamp: ${error instanceof Error ? error.message : String(error)}`,
@@ -596,7 +622,9 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
 
   async stopImpersonatingAccount(address: string): Promise<void> {
     try {
-      await this.testClient.stopImpersonatingAccount({ address: address as Address });
+      await this.testClient.stopImpersonatingAccount({
+        address: address as Address,
+      });
     } catch (error) {
       throw new NodeError(
         `Failed to stop impersonating account: ${error instanceof Error ? error.message : String(error)}`,
@@ -667,7 +695,11 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
     }
   }
 
-  async setStorageAt(address: string, slot: string, value: string): Promise<void> {
+  async setStorageAt(
+    address: string,
+    slot: string,
+    value: string
+  ): Promise<void> {
     try {
       await this.testClient.setStorageAt({
         address: address as Address,
@@ -695,8 +727,8 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
           callback({
             chainType: 'evm',
             hash,
-            from: '',  // Would need to fetch transaction details
-            to: '',    // Would need to fetch transaction details
+            from: '', // Would need to fetch transaction details
+            to: '', // Would need to fetch transaction details
             value: 0n, // Would need to fetch transaction details
             blockNumber: 0n, // Would need to fetch transaction details
           });
@@ -718,7 +750,8 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
     const accounts: string[] = [];
     for (let i = 0; i < count; i++) {
       // Generate random private key and derive address
-      const privateKey = `0x${'0'.repeat(64 - 2)}${i.toString(16).padStart(2, '0')}${'0'.repeat(60)}` as const;
+      const privateKey =
+        `0x${'0'.repeat(64 - 2)}${i.toString(16).padStart(2, '0')}${'0'.repeat(60)}` as const;
       const account = privateKeyToAccount(privateKey);
       accounts.push(account.address);
     }
@@ -729,21 +762,30 @@ export class EspaceTestClient extends EspaceWalletClient implements TestClient {
 /**
  * Create an eSpace client instance with all components
  */
-export async function createEspaceClient(config: ClientConfig): Promise<EspaceClientInstance> {
+export async function createEspaceClient(
+  config: ClientConfig
+): Promise<EspaceClientInstance> {
   const chainConfig = getChainConfig(config.chainId as SupportedChainId);
-  
+
   if (chainConfig.type !== 'evm') {
-    throw new NodeError(`Invalid chain type for eSpace client: ${chainConfig.type}`, 'INVALID_CHAIN_TYPE', 'evm');
+    throw new NodeError(
+      `Invalid chain type for eSpace client: ${chainConfig.type}`,
+      'INVALID_CHAIN_TYPE',
+      'evm'
+    );
   }
 
   // Update config with proper RPC URL if not provided
   const clientConfig: ClientConfig = {
     ...config,
-    rpcUrl: config.rpcUrl || chainConfig.rpcUrls.default.http[0] || 'http://localhost:8545',
+    rpcUrl:
+      config.rpcUrl ||
+      chainConfig.rpcUrls.default.http[0] ||
+      'http://localhost:8545',
   };
-  
+
   const publicClient = new EspaceClient(clientConfig);
-  
+
   let walletClient: EspaceWalletClient | undefined;
   let testClient: EspaceTestClient | undefined;
 
@@ -754,11 +796,12 @@ export async function createEspaceClient(config: ClientConfig): Promise<EspaceCl
     } else {
       privateKey = config.account.privateKey;
     }
-    
+
     const walletConfig: WalletConfig = {
       ...clientConfig,
       privateKey,
-      accountIndex: typeof config.account === 'object' ? config.account.accountIndex : 0,
+      accountIndex:
+        typeof config.account === 'object' ? config.account.accountIndex : 0,
     };
     walletClient = new EspaceWalletClient(walletConfig);
   }
@@ -774,9 +817,10 @@ export async function createEspaceClient(config: ClientConfig): Promise<EspaceCl
       }
     } else {
       // Default test private key
-      privateKey = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+      privateKey =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     }
-    
+
     const testConfig: TestConfig & { privateKey: string } = {
       ...clientConfig,
       enableTestMode: true,

@@ -31,7 +31,7 @@ export interface WebSocketMessage {
 
 export class DevKitWebSocketServer {
   private wss: WebSocketServer;
-  private devkit: DevKitCompat;
+  private devkit: DevKitCompat | undefined;
   private clients: Set<WebSocket> = new Set();
   private statsInterval: NodeJS.Timeout | null = null;
   private lastKnownNodeStatus: boolean = false;
@@ -40,7 +40,7 @@ export class DevKitWebSocketServer {
   private lastCoreEpoch: number = 0;
   private lastEvmBlock: number = 0;
 
-  constructor(port: number, devkit: DevKitCompat) {
+  constructor(port: number, devkit: DevKitCompat | undefined) {
     this.devkit = devkit;
     this.wss = new WebSocketServer({
       port,
@@ -232,7 +232,7 @@ export class DevKitWebSocketServer {
 
     // Start adaptive polling
     this.scheduleNextUpdate();
-    
+
     // Start block monitoring
     this.startBlockMonitoring();
   }
@@ -284,12 +284,29 @@ export class DevKitWebSocketServer {
       let miningStatus;
 
       // Check if DevKit is accessible first
+      if (!this.devkit) {
+        // DevKit not initialized (setup mode) - broadcast empty stats
+        this.broadcast({
+          type: 'nodeStats',
+          data: {
+            coreBlockNumber: '0',
+            evmBlockNumber: '0',
+            miningStatus: false,
+            nodeRunning: false,
+            gasPrice: { core: '0', evm: '0' },
+            setupRequired: true,
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
       try {
         status = await this.devkit.getStatus();
         config = this.devkit.getConfig();
         rpcUrls = this.devkit.getRpcUrls();
         miningStatus = this.devkit.getMiningStatus();
-      } catch (devkitError) {
+      } catch (_devkitError) {
         // DevK_devkitErrored or unreachable - don't attempt block number fetching
         const nodeRunning = false;
 
@@ -451,10 +468,10 @@ export class DevKitWebSocketServer {
    */
   startBlockMonitoring() {
     this.stopBlockMonitoring(); // Clear any existing interval
-    
+
     // Check immediately on start
     this.checkForNewBlocks();
-    
+
     this.blockMonitorInterval = setInterval(async () => {
       await this.checkForNewBlocks();
     }, 1000); // Check every 1 second
@@ -474,6 +491,11 @@ export class DevKitWebSocketServer {
    * Check for new blocks and broadcast them with transactions
    */
   private async checkForNewBlocks() {
+    // Skip if DevKit not initialized
+    if (!this.devkit) {
+      return;
+    }
+
     try {
       const config = this.devkit.getConfig();
       const coreRpcUrl = `http://localhost:${config.jsonrpcHttpPort || 12537}`;
@@ -503,8 +525,12 @@ export class DevKitWebSocketServer {
         }),
       ]);
 
-      const currentCoreData = (await currentCoreResponse.json()) as { result: string };
-      const currentEvmData = (await currentEvmResponse.json()) as { result: string };
+      const currentCoreData = (await currentCoreResponse.json()) as {
+        result: string;
+      };
+      const currentEvmData = (await currentEvmResponse.json()) as {
+        result: string;
+      };
 
       const currentCoreEpoch = parseInt(currentCoreData.result, 16);
       const currentEvmBlock = parseInt(currentEvmData.result, 16);
@@ -513,7 +539,11 @@ export class DevKitWebSocketServer {
 
       // Check for new Core epochs
       if (currentCoreEpoch > this.lastCoreEpoch) {
-        for (let epoch = this.lastCoreEpoch + 1; epoch <= currentCoreEpoch; epoch++) {
+        for (
+          let epoch = this.lastCoreEpoch + 1;
+          epoch <= currentCoreEpoch;
+          epoch++
+        ) {
           const response = await fetch(coreRpcUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -527,12 +557,14 @@ export class DevKitWebSocketServer {
           const data = (await response.json()) as { result: any };
           const block = data.result;
 
-          if (block && block.transactions && block.transactions.length > 0) {
+          if (block?.transactions && block.transactions.length > 0) {
             const transactions = block.transactions.map((tx: any) => ({
               hash: tx.hash || '',
               from: tx.from || '',
               to: tx.to || undefined,
-              value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+              value: tx.value
+                ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+                : '0 CFX',
             }));
 
             blocksWithTxs.push({
@@ -544,12 +576,15 @@ export class DevKitWebSocketServer {
             });
           }
         }
-
       }
 
       // Check for new eSpace blocks
       if (currentEvmBlock > this.lastEvmBlock) {
-        for (let blockNum = this.lastEvmBlock + 1; blockNum <= currentEvmBlock; blockNum++) {
+        for (
+          let blockNum = this.lastEvmBlock + 1;
+          blockNum <= currentEvmBlock;
+          blockNum++
+        ) {
           const response = await fetch(evmRpcUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -563,12 +598,14 @@ export class DevKitWebSocketServer {
           const data = (await response.json()) as { result: any };
           const block = data.result;
 
-          if (block && block.transactions && block.transactions.length > 0) {
+          if (block?.transactions && block.transactions.length > 0) {
             const transactions = block.transactions.map((tx: any) => ({
               hash: tx.hash || '',
               from: tx.from || '',
               to: tx.to || undefined,
-              value: tx.value ? (parseInt(tx.value, 16) / 1e18).toFixed(4) + ' CFX' : '0 CFX',
+              value: tx.value
+                ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+                : '0 CFX',
             }));
 
             blocksWithTxs.push({
@@ -584,7 +621,10 @@ export class DevKitWebSocketServer {
       }
 
       // Always broadcast if block numbers changed (even without transactions)
-      if (currentCoreEpoch !== this.lastCoreEpoch || currentEvmBlock !== this.lastEvmBlock) {
+      if (
+        currentCoreEpoch !== this.lastCoreEpoch ||
+        currentEvmBlock !== this.lastEvmBlock
+      ) {
         this.broadcast({
           type: 'newBlocks',
           data: {
@@ -594,11 +634,11 @@ export class DevKitWebSocketServer {
           },
           timestamp: new Date().toISOString(),
         });
-        
+
         this.lastCoreEpoch = currentCoreEpoch;
         this.lastEvmBlock = currentEvmBlock;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fail - node might not be running yet
     }
   }

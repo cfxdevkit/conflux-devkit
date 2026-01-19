@@ -14,45 +14,45 @@
  * limitations under the License.
  */
 
-import { apiClient } from '@/services/api';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-    ActionIcon,
-    Alert,
-    Badge,
-    Button,
-    Card,
-    Checkbox,
-    Code,
-    CopyButton,
-    Group,
-    Modal,
-    PasswordInput,
-    SegmentedControl,
-    Stack,
-    Table,
-    Text,
-    Textarea,
-    TextInput,
-    ThemeIcon,
-    Title,
-    Tooltip,
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Code,
+  CopyButton,
+  Group,
+  Modal,
+  PasswordInput,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-    IconAlertCircle,
-    IconCheck,
-    IconCopy,
-    IconEye,
-    IconKey,
-    IconLock,
-    IconLockOpen,
-    IconPlus,
-    IconRefresh,
-    IconWallet,
+  IconAlertCircle,
+  IconCheck,
+  IconCopy,
+  IconEye,
+  IconKey,
+  IconLock,
+  IconLockOpen,
+  IconPlus,
+  IconRefresh,
+  IconWallet,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { apiClient } from '@/services/api';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 interface KeystoreEntry {
   index: number;
@@ -82,7 +82,7 @@ interface WalletStatus {
 export function WalletSettingsEnhanced() {
   // Get devnode status and config to check if node is running and get accountsCount
   const { status, config } = useDevNodeStore();
-  
+
   // Wallet state
   const [entries, setEntries] = useState<KeystoreEntry[]>([]);
   const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null);
@@ -95,9 +95,12 @@ export function WalletSettingsEnhanced() {
   // Modals
   const [addWalletOpened, { open: openAddWallet, close: closeAddWallet }] = useDisclosure(false);
   const [encryptionOpened, { open: openEncryption, close: closeEncryption }] = useDisclosure(false);
-  const [changePasswordOpened, { open: openChangePassword, close: closeChangePassword }] = useDisclosure(false);
-  const [showMnemonicOpened, { open: openShowMnemonic, close: closeShowMnemonic }] = useDisclosure(false);
-  const [showPrivateKeyOpened, { open: openShowPrivateKey, close: closeShowPrivateKey }] = useDisclosure(false);
+  const [changePasswordOpened, { open: openChangePassword, close: closeChangePassword }] =
+    useDisclosure(false);
+  const [showMnemonicOpened, { open: openShowMnemonic, close: closeShowMnemonic }] =
+    useDisclosure(false);
+  const [showPrivateKeyOpened, { open: openShowPrivateKey, close: closeShowPrivateKey }] =
+    useDisclosure(false);
 
   // Form states
   const [newMnemonic, setNewMnemonic] = useState('');
@@ -125,25 +128,25 @@ export function WalletSettingsEnhanced() {
   useEffect(() => {
     if (selectedNetwork && !walletStatus?.isLocked) {
       fetchAccounts();
-      
+
       // Auto-refresh balances every 10 seconds, but only if node is running (for local network)
       const isLocalNetwork = !status?.network || status.network === 'local';
       const isNodeRunning = status?.isRunning ?? false;
       const shouldAutoRefresh = !isLocalNetwork || isNodeRunning;
-      
+
       let interval: NodeJS.Timeout | null = null;
       if (shouldAutoRefresh) {
         interval = setInterval(() => {
           fetchAccounts();
         }, 10000);
       }
-      
+
       // Listen for manual balance update events (e.g., after faucet)
       const handleBalanceUpdate = () => {
         fetchAccounts();
       };
       window.addEventListener('wallet:balance-update', handleBalanceUpdate);
-      
+
       return () => {
         if (interval) clearInterval(interval);
         window.removeEventListener('wallet:balance-update', handleBalanceUpdate);
@@ -158,10 +161,15 @@ export function WalletSettingsEnhanced() {
         apiClient.listWallets(),
         apiClient.getWalletStatus(),
       ]);
-      
-      setEntries(keystoreData.wallets || []);
+
+      // Ensure wallets is always an array
+      const wallets = Array.isArray(keystoreData?.wallets) ? keystoreData.wallets : [];
+      setEntries(wallets);
       setWalletStatus(statusData);
     } catch (error) {
+      // On error, reset to empty state (likely setup not completed)
+      setEntries([]);
+      setWalletStatus(null);
       notifications.show({
         title: 'Error',
         message: 'Failed to fetch wallet data',
@@ -177,25 +185,26 @@ export function WalletSettingsEnhanced() {
       // Use accountsCount from node config, fallback to store config, then default to 10
       const accountCount = status?.config?.accountsCount || config.accountsCount || 10;
       const data = await apiClient.deriveAccounts(selectedNetwork, accountCount, 0);
-      
+
       // Re-check status at fetch time (might have changed since useEffect ran)
       const isLocalNetwork = !status?.network || status.network === 'local';
       const isNodeRunning = status?.isRunning ?? false;
-      
+
       // Skip balance fetching if on local network and node is not running
       if (isLocalNetwork && !isNodeRunning) {
-        setAccounts(data.accounts.map(account => ({ ...account, balance: '0' })));
+        setAccounts(data.accounts.map((account) => ({ ...account, balance: '0' })));
         return;
       }
-      
+
       // Fetch balances from blockchain
       const accountsWithBalances = await Promise.all(
         data.accounts.map(async (account) => {
           try {
             const balanceData = await apiClient.getBalanceByAddress(account.address);
-            
+
             // Use the appropriate balance based on network
-            const balance = selectedNetwork === 'core' ? balanceData.balances.core : balanceData.balances.evm;
+            const balance =
+              selectedNetwork === 'core' ? balanceData.balances.core : balanceData.balances.evm;
             return { ...account, balance };
           } catch (error) {
             // Silently return 0 balance on error (likely node stopped)
@@ -203,7 +212,7 @@ export function WalletSettingsEnhanced() {
           }
         })
       );
-      
+
       setAccounts(accountsWithBalances);
     } catch (error) {
       notifications.show({
@@ -433,7 +442,10 @@ export function WalletSettingsEnhanced() {
       {/* Locked Warning */}
       {walletStatus?.isLocked && (
         <Alert icon={<IconLock size={16} />} color="orange" title="Wallet Locked">
-          Your wallet is encrypted and locked. <Button size="xs" variant="light" onClick={openEncryption}>Unlock Now</Button>
+          Your wallet is encrypted and locked.{' '}
+          <Button size="xs" variant="light" onClick={openEncryption}>
+            Unlock Now
+          </Button>
         </Alert>
       )}
 
@@ -442,19 +454,32 @@ export function WalletSettingsEnhanced() {
         <Card.Section withBorder inheritPadding py="md">
           <Group justify="space-between">
             <Group gap="xs">
-              <ThemeIcon variant="light"><IconWallet size={18} /></ThemeIcon>
+              <ThemeIcon variant="light">
+                <IconWallet size={18} />
+              </ThemeIcon>
               <Title order={4}>Wallet Management</Title>
               <Badge variant="light">{entries.length} wallet(s)</Badge>
             </Group>
             <Group gap="xs">
-              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={fetchWalletData} loading={loading}>
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconRefresh size={14} />}
+                onClick={fetchWalletData}
+                loading={loading}
+              >
                 Refresh
               </Button>
               <Button size="xs" leftSection={<IconPlus size={14} />} onClick={openAddWallet}>
                 Add Wallet
               </Button>
               {walletStatus?.isLocked ? (
-                <Button size="xs" leftSection={<IconLockOpen size={14} />} color="orange" onClick={openEncryption}>
+                <Button
+                  size="xs"
+                  leftSection={<IconLockOpen size={14} />}
+                  color="orange"
+                  onClick={openEncryption}
+                >
                   Unlock
                 </Button>
               ) : walletStatus?.encryptionEnabled ? (
@@ -483,28 +508,48 @@ export function WalletSettingsEnhanced() {
           <Table.Tbody>
             {entries.map((entry) => (
               <Table.Tr key={entry.index}>
-                <Table.Td><Text fw={500}>#{entry.index}</Text></Table.Td>
+                <Table.Td>
+                  <Text fw={500}>#{entry.index}</Text>
+                </Table.Td>
                 <Table.Td>{entry.label}</Table.Td>
-                <Table.Td><Badge size="sm" variant="light">{entry.type}</Badge></Table.Td>
+                <Table.Td>
+                  <Badge size="sm" variant="light">
+                    {entry.type}
+                  </Badge>
+                </Table.Td>
                 <Table.Td>
                   {entry.isActive ? (
-                    <Badge color="green" size="sm">Active</Badge>
+                    <Badge color="green" size="sm">
+                      Active
+                    </Badge>
                   ) : (
-                    <Badge color="gray" variant="light" size="sm">Inactive</Badge>
+                    <Badge color="gray" variant="light" size="sm">
+                      Inactive
+                    </Badge>
                   )}
                 </Table.Td>
                 <Table.Td>
                   <Group gap="xs">
                     {!entry.isActive && (
                       <Tooltip label="Set as active">
-                        <ActionIcon variant="light" color="blue" size="sm" onClick={() => handleSelectWallet(entry.index)}>
+                        <ActionIcon
+                          variant="light"
+                          color="blue"
+                          size="sm"
+                          onClick={() => handleSelectWallet(entry.index)}
+                        >
                           <IconCheck size={14} />
                         </ActionIcon>
                       </Tooltip>
                     )}
                     {entry.isActive && !walletStatus?.isLocked && (
                       <Tooltip label="Show mnemonic">
-                        <ActionIcon variant="light" color="orange" size="sm" onClick={openShowMnemonic}>
+                        <ActionIcon
+                          variant="light"
+                          color="orange"
+                          size="sm"
+                          onClick={openShowMnemonic}
+                        >
                           <IconEye size={14} />
                         </ActionIcon>
                       </Tooltip>
@@ -522,11 +567,18 @@ export function WalletSettingsEnhanced() {
         <Card.Section withBorder inheritPadding py="md">
           <Group justify="space-between">
             <Group gap="xs">
-              <ThemeIcon variant="light"><IconKey size={18} /></ThemeIcon>
+              <ThemeIcon variant="light">
+                <IconKey size={18} />
+              </ThemeIcon>
               <Title order={4}>Derived Accounts</Title>
             </Group>
             <Group gap="xs">
-              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={fetchAccounts}>
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconRefresh size={14} />}
+                onClick={fetchAccounts}
+              >
                 Refresh
               </Button>
               <SegmentedControl
@@ -558,9 +610,13 @@ export function WalletSettingsEnhanced() {
             <Table.Tbody>
               {accounts.map((account) => (
                 <Table.Tr key={account.index}>
-                  <Table.Td><Text fw={500}>#{account.index}</Text></Table.Td>
                   <Table.Td>
-                    <Code>{account.address.slice(0, 10)}...{account.address.slice(-8)}</Code>
+                    <Text fw={500}>#{account.index}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Code>
+                      {account.address.slice(0, 10)}...{account.address.slice(-8)}
+                    </Code>
                   </Table.Td>
                   <Table.Td>{account.balance || '0'} CFX</Table.Td>
                   <Table.Td>
@@ -568,17 +624,27 @@ export function WalletSettingsEnhanced() {
                       <CopyButton value={account.address}>
                         {({ copied, copy }) => (
                           <Tooltip label={copied ? 'Copied' : 'Copy address'}>
-                            <ActionIcon variant="light" color={copied ? 'green' : 'blue'} size="sm" onClick={copy}>
+                            <ActionIcon
+                              variant="light"
+                              color={copied ? 'green' : 'blue'}
+                              size="sm"
+                              onClick={copy}
+                            >
                               {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                             </ActionIcon>
                           </Tooltip>
                         )}
                       </CopyButton>
                       <Tooltip label="Show private key">
-                        <ActionIcon variant="light" color="orange" size="sm" onClick={() => {
-                          setSelectedAccountIndex(account.index);
-                          openShowPrivateKey();
-                        }}>
+                        <ActionIcon
+                          variant="light"
+                          color="orange"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAccountIndex(account.index);
+                            openShowPrivateKey();
+                          }}
+                        >
                           <IconKey size={14} />
                         </ActionIcon>
                       </Tooltip>
@@ -610,10 +676,14 @@ export function WalletSettingsEnhanced() {
           ) : (
             <>
               <Alert icon={<IconKey size={16} />} color="blue" title="Generated Mnemonic">
-                <Code block style={{ wordBreak: 'break-word' }}>{generatedMnemonic}</Code>
+                <Code block style={{ wordBreak: 'break-word' }}>
+                  {generatedMnemonic}
+                </Code>
               </Alert>
               <Alert color="orange">
-                <Text size="sm">Write down this mnemonic and store it securely. It will not be shown again.</Text>
+                <Text size="sm">
+                  Write down this mnemonic and store it securely. It will not be shown again.
+                </Text>
               </Alert>
             </>
           )}
@@ -632,14 +702,20 @@ export function WalletSettingsEnhanced() {
           />
 
           <Group justify="flex-end">
-            <Button variant="light" onClick={closeAddWallet}>Cancel</Button>
+            <Button variant="light" onClick={closeAddWallet}>
+              Cancel
+            </Button>
             <Button onClick={handleAddWallet}>Add Wallet</Button>
           </Group>
         </Stack>
       </Modal>
 
       {/* Encryption/Unlock Modal */}
-      <Modal opened={encryptionOpened} onClose={closeEncryption} title={walletStatus?.isLocked ? 'Unlock Wallet' : 'Enable Encryption'}>
+      <Modal
+        opened={encryptionOpened}
+        onClose={closeEncryption}
+        title={walletStatus?.isLocked ? 'Unlock Wallet' : 'Enable Encryption'}
+      >
         <Stack gap="md">
           {walletStatus?.isLocked ? (
             <>
@@ -650,7 +726,9 @@ export function WalletSettingsEnhanced() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <Group justify="flex-end">
-                <Button variant="light" onClick={closeEncryption}>Cancel</Button>
+                <Button variant="light" onClick={closeEncryption}>
+                  Cancel
+                </Button>
                 <Button onClick={handleUnlock}>Unlock</Button>
               </Group>
             </>
@@ -669,7 +747,9 @@ export function WalletSettingsEnhanced() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
               <Group justify="flex-end">
-                <Button variant="light" onClick={closeEncryption}>Cancel</Button>
+                <Button variant="light" onClick={closeEncryption}>
+                  Cancel
+                </Button>
                 <Button onClick={handleEnableEncryption}>Enable Encryption</Button>
               </Group>
             </>
@@ -678,7 +758,11 @@ export function WalletSettingsEnhanced() {
       </Modal>
 
       {/* Change Password Modal */}
-      <Modal opened={changePasswordOpened} onClose={closeChangePassword} title="Change Encryption Password">
+      <Modal
+        opened={changePasswordOpened}
+        onClose={closeChangePassword}
+        title="Change Encryption Password"
+      >
         <Stack gap="md">
           <PasswordInput
             label="Current Password"
@@ -699,23 +783,30 @@ export function WalletSettingsEnhanced() {
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={closeChangePassword}>Cancel</Button>
+            <Button variant="light" onClick={closeChangePassword}>
+              Cancel
+            </Button>
             <Button onClick={handleDisableEncryption}>Change Password</Button>
           </Group>
         </Stack>
       </Modal>
 
       {/* Show Mnemonic Modal */}
-      <Modal opened={showMnemonicOpened} onClose={() => {
-        closeShowMnemonic();
-        setVisibleMnemonic('');
-        setShowMnemonicConfirmed(false);
-      }} title="Show Mnemonic">
+      <Modal
+        opened={showMnemonicOpened}
+        onClose={() => {
+          closeShowMnemonic();
+          setVisibleMnemonic('');
+          setShowMnemonicConfirmed(false);
+        }}
+        title="Show Mnemonic"
+      >
         <Stack gap="md">
           {!visibleMnemonic ? (
             <>
               <Alert icon={<IconAlertCircle size={16} />} color="red">
-                Never share your mnemonic with anyone. Anyone with access to this can control your wallet.
+                Never share your mnemonic with anyone. Anyone with access to this can control your
+                wallet.
               </Alert>
               <Checkbox
                 label="I understand the risks"
@@ -723,7 +814,9 @@ export function WalletSettingsEnhanced() {
                 onChange={(e) => setShowMnemonicConfirmed(e.currentTarget.checked)}
               />
               <Group justify="flex-end">
-                <Button variant="light" onClick={closeShowMnemonic}>Cancel</Button>
+                <Button variant="light" onClick={closeShowMnemonic}>
+                  Cancel
+                </Button>
                 <Button color="red" disabled={!showMnemonicConfirmed} onClick={handleShowMnemonic}>
                   Reveal Mnemonic
                 </Button>
@@ -731,10 +824,17 @@ export function WalletSettingsEnhanced() {
             </>
           ) : (
             <>
-              <Code block style={{ wordBreak: 'break-word' }}>{visibleMnemonic}</Code>
+              <Code block style={{ wordBreak: 'break-word' }}>
+                {visibleMnemonic}
+              </Code>
               <CopyButton value={visibleMnemonic}>
                 {({ copied, copy }) => (
-                  <Button fullWidth variant="light" color={copied ? 'green' : 'blue'} onClick={copy}>
+                  <Button
+                    fullWidth
+                    variant="light"
+                    color={copied ? 'green' : 'blue'}
+                    onClick={copy}
+                  >
                     {copied ? 'Copied!' : 'Copy to Clipboard'}
                   </Button>
                 )}
@@ -745,25 +845,33 @@ export function WalletSettingsEnhanced() {
       </Modal>
 
       {/* Show Private Key Modal */}
-      <Modal opened={showPrivateKeyOpened} onClose={() => {
-        closeShowPrivateKey();
-        setVisiblePrivateKey('');
-        setPrivateKeyConfirmed(false);
-      }} title="Show Private Key">
+      <Modal
+        opened={showPrivateKeyOpened}
+        onClose={() => {
+          closeShowPrivateKey();
+          setVisiblePrivateKey('');
+          setPrivateKeyConfirmed(false);
+        }}
+        title="Show Private Key"
+      >
         <Stack gap="md">
           {!visiblePrivateKey ? (
             <>
               <Alert icon={<IconAlertCircle size={16} />} color="red">
                 Never share your private key. It grants full control over this account.
               </Alert>
-              <Text size="sm">Account #{selectedAccountIndex} on {selectedNetwork}</Text>
+              <Text size="sm">
+                Account #{selectedAccountIndex} on {selectedNetwork}
+              </Text>
               <Checkbox
                 label="I understand the risks"
                 checked={privateKeyConfirmed}
                 onChange={(e) => setPrivateKeyConfirmed(e.currentTarget.checked)}
               />
               <Group justify="flex-end">
-                <Button variant="light" onClick={closeShowPrivateKey}>Cancel</Button>
+                <Button variant="light" onClick={closeShowPrivateKey}>
+                  Cancel
+                </Button>
                 <Button color="red" disabled={!privateKeyConfirmed} onClick={handleShowPrivateKey}>
                   Reveal Private Key
                 </Button>
@@ -771,10 +879,17 @@ export function WalletSettingsEnhanced() {
             </>
           ) : (
             <>
-              <Code block style={{ wordBreak: 'break-all' }}>{visiblePrivateKey}</Code>
+              <Code block style={{ wordBreak: 'break-all' }}>
+                {visiblePrivateKey}
+              </Code>
               <CopyButton value={visiblePrivateKey}>
                 {({ copied, copy }) => (
-                  <Button fullWidth variant="light" color={copied ? 'green' : 'blue'} onClick={copy}>
+                  <Button
+                    fullWidth
+                    variant="light"
+                    color={copied ? 'green' : 'blue'}
+                    onClick={copy}
+                  >
                     {copied ? 'Copied!' : 'Copy to Clipboard'}
                   </Button>
                 )}

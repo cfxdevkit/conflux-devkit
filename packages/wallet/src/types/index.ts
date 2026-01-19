@@ -209,7 +209,7 @@ export class WalletError extends Error {
   constructor(
     message: string,
     public code: string,
-    public context?: Record<string, unknown>,
+    public context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'WalletError';

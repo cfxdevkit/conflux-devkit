@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { wagmiConfig } from '@/config/wagmi';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,6 +21,7 @@ import { ConnectKitProvider } from 'connectkit';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { WagmiProvider } from 'wagmi';
+import { wagmiConfig } from '@/config/wagmi';
 import App from './App';
 
 import '@mantine/core/styles.css';

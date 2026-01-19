@@ -16,6 +16,6 @@
 
 // Core package clients module exports
 
-export { CoreClient, CoreWalletClient, CoreTestClient } from './core.js';
-export { EspaceClient, EspaceWalletClient, EspaceTestClient } from './evm.js';
+export { CoreClient, CoreTestClient, CoreWalletClient } from './core.js';
+export { EspaceClient, EspaceTestClient, EspaceWalletClient } from './evm.js';
 export { ClientManager } from './manager.js';

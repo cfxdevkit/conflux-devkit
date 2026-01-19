@@ -20,8 +20,8 @@
  * Fetches and tracks balance for an address
  */
 
-import { useState, useEffect } from 'react';
 import type { ChainType } from '@conflux-devkit/core';
+import { useEffect, useState } from 'react';
 import { useDevKitContext } from '../providers/DevKitProvider.js';
 
 export interface UseBalanceOptions {
@@ -69,7 +69,9 @@ export function useBalance(options: UseBalanceOptions): UseBalanceReturn {
       const mockBalance = '1000000000000000000'; // 1 token
       setBalance(mockBalance);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch balance'));
+      setError(
+        err instanceof Error ? err : new Error('Failed to fetch balance')
+      );
     } finally {
       setIsLoading(false);
     }

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-export { TransactionBatcher } from './batcher.js';
 export type {
-  BatchTransaction,
-  BatchResult,
   BatcherOptions,
+  BatchResult,
+  BatchTransaction,
 } from '../types/index.js';
+export { TransactionBatcher } from './batcher.js';

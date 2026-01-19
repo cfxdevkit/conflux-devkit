@@ -21,8 +21,8 @@
  * a message to prove wallet ownership. No private keys reach the frontend.
  */
 
-import type { NextFunction, Request, Response } from 'express';
 import crypto from 'node:crypto';
+import type { NextFunction, Request, Response } from 'express';
 import { verifyMessage } from 'viem';
 import type { DevKitCompat } from '../devkit-compat.js';
 import { logger } from '../utils/logger.js';
@@ -70,22 +70,30 @@ export class AuthService {
 
       // Prefer explicit override via environment variables
       const envAdmin =
-        process.env.HARDHAT_ADMIN_ADDRESS || process.env.VITE_HARDHAT_ADMIN_ADDRESS;
+        process.env.HARDHAT_ADMIN_ADDRESS ||
+        process.env.VITE_HARDHAT_ADMIN_ADDRESS;
 
       // If provided, use the env override
       if (envAdmin && /^0x[a-fA-F0-9]{40}$/.test(envAdmin)) {
         this.adminAddress = envAdmin.toLowerCase();
-        logger.info('✅ Admin address set from environment variable:', this.adminAddress);
+        logger.info(
+          '✅ Admin address set from environment variable:',
+          this.adminAddress
+        );
       } else {
         // Use the proper Ethereum-derived admin address from mnemonic
         // This uses the standard Ethereum derivation path: m/44'/60'/0'/0/0
         try {
           const ethereumAdminAddress = this.devkit.getEthereumAdminAddress();
           this.adminAddress = ethereumAdminAddress;
-          logger.info('✅ Admin address derived from Ethereum path (m/44\'/60\'/0\'/0/0):', this.adminAddress);
+          logger.info(
+            "✅ Admin address derived from Ethereum path (m/44'/60'/0'/0/0):",
+            this.adminAddress
+          );
         } catch (error) {
           // Fallback to legacy test address (deprecated)
-          this.adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+          this.adminAddress =
+            '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
           logger.warn(
             '⚠️ Failed to derive Ethereum admin address from mnemonic; using legacy test address. Set HARDHAT_ADMIN_ADDRESS to override.',
             { error }

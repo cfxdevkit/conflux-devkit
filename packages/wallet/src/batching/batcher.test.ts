@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { TransactionBatcher } from './batcher.js';
 
 describe('TransactionBatcher', () => {
@@ -168,7 +168,9 @@ describe('TransactionBatcher', () => {
     });
 
     it('should throw error for empty batch', async () => {
-      await expect(batcher.executeBatch('evm')).rejects.toThrow('No transactions');
+      await expect(batcher.executeBatch('evm')).rejects.toThrow(
+        'No transactions'
+      );
     });
 
     it('should use custom signer if provided', async () => {

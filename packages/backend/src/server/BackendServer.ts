@@ -28,8 +28,12 @@ import helmet from 'helmet';
 import { DevelopmentAuthService } from '../auth/DevelopmentAuthService.js';
 import type { DevKitCompat } from '../devkit-compat.js';
 import { DevKitManager } from '../devkit-manager.js';
+import { createSetupCheckMiddleware } from '../middleware/setup-check.js';
+import { createAdminRoutes } from '../routes/admin.js';
 import { createDevKitRoutes } from '../routes/devkit.js';
+import { createSetupRoutes } from '../routes/setup.js';
 import { createSwapRoutes } from '../routes/swap.js';
+import { createWalletRoutes } from '../routes/wallet.js';
 import { logger } from '../utils/logger.js';
 import { DevKitWebSocketServer } from './WebSocketServer.js';
 
@@ -90,9 +94,7 @@ export class BackendServer {
   async start() {
     try {
       // Initialize DevKit Manager
-      logger.info(
-        'Initializing DevKit Manager (node will start on-demand)...'
-      );
+      logger.info('Initializing DevKit Manager (node will start on-demand)...');
 
       this.devkitManager = new DevKitManager({
         chainId: this.config.devkitConfig.chainId,
@@ -105,43 +107,68 @@ export class BackendServer {
       });
 
       await this.devkitManager.initialize();
-      this.devkit = this.devkitManager.getDevKit();
 
-      // Register callback to update devkit reference when wallet is switched
-      this.devkitManager.onDevKitUpdate((newDevKit) => {
-        logger.info('Updating DevKit reference in BackendServer...');
-        this.devkit = newDevKit;
+      // Check if setup is completed - server starts in either case
+      const setupCompleted = await this.devkitManager.isSetupCompleted();
 
-        // Update WebSocket server reference
-        if (this.wsServer) {
-          this.wsServer.updateDevKit(newDevKit);
-        }
+      if (setupCompleted && this.devkitManager.isReady()) {
+        this.devkit = this.devkitManager.getDevKit();
 
-        // Update auth service reference
-        if (this.authService) {
-          this.authService.updateDevKit(newDevKit);
-        }
-      });
+        // Register callback to update devkit reference when wallet is switched
+        this.devkitManager.onDevKitUpdate((newDevKit) => {
+          logger.info('Updating DevKit reference in BackendServer...');
+          this.devkit = newDevKit;
 
-      const walletStatus = await this.devkitManager.getWalletStatus();
-      logger.success(`DevKit instance created with wallet: ${walletStatus.activeLabel}`);
-      logger.info(`Data directory: ${walletStatus.dataDir}`);
+          // Update WebSocket server reference
+          if (this.wsServer) {
+            this.wsServer.updateDevKit(newDevKit);
+          }
 
-      // Initialize auth service
-      this.authService = new DevelopmentAuthService(this.devkit);
-      await this.authService.initialize();
+          // Update auth service reference
+          if (this.authService) {
+            this.authService.updateDevKit(newDevKit);
+          }
+        });
 
-      // Setup routes
+        const walletStatus = await this.devkitManager.getWalletStatus();
+        logger.success(
+          `DevKit instance created with wallet: ${walletStatus.activeLabel}`
+        );
+        logger.info(`Data directory: ${walletStatus.dataDir}`);
+
+        // Initialize auth service with DevKit
+        this.authService = new DevelopmentAuthService(this.devkit);
+        await this.authService.initialize();
+
+        // Start WebSocket server with DevKit
+        logger.info(`Starting WebSocket server on port ${this.config.wsPort}...`);
+        this.wsServer = new DevKitWebSocketServer(
+          this.config.wsPort,
+          this.devkit
+        );
+        this.wsServer.startNodeStatsUpdates();
+        logger.success(`WebSocket server started on port ${this.config.wsPort}`);
+      } else {
+        logger.warn('⚠️  Setup not completed - Starting in setup mode');
+        logger.info('Complete setup via:');
+        logger.info('  • Web UI: http://localhost:5173');
+        logger.info('  • API: POST /api/setup/complete');
+
+        // Initialize auth service without DevKit (limited functionality)
+        this.authService = new DevelopmentAuthService(undefined);
+        await this.authService.initialize();
+
+        // Start WebSocket server without DevKit (limited functionality)
+        logger.info(`Starting WebSocket server on port ${this.config.wsPort}...`);
+        this.wsServer = new DevKitWebSocketServer(
+          this.config.wsPort,
+          undefined
+        );
+        logger.success(`WebSocket server started on port ${this.config.wsPort} (setup mode)`);
+      }
+
+      // Setup routes (works in both modes - protected routes check setup status)
       this.setupRoutes();
-
-      // Start WebSocket server
-      logger.info(`Starting WebSocket server on port ${this.config.wsPort}...`);
-      this.wsServer = new DevKitWebSocketServer(
-        this.config.wsPort,
-        this.devkit
-      );
-      this.wsServer.startNodeStatsUpdates();
-      logger.success(`WebSocket server started on port ${this.config.wsPort}`);
 
       // Start HTTP server
       logger.info(`Starting HTTP server on port ${this.config.port}...`);
@@ -151,6 +178,9 @@ export class BackendServer {
         logger.info(`  - HTTP API: http://localhost:${this.config.port}`);
         logger.info(`  - WebSocket: ws://localhost:${this.config.wsPort}`);
         logger.info(`  - Health: http://localhost:${this.config.port}/health`);
+        if (!setupCompleted) {
+          logger.info(`  - Setup: POST http://localhost:${this.config.port}/api/setup/complete`);
+        }
       });
     } catch (error) {
       logger.error('Failed to start backend server:', error);
@@ -159,10 +189,8 @@ export class BackendServer {
   }
 
   private setupRoutes() {
-    if (!this.devkit || !this.authService) {
-      throw new Error(
-        'DevKit and AuthService must be initialized before setting up routes'
-      );
+    if (!this.authService) {
+      throw new Error('AuthService must be initialized before setting up routes');
     }
 
     // Public authentication routes (no auth required)
@@ -221,11 +249,9 @@ export class BackendServer {
             isAdmin: user?.isAdmin || false,
           });
         } else {
-          res
-            .status(401)
-            .json({
-              error: result?.error || 'Invalid signature or expired challenge',
-            });
+          res.status(401).json({
+            error: result?.error || 'Invalid signature or expired challenge',
+          });
         }
       } catch (error) {
         logger.error('Failed to verify signature:', error);
@@ -233,17 +259,50 @@ export class BackendServer {
       }
     });
 
+    // Setup routes (public - no auth required for initial setup)
+    // Pass reinitialization callback for hot-reload after setup completion
+    this.app.use(
+      '/api/setup',
+      createSetupRoutes({
+        onSetupComplete: () => this.reinitializeAfterSetup(),
+      })
+    );
+
+    // Admin routes (requires admin auth + setup completed)
+    this.app.use(
+      '/api/admin',
+      createSetupCheckMiddleware(),
+      createAdminRoutes(this.authService)
+    );
+
+    // Wallet routes (requires admin auth + setup completed)
+    this.app.use(
+      '/api/wallet',
+      createSetupCheckMiddleware(),
+      createWalletRoutes(this.authService)
+    );
+
     // Apply authentication middleware to protected routes
     this.app.use('/api/devkit', this.authService.requireAuth);
 
+    // Apply setup check middleware to devkit routes
+    this.app.use('/api/devkit', createSetupCheckMiddleware());
+
     // DevKit API routes (pass devkitManager for mnemonic switching support)
     // Use getter function to always get fresh devkit instance (important after wallet switch)
-    this.app.use('/api/devkit', createDevKitRoutes(() => this.devkit!, this.wsServer, this.devkitManager));
+    this.app.use(
+      '/api/devkit',
+      createDevKitRoutes(() => this.devkit!, this.wsServer, this.devkitManager)
+    );
 
-    // Swap API routes (requires auth)
+    // Swap API routes (requires auth + setup)
     this.app.use('/api/swap', this.authService.requireAuth);
+    this.app.use('/api/swap', createSetupCheckMiddleware());
     // Use getter function to always get fresh devkit instance
-    this.app.use('/api/swap', createSwapRoutes(() => this.devkit!));
+    this.app.use(
+      '/api/swap',
+      createSwapRoutes(() => this.devkit!)
+    );
 
     // Public routes (no auth required)
     this.app.get('/api/status', async (_req, res) => {
@@ -296,21 +355,32 @@ export class BackendServer {
         const testAddress = '0xbc621b293C3A35078d3520deC246e70DE40BbA15';
 
         // Create viem client to read testnet data
-        const { createPublicClient, http, formatEther, formatUnits } = await import('viem');
+        const { createPublicClient, http, formatEther, formatUnits } =
+          await import('viem');
         const publicClient = createPublicClient({
           chain: {
             id: 1030, // Conflux eSpace testnet
             name: 'Conflux eSpace Testnet',
             nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
-            rpcUrls: { default: { http: ['https://evmtestnet.confluxrpc.com'] } },
+            rpcUrls: {
+              default: { http: ['https://evmtestnet.confluxrpc.com'] },
+            },
           },
           transport: http('https://evmtestnet.confluxrpc.com'),
         });
 
         // Token addresses
         const TOKENS = {
-          USDT: { address: '0x7d682e65efc5c13bf4e394b8f376c48e6bae0355' as `0x${string}`, decimals: 18 },
-          USDC: { address: '0xfbef97434ffd0587e5a1c88efd5f7bdc405ba6fa' as `0x${string}`, decimals: 18 },
+          USDT: {
+            address:
+              '0x7d682e65efc5c13bf4e394b8f376c48e6bae0355' as `0x${string}`,
+            decimals: 18,
+          },
+          USDC: {
+            address:
+              '0xfbef97434ffd0587e5a1c88efd5f7bdc405ba6fa' as `0x${string}`,
+            decimals: 18,
+          },
         };
 
         // ERC20 ABI for balanceOf
@@ -345,14 +415,20 @@ export class BackendServer {
 
         // Format token balances (from wei to human readable)
         const cfxFormatted = formatEther(cfxBalance);
-        const usdtFormatted = formatUnits(usdtBalance as bigint, TOKENS.USDT.decimals);
-        const usdcFormatted = formatUnits(usdcBalance as bigint, TOKENS.USDC.decimals);
+        const usdtFormatted = formatUnits(
+          usdtBalance as bigint,
+          TOKENS.USDT.decimals
+        );
+        const usdcFormatted = formatUnits(
+          usdcBalance as bigint,
+          TOKENS.USDC.decimals
+        );
 
         logger.info('📊 Testnet balances fetched successfully:', {
           address: testAddress,
           CFX: cfxFormatted,
           USDT: usdtFormatted,
-          USDC: usdcFormatted
+          USDC: usdcFormatted,
         });
 
         res.json({
@@ -361,16 +437,15 @@ export class BackendServer {
           balances: {
             CFX: cfxFormatted,
             USDT: usdtFormatted,
-            USDC: usdcFormatted
+            USDC: usdcFormatted,
           },
-          testnet: 'https://evmtestnet.confluxrpc.com'
+          testnet: 'https://evmtestnet.confluxrpc.com',
         });
-
       } catch (error) {
         logger.error('Test balance error:', error);
         res.status(500).json({
           error: 'Failed to test balances',
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     });
@@ -434,5 +509,67 @@ export class BackendServer {
    */
   getDevKitManager(): DevKitManager | undefined {
     return this.devkitManager;
+  }
+
+  /**
+   * Reinitialize DevKit and dependent services after setup completion
+   * This allows hot-reload without requiring a server restart
+   */
+  async reinitializeAfterSetup(): Promise<boolean> {
+    if (!this.devkitManager) {
+      logger.error('DevKitManager not available');
+      return false;
+    }
+
+    logger.info('🔄 Reinitializing services after setup completion...');
+
+    // Reinitialize DevKit via manager
+    const success = await this.devkitManager.reinitialize();
+    if (!success) {
+      logger.error('Failed to reinitialize DevKitManager');
+      return false;
+    }
+
+    // Get the new DevKit instance
+    this.devkit = this.devkitManager.getDevKitOrNull() || undefined;
+
+    if (!this.devkit) {
+      logger.error('DevKit instance not available after reinitialization');
+      return false;
+    }
+
+    // Register callback for future wallet switches
+    this.devkitManager.onDevKitUpdate((newDevKit) => {
+      logger.info('Updating DevKit reference in BackendServer...');
+      this.devkit = newDevKit;
+
+      if (this.wsServer) {
+        this.wsServer.updateDevKit(newDevKit);
+      }
+
+      if (this.authService) {
+        this.authService.updateDevKit(newDevKit);
+      }
+    });
+
+    // Update WebSocket server with DevKit
+    if (this.wsServer) {
+      this.wsServer.updateDevKit(this.devkit);
+      this.wsServer.startNodeStatsUpdates();
+      logger.info('WebSocket server updated with DevKit');
+    }
+
+    // Update auth service with DevKit
+    if (this.authService) {
+      this.authService.updateDevKit(this.devkit);
+      await this.authService.refreshAdminAddresses();
+      logger.info('Auth service updated with DevKit');
+    }
+
+    const walletStatus = await this.devkitManager.getWalletStatus();
+    logger.success(`✅ Services reinitialized with wallet: ${walletStatus.activeLabel}`);
+    logger.info(`Data directory: ${walletStatus.dataDir}`);
+
+    return true;
   }
 }

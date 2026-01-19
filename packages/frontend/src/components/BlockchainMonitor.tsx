@@ -14,37 +14,37 @@
  * limitations under the License.
  */
 
-import { wsClient } from '@/services/websocket';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import {
-    ActionIcon,
-    Alert,
-    Badge,
-    Button,
-    Card,
-    CopyButton,
-    Group,
-    SimpleGrid,
-    Stack,
-    Text,
-    TextInput,
-    ThemeIcon,
-    Tooltip,
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CopyButton,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
 import {
-    IconActivity,
-    IconAlertCircle,
-    IconBooks,
-    IconCheck,
-    IconCoin,
-    IconCopy,
-    IconFileText,
-    IconFilter,
-    IconPlayerPause,
-    IconPlayerPlay,
-    IconTrash,
+  IconActivity,
+  IconAlertCircle,
+  IconBooks,
+  IconCheck,
+  IconCoin,
+  IconCopy,
+  IconFileText,
+  IconFilter,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
+import { wsClient } from '@/services/websocket';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 interface BlockInfo {
   blockNumber: string;
@@ -79,7 +79,7 @@ export function BlockchainMonitor() {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
-  
+
   // Address filter state (for non-local networks)
   const [addressFilter, setAddressFilter] = useState('');
   const [contractFilter, setContractFilter] = useState('');
@@ -111,7 +111,7 @@ export function BlockchainMonitor() {
     // Subscribe to new blocks from WebSocket
     const unsubBlocks = wsClient.on('newBlocks', (data: any) => {
       if (isPaused) return;
-      
+
       const { blocks, currentCoreEpoch, currentEvmBlock } = data;
 
       // Always update block numbers (even if no blocks with transactions)
@@ -124,7 +124,10 @@ export function BlockchainMonitor() {
 
         // Add transaction counts if we have blocks
         if (blocks && blocks.length > 0) {
-          const totalTxs = blocks.reduce((sum: number, b: any) => sum + (b.transactionCount || 0), 0);
+          const totalTxs = blocks.reduce(
+            (sum: number, b: any) => sum + (b.transactionCount || 0),
+            0
+          );
           updates.totalBlocks = prev.totalBlocks + blocks.length;
           updates.totalTransactions = prev.totalTransactions + totalTxs;
         }
@@ -203,7 +206,7 @@ export function BlockchainMonitor() {
   };
 
   const toggleBlockExpanded = (blockKey: string) => {
-    setExpandedBlocks(prev => {
+    setExpandedBlocks((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(blockKey)) {
         newSet.delete(blockKey);
@@ -241,9 +244,8 @@ export function BlockchainMonitor() {
           variant="light"
         >
           <Text size="sm">
-            You are connected to <strong>{status?.network || 'remote'}</strong> network.
-            For performance reasons, please specify an address or contract to filter
-            transactions.
+            You are connected to <strong>{status?.network || 'remote'}</strong> network. For
+            performance reasons, please specify an address or contract to filter transactions.
           </Text>
         </Alert>
       )}
@@ -285,12 +287,7 @@ export function BlockchainMonitor() {
             >
               Apply Filters
             </Button>
-            <Button
-              size="xs"
-              variant="light"
-              onClick={clearFilters}
-              disabled={!isFilterActive}
-            >
+            <Button size="xs" variant="light" onClick={clearFilters} disabled={!isFilterActive}>
               Clear Filters
             </Button>
             {requiresFilter && !isFilterActive && (
@@ -437,20 +434,22 @@ export function BlockchainMonitor() {
             </Text>
           </Stack>
         ) : (
-          <div style={{ 
-            maxHeight: '600px', 
-            overflowY: 'auto', 
-            overflowX: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            padding: '0 8px 0 0'
-          }}>
+          <div
+            style={{
+              maxHeight: '600px',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '0 8px 0 0',
+            }}
+          >
             {blocks.map((block, idx) => (
-              <Card 
-                key={`${block.chainType}-${block.blockNumber}-${idx}`} 
-                withBorder 
-                padding="md" 
+              <Card
+                key={`${block.chainType}-${block.blockNumber}-${idx}`}
+                withBorder
+                padding="md"
                 radius="sm"
                 style={{ flexShrink: 0 }}
               >
@@ -476,12 +475,18 @@ export function BlockchainMonitor() {
 
                   {/* Transactions List - Show last 3 by default */}
                   {block.transactions.length > 0 && (
-                    <Stack gap="xs" style={{ paddingLeft: '12px', borderLeft: '2px solid var(--mantine-color-gray-3)' }}>
+                    <Stack
+                      gap="xs"
+                      style={{
+                        paddingLeft: '12px',
+                        borderLeft: '2px solid var(--mantine-color-gray-3)',
+                      }}
+                    >
                       {(() => {
                         const blockKey = `${block.chainType}-${block.blockNumber}`;
                         const isExpanded = expandedBlocks.has(blockKey);
-                        const txsToShow = isExpanded 
-                          ? block.transactions 
+                        const txsToShow = isExpanded
+                          ? block.transactions
                           : block.transactions.slice(-3); // Show last 3 transactions
                         const hasMore = block.transactions.length > 3;
 
@@ -493,29 +498,50 @@ export function BlockchainMonitor() {
                                 size="xs"
                                 color="gray"
                                 onClick={() => toggleBlockExpanded(blockKey)}
-                                leftSection={<Text size="xs">+{block.transactions.length - 3} more</Text>}
+                                leftSection={
+                                  <Text size="xs">+{block.transactions.length - 3} more</Text>
+                                }
                               >
                                 Show all {block.transactions.length} transactions
                               </Button>
                             )}
-                            
-                            <Stack gap="xs" style={{ maxHeight: isExpanded ? '300px' : 'none', overflowY: isExpanded ? 'auto' : 'visible', overflowX: 'hidden' }}>
+
+                            <Stack
+                              gap="xs"
+                              style={{
+                                maxHeight: isExpanded ? '300px' : 'none',
+                                overflowY: isExpanded ? 'auto' : 'visible',
+                                overflowX: 'hidden',
+                              }}
+                            >
                               {txsToShow.map((tx, txIdx) => (
-                                <Card 
-                                  key={`${tx.hash}-${txIdx}`} 
-                                  withBorder 
-                                  padding="xs" 
-                                  radius="xs" 
-                                  bg="gray.0" 
-                                  style={{ 
-                                    borderLeftWidth: '3px', 
-                                    borderLeftColor: block.chainType === 'core' ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-green-5)',
-                                    flexShrink: 0
+                                <Card
+                                  key={`${tx.hash}-${txIdx}`}
+                                  withBorder
+                                  padding="xs"
+                                  radius="xs"
+                                  bg="gray.0"
+                                  style={{
+                                    borderLeftWidth: '3px',
+                                    borderLeftColor:
+                                      block.chainType === 'core'
+                                        ? 'var(--mantine-color-blue-5)'
+                                        : 'var(--mantine-color-green-5)',
+                                    flexShrink: 0,
                                   }}
                                 >
                                   <Group justify="space-between" wrap="nowrap">
                                     <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                                      <Text ff="monospace" size="xs" fw={500} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      <Text
+                                        ff="monospace"
+                                        size="xs"
+                                        fw={500}
+                                        style={{
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
                                         {formatHash(tx.hash)}
                                       </Text>
                                       <CopyButton value={tx.hash} timeout={2000}>
@@ -526,7 +552,11 @@ export function BlockchainMonitor() {
                                               variant="subtle"
                                               size="xs"
                                             >
-                                              {copied ? <IconCheck style={{ width: 10 }} /> : <IconCopy style={{ width: 10 }} />}
+                                              {copied ? (
+                                                <IconCheck style={{ width: 10 }} />
+                                              ) : (
+                                                <IconCopy style={{ width: 10 }} />
+                                              )}
                                             </ActionIcon>
                                           </Tooltip>
                                         )}
@@ -536,12 +566,25 @@ export function BlockchainMonitor() {
                                       {tx.value}
                                     </Text>
                                   </Group>
-                                  <Group gap="xs" mt={4} wrap="nowrap" style={{ overflow: 'hidden' }}>
+                                  <Group
+                                    gap="xs"
+                                    mt={4}
+                                    wrap="nowrap"
+                                    style={{ overflow: 'hidden' }}
+                                  >
                                     <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
                                       From:
                                     </Text>
                                     <Tooltip label={tx.from}>
-                                      <Text ff="monospace" size="xs" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      <Text
+                                        ff="monospace"
+                                        size="xs"
+                                        style={{
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
                                         {formatAddress(tx.from)}
                                       </Text>
                                     </Tooltip>
@@ -552,7 +595,15 @@ export function BlockchainMonitor() {
                                       To:
                                     </Text>
                                     <Tooltip label={tx.to || 'Contract Creation'}>
-                                      <Text ff="monospace" size="xs" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      <Text
+                                        ff="monospace"
+                                        size="xs"
+                                        style={{
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
                                         {tx.to ? formatAddress(tx.to) : 'Contract'}
                                       </Text>
                                     </Tooltip>

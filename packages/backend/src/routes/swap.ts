@@ -22,7 +22,7 @@
 
 import type { Request, Response } from 'express';
 import { Router } from 'express';
-import { formatUnits, parseUnits, type Address } from 'viem';
+import { type Address, formatUnits, parseUnits } from 'viem';
 import type { DevKitCompat } from '../devkit-compat.js';
 import { logger } from '../utils/logger.js';
 
@@ -84,16 +84,16 @@ const TOKENS = {
 const POOLS = {
   testnet: {
     'USDC-USDT': {
-      500: '0x48aa364f1bcb5e621b16748251205a41218b11a8' as Address,    // 0.05%
-      3000: '0x8d15c5ac89a95dbe5a1174dbbeffd08b3a3d7102' as Address,   // 0.3%
-      10000: '0xaef5c803c2812604740ef0cb0f88f06bdbf3ff3d' as Address,  // 1%
+      500: '0x48aa364f1bcb5e621b16748251205a41218b11a8' as Address, // 0.05%
+      3000: '0x8d15c5ac89a95dbe5a1174dbbeffd08b3a3d7102' as Address, // 0.3%
+      10000: '0xaef5c803c2812604740ef0cb0f88f06bdbf3ff3d' as Address, // 1%
     },
   },
   mainnet: {
     'USDC-USDT': {
-      500: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address,    // Main pool from user input
-      3000: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address,   // Main pool from user input
-      10000: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address,  // Main pool from user input
+      500: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address, // Main pool from user input
+      3000: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address, // Main pool from user input
+      10000: '0xCd0c7A06D95a5fE99D3Aa3Bc9f174B8999cC36Bf' as Address, // Main pool from user input
     },
   },
 } as const;
@@ -104,9 +104,9 @@ function getNetworkFromRequest(req: Request): 'testnet' | 'mainnet' {
   const networkFromQuery = req.query.network as string;
   const networkFromBody = (req.body as { network?: string })?.network;
   const networkFromHeaders = req.headers['x-network'] as string;
-  
+
   const network = networkFromQuery || networkFromBody || networkFromHeaders;
-  
+
   // Default to testnet for backward compatibility if no network specified
   if (network === 'mainnet') {
     return 'mainnet';
@@ -121,7 +121,10 @@ function getNetworkConfig(network: 'testnet' | 'mainnet') {
     contracts: GINSENG_CONTRACTS[network],
     pools: POOLS[network],
     chainId: network === 'testnet' ? 71 : 1030,
-    rpcUrl: network === 'testnet' ? 'https://evmtestnet.confluxrpc.com' : 'https://evm.confluxrpc.com',
+    rpcUrl:
+      network === 'testnet'
+        ? 'https://evmtestnet.confluxrpc.com'
+        : 'https://evm.confluxrpc.com',
   };
 }
 
@@ -148,7 +151,7 @@ const QUOTER_ABI = [
 ] as const;
 
 // SwapRouter ABI (minimal for exactInputSingle)
-const SWAP_ROUTER_ABI = [
+const _SWAP_ROUTER_ABI = [
   {
     inputs: [
       {
@@ -186,9 +189,7 @@ const ERC20_ABI = [
     type: 'function',
   },
   {
-    inputs: [
-      { name: 'owner', type: 'address' },
-    ],
+    inputs: [{ name: 'owner', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
@@ -203,7 +204,7 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
    * Get quote for swap
    */
   router.post('/quote', async (req: Request, res: Response) => {
-    const devkit = getDevKit(); // Always get fresh instance
+    const _devkit = getDevKit(); // Always get fresh instance
     try {
       const { fromToken, toToken, amount, fee = 3000 } = req.body;
 
@@ -215,12 +216,15 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       const network = getNetworkFromRequest(req);
       const config = getNetworkConfig(network);
 
-      if (!config.tokens[fromToken as keyof typeof config.tokens] || 
-          !config.tokens[toToken as keyof typeof config.tokens]) {
+      if (
+        !config.tokens[fromToken as keyof typeof config.tokens] ||
+        !config.tokens[toToken as keyof typeof config.tokens]
+      ) {
         return res.status(400).json({ error: 'Invalid token' });
       }
 
-      const fromTokenInfo = config.tokens[fromToken as keyof typeof config.tokens];
+      const fromTokenInfo =
+        config.tokens[fromToken as keyof typeof config.tokens];
       const toTokenInfo = config.tokens[toToken as keyof typeof config.tokens];
 
       // Create viem client for the appropriate network
@@ -228,7 +232,8 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       const publicClient = createPublicClient({
         chain: {
           id: config.chainId,
-          name: network === 'testnet' ? 'Conflux eSpace Testnet' : 'Conflux eSpace',
+          name:
+            network === 'testnet' ? 'Conflux eSpace Testnet' : 'Conflux eSpace',
           nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
           rpcUrls: { default: { http: [config.rpcUrl] } },
         },
@@ -260,7 +265,12 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         });
 
         // Quoter V2 returns [amountOut, sqrtPriceX96After, initializedTicksCrossed, gasEstimate]
-        const quoteResult_arr = quoteResult as readonly [bigint, bigint, number, bigint];
+        const quoteResult_arr = quoteResult as readonly [
+          bigint,
+          bigint,
+          number,
+          bigint,
+        ];
         const amountOut = quoteResult_arr[0];
         amountOutFormatted = formatUnits(amountOut, toTokenInfo.decimals);
         useRealQuote = true;
@@ -270,10 +280,9 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
           to: toToken,
           amountIn: amount,
           amountOut: amountOutFormatted,
-          fee
+          fee,
         });
-
-      } catch (quoterError: unknown) {
+      } catch (_quoterError: unknown) {
         // Pools don't exist yet on this testnet deployment - use fallback
         const amountIn = parseFloat(amount);
         const estimatedOut = amountIn * 0.999; // 0.1% slippage for stablecoins
@@ -284,7 +293,7 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
           to: toToken,
           amountIn: amount,
           amountOut: amountOutFormatted,
-          reason: 'Pool does not exist on testnet'
+          reason: 'Pool does not exist on testnet',
         });
       }
 
@@ -295,16 +304,15 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         amountOut: amountOutFormatted,
         fee,
         path: `${fromToken}-${toToken}`,
-        poolExists: useRealQuote
+        poolExists: useRealQuote,
       });
-
     } catch (error) {
       logger.error('Quote error (outer catch):', {
         error,
         message: (error as Error)?.message,
         code: (error as { code?: string })?.code,
         stack: (error as Error)?.stack,
-        name: (error as Error)?.name
+        name: (error as Error)?.name,
       });
       res.status(500).json({ error: 'Failed to get quote' });
     }
@@ -316,7 +324,7 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
   router.get('/test-balances', async (_req: Request, res: Response) => {
     try {
       const testAddress = '0xbc621b293C3A35078d3520deC246e70DE40BbA15';
-      
+
       // Default to testnet for this test endpoint
       const config = getNetworkConfig('testnet');
 
@@ -353,14 +361,20 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
 
       // Format token balances (from wei to human readable)
       const cfxFormatted = formatEther(cfxBalance as bigint);
-      const usdtFormatted = formatUnits(usdtBalance as bigint, config.tokens.USDT.decimals);
-      const usdcFormatted = formatUnits(usdcBalance as bigint, config.tokens.USDC.decimals);
+      const usdtFormatted = formatUnits(
+        usdtBalance as bigint,
+        config.tokens.USDT.decimals
+      );
+      const usdcFormatted = formatUnits(
+        usdcBalance as bigint,
+        config.tokens.USDC.decimals
+      );
 
       logger.info('📊 Testnet balances fetched successfully:', {
         address: testAddress,
         CFX: cfxFormatted,
         USDT: usdtFormatted,
-        USDC: usdcFormatted
+        USDC: usdcFormatted,
       });
 
       res.json({
@@ -369,14 +383,16 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         balances: {
           CFX: cfxFormatted,
           USDT: usdtFormatted,
-          USDC: usdcFormatted
+          USDC: usdcFormatted,
         },
-        testnet: 'https://evmtestnet.confluxrpc.com'
+        testnet: 'https://evmtestnet.confluxrpc.com',
       });
-
     } catch (error) {
       logger.error('Test balance error:', error);
-      res.status(500).json({ error: 'Failed to test balances', details: (error as Error).message });
+      res.status(500).json({
+        error: 'Failed to test balances',
+        details: (error as Error).message,
+      });
     }
   });
 
@@ -388,7 +404,7 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
     try {
       // Get the admin account (account 0 from server)
       const adminAccount = devkit.account(0);
-      
+
       // Detect network from request (default to testnet for backward compatibility)
       const network = getNetworkFromRequest(_req);
       const config = getNetworkConfig(network);
@@ -398,7 +414,8 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       const publicClient = createPublicClient({
         chain: {
           id: config.chainId,
-          name: network === 'testnet' ? 'Conflux eSpace Testnet' : 'Conflux eSpace',
+          name:
+            network === 'testnet' ? 'Conflux eSpace Testnet' : 'Conflux eSpace',
           nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
           rpcUrls: { default: { http: [config.rpcUrl] } },
         },
@@ -408,7 +425,9 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       // Get token balances using contract calls
       const [cfxBalance, usdtBalance, usdcBalance] = await Promise.all([
         // Get CFX balance directly from network
-        publicClient.getBalance({ address: adminAccount.address.evm as Address }),
+        publicClient.getBalance({
+          address: adminAccount.address.evm as Address,
+        }),
         publicClient.readContract({
           address: config.tokens.USDT.address,
           abi: ERC20_ABI,
@@ -426,14 +445,20 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       // Format token balances (from wei to human readable)
       const { formatEther } = await import('viem');
       const cfxFormatted = formatEther(cfxBalance as bigint);
-      const usdtFormatted = formatUnits(usdtBalance as bigint, config.tokens.USDT.decimals);
-      const usdcFormatted = formatUnits(usdcBalance as bigint, config.tokens.USDC.decimals);
+      const usdtFormatted = formatUnits(
+        usdtBalance as bigint,
+        config.tokens.USDT.decimals
+      );
+      const usdcFormatted = formatUnits(
+        usdcBalance as bigint,
+        config.tokens.USDC.decimals
+      );
 
       logger.info('📊 Token balances:', {
         address: adminAccount.address.evm,
         CFX: cfxFormatted,
         USDT: usdtFormatted,
-        USDC: usdcFormatted
+        USDC: usdcFormatted,
       });
 
       res.json({
@@ -441,10 +466,9 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         balances: {
           USDT: usdtFormatted,
           USDC: usdcFormatted,
-          CFX: cfxFormatted
-        }
+          CFX: cfxFormatted,
+        },
       });
-
     } catch (error) {
       logger.error('Balance error:', error);
       res.status(500).json({ error: 'Failed to get balances' });
@@ -457,7 +481,13 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
   router.post('/execute', async (req: Request, res: Response) => {
     const devkit = getDevKit();
     try {
-      const { fromToken, toToken, amount, fee = 3000, slippage = 0.5 } = req.body;
+      const {
+        fromToken,
+        toToken,
+        amount,
+        fee = 3000,
+        slippage = 0.5,
+      } = req.body;
 
       if (!fromToken || !toToken || !amount) {
         return res.status(400).json({ error: 'Missing required parameters' });
@@ -467,12 +497,15 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       const network = getNetworkFromRequest(req);
       const config = getNetworkConfig(network);
 
-      if (!config.tokens[fromToken as keyof typeof config.tokens] || 
-          !config.tokens[toToken as keyof typeof config.tokens]) {
+      if (
+        !config.tokens[fromToken as keyof typeof config.tokens] ||
+        !config.tokens[toToken as keyof typeof config.tokens]
+      ) {
         return res.status(400).json({ error: 'Invalid token' });
       }
 
-      const fromTokenInfo = config.tokens[fromToken as keyof typeof config.tokens];
+      const fromTokenInfo =
+        config.tokens[fromToken as keyof typeof config.tokens];
       const toTokenInfo = config.tokens[toToken as keyof typeof config.tokens];
 
       logger.info('🔄 Executing swap:', {
@@ -481,7 +514,7 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         amount,
         fee,
         slippage,
-        network
+        network,
       });
 
       // Get admin account from server
@@ -490,12 +523,14 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
       logger.info('🔑 Server wallet info:', {
         coreAddress: adminAccount.address.core,
         evmAddress: adminAccount.address.evm,
-        evmPrivateKey: adminAccount.evmPrivateKey ? `0x...${adminAccount.evmPrivateKey.slice(-4)}` : 'none'
+        evmPrivateKey: adminAccount.evmPrivateKey
+          ? `0x...${adminAccount.evmPrivateKey.slice(-4)}`
+          : 'none',
       });
 
       // For now, return a mock successful swap
       // We'll implement the actual swap logic later
-      const mockTxHash = `0x${Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const mockTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
 
       res.json({
         success: true,
@@ -504,9 +539,8 @@ export function createSwapRoutes(getDevKit: () => DevKitCompat): Router {
         toToken: toTokenInfo,
         amountIn: amount,
         amountOut: (parseFloat(amount) * 0.999).toFixed(6), // Mock output
-        account: adminAccount.address.evm
+        account: adminAccount.address.evm,
       });
-
     } catch (error) {
       logger.error('Swap execution error:', error);
       res.status(500).json({ error: 'Failed to execute swap' });

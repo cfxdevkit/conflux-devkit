@@ -150,11 +150,11 @@ export const wagmiConfig = createConfig(
     // Prioritize EVM-compatible chains (most wallets support these)
     // Conflux eSpace uses standard EVM wallet infrastructure
     chains: [
-      confluxESpace,           // Conflux eSpace Mainnet (primary - EVM compatible)
-      confluxLocalESpace,      // Local dev node eSpace
-      confluxESpaceTestnet,    // Testnet eSpace
-      mainnet,                 // Ethereum mainnet
-      sepolia,                 // Ethereum testnet
+      confluxESpace, // Conflux eSpace Mainnet (primary - EVM compatible)
+      confluxLocalESpace, // Local dev node eSpace
+      confluxESpaceTestnet, // Testnet eSpace
+      mainnet, // Ethereum mainnet
+      sepolia, // Ethereum testnet
       // Note: Core chains removed from default list as few wallets support non-EVM chains
       // Users can manually add confluxCore via network settings if their wallet supports it
     ],

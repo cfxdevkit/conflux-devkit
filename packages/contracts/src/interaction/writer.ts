@@ -64,7 +64,7 @@ export class ContractWriter {
           functionName: options.functionName,
           chain: options.chain,
           error: error instanceof Error ? error.message : 'Unknown error',
-        },
+        }
       );
     }
   }
@@ -127,7 +127,7 @@ export class ContractWriter {
 
     // Simulate write for now
     const hash = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     const result: WriteResult = {
@@ -159,7 +159,7 @@ export class ContractWriter {
 
     // Simulate write for now
     const hash = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16),
+      Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
 
     const result: WriteResult = {

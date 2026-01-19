@@ -17,24 +17,24 @@
 // Server Manager for xcfx/node lifecycle management
 // Based on proven patterns from DevKit CLI, adapted for unified interface
 
+import type { ChildProcess } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import { defaultNetworkSelector } from '@conflux-devkit/core/config';
 import { createServer } from '@xcfx/node';
 import { BIP32Factory } from 'bip32';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import type { TestClient } from 'cive';
 import { privateKeyToAccount } from 'cive/accounts';
-import type { ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { promises as fs } from 'node:fs';
 import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import {
-    NodeError,
-    type AccountInfo,
-    type FaucetBalances,
-    type MiningStatus,
-    type ServerConfig,
-    type ServerStatus,
+  type AccountInfo,
+  type FaucetBalances,
+  type MiningStatus,
+  NodeError,
+  type ServerConfig,
+  type ServerStatus,
 } from './types.js';
 
 // Port configuration
@@ -150,7 +150,8 @@ export class ServerManager {
           this.miningAccount!.evmPrivateKey || this.miningAccount!.privateKey, // Add mining account EVM key
         ],
         // Mining configuration - use config value or default to mining account address
-        miningAuthor: this.config.miningAuthor || this.miningAccount?.coreAddress,
+        miningAuthor:
+          this.config.miningAuthor || this.miningAccount?.coreAddress,
         // Following xcfx-node test pattern: no auto block generation
         // All mining is done via testClient.mine() for full control
         devPackTxImmediately: false,
@@ -551,12 +552,17 @@ export class ServerManager {
     const ethereumPrivateKey = `0x${ethereumChild.privateKey.toString('hex')}`;
 
     // Create Core account using Conflux-derived private key
-    const coreAccount = privateKeyToAccount(confluxPrivateKey as `0x${string}`, {
-      networkId: this.config.chainId || 1,
-    });
-    
+    const coreAccount = privateKeyToAccount(
+      confluxPrivateKey as `0x${string}`,
+      {
+        networkId: this.config.chainId || 1,
+      }
+    );
+
     // Create EVM account using Ethereum-derived private key
-    const evmAccount = privateKeyToEvmAccount(ethereumPrivateKey as `0x${string}`);
+    const evmAccount = privateKeyToEvmAccount(
+      ethereumPrivateKey as `0x${string}`
+    );
 
     this.miningAccount = {
       index: -1, // Special index for mining account

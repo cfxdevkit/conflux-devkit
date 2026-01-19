@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import { ActionIcon, Button, Card, CopyButton, Group, Stack, Table, Text } from '@mantine/core';
 import { IconCheck, IconCopy, IconRefresh } from '@tabler/icons-react';
 import { useEffect } from 'react';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 export function AccountsTable() {
   const { accounts, fetchAccounts, status } = useDevNodeStore();
 
   useEffect(() => {
     fetchAccounts();
-    
+
     // Only auto-refresh if on remote network OR if local node is running
     const isLocalNetwork = !status?.network || status.network === 'local';
     const isNodeRunning = status?.isRunning ?? false;
     const shouldAutoRefresh = !isLocalNetwork || isNodeRunning;
-    
+
     if (shouldAutoRefresh) {
       const interval = setInterval(fetchAccounts, 10000);
       return () => clearInterval(interval);

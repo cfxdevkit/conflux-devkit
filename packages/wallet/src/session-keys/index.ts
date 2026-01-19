@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-export { SessionKeyManager } from './manager.js';
 export type {
   SessionKey,
   SessionKeyOptions,
   SessionKeyPermissions,
 } from '../types/index.js';
+export { SessionKeyManager } from './manager.js';

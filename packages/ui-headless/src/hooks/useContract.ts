@@ -20,8 +20,8 @@
  * Interact with smart contracts (read and write)
  */
 
-import { useState } from 'react';
 import type { ChainType } from '@conflux-devkit/core';
+import { useState } from 'react';
 import { useDevKitContext } from '../providers/DevKitProvider.js';
 import { useWalletContext } from '../providers/WalletProvider.js';
 
@@ -77,7 +77,9 @@ export function useContract(): UseContractReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error>();
 
-  const read = async <T = unknown,>(options: ReadContractOptions): Promise<T> => {
+  const read = async <T = unknown>(
+    options: ReadContractOptions
+  ): Promise<T> => {
     setIsLoading(true);
     setError(undefined);
 
@@ -86,7 +88,8 @@ export function useContract(): UseContractReturn {
       // For now, return mock data
       return {} as T;
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Contract read failed');
+      const errorObj =
+        err instanceof Error ? err : new Error('Contract read failed');
       setError(errorObj);
       throw errorObj;
     } finally {
@@ -106,12 +109,13 @@ export function useContract(): UseContractReturn {
       // In production, call backend API
       // For now, return mock hash
       const hash = `0x${Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16),
+        Math.floor(Math.random() * 16).toString(16)
       ).join('')}`;
 
       return hash;
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Contract write failed');
+      const errorObj =
+        err instanceof Error ? err : new Error('Contract write failed');
       setError(errorObj);
       throw errorObj;
     } finally {

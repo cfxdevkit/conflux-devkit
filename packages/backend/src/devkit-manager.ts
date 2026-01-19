@@ -24,11 +24,18 @@
  * 3. Restarts the node with the new mnemonic and data directory
  *
  * This ensures each mnemonic has its own isolated blockchain state.
+ *
+ * V2 Updates:
+ * - Requires initial setup completion before initialization
+ * - Uses per-mnemonic node configuration from keystore
+ * - Supports encryption/decryption of mnemonic data
+ * - Validates setup status on startup
  */
 
 import type { DevKitCompat, DevKitConfig } from './devkit-compat.js';
 import { DevKitCompat as DevKitCompatClass } from './devkit-compat.js';
 import { getKeystoreService } from './services/keystore-service.js';
+import type { AddMnemonicData } from './types/keystore.js';
 import { logger } from './utils/logger.js';
 
 export interface DevKitManagerConfig {
@@ -44,9 +51,8 @@ export interface DevKitManagerConfig {
 export class DevKitManager {
   private devkit: DevKitCompat | null = null;
   private baseConfig: DevKitManagerConfig;
-  private nodeWasRunning: boolean = false;
-  private nodeWasMining: boolean = false;
   private updateCallback?: (newDevKit: DevKitCompat) => void;
+  private setupCompleted: boolean = false;
 
   constructor(config: DevKitManagerConfig) {
     this.baseConfig = config;
@@ -61,29 +67,88 @@ export class DevKitManager {
   }
 
   /**
+   * Check if setup is completed
+   */
+  async isSetupCompleted(): Promise<boolean> {
+    const keystore = getKeystoreService();
+    return await keystore.isSetupCompleted();
+  }
+
+  /**
+   * Check if DevKit is ready (setup completed and initialized)
+   */
+  isReady(): boolean {
+    return this.setupCompleted && this.devkit !== null;
+  }
+
+  /**
    * Initialize DevKit with current active mnemonic from keystore
+   * Requires setup to be completed first
    */
   async initialize(): Promise<void> {
     const keystore = getKeystoreService();
-    const mnemonic = await keystore.getActiveMnemonic();
+
+    // Check if setup is completed
+    this.setupCompleted = await keystore.isSetupCompleted();
+
+    if (!this.setupCompleted) {
+      logger.warn('⚠️  Setup not completed - DevKit cannot initialize');
+      logger.info('Complete setup via:');
+      logger.info('  • Web UI: http://localhost:3000/setup');
+      logger.info('  • API: POST /api/setup/complete');
+      return;
+    }
+
+    // Get active mnemonic and its configuration
+    const mnemonicEntry = await keystore.getActiveMnemonic();
+    const nodeConfig = mnemonicEntry.nodeConfig;
+
+    // Decrypt mnemonic if encrypted
+    const mnemonic = await keystore.getDecryptedMnemonic(mnemonicEntry.id);
+
+    // Get data directory for this mnemonic
     const dataDir = await keystore.getDataDir();
 
+    // Create DevKit config using node configuration from mnemonic
     const devkitConfig: DevKitConfig = {
-      ...this.baseConfig,
+      chainId: nodeConfig.chainId,
+      evmChainId: nodeConfig.evmChainId,
+      jsonrpcHttpPort: this.baseConfig.jsonrpcHttpPort,
+      jsonrpcHttpEthPort: this.baseConfig.jsonrpcHttpEthPort,
+      jsonrpcWsPort: this.baseConfig.jsonrpcWsPort,
+      jsonrpcWsEthPort: this.baseConfig.jsonrpcWsEthPort,
+      log: this.baseConfig.log,
       mnemonic,
       dataDir,
+      accountsCount: nodeConfig.accountsCount,
+      miningAuthor:
+        nodeConfig.miningAuthor === 'auto'
+          ? undefined
+          : nodeConfig.miningAuthor,
     };
 
-    logger.info('Initializing DevKit with wallet:', keystore.getActiveLabel());
-    logger.info('Data directory:', dataDir);
+    logger.info('✅ Setup completed - Initializing DevKit');
+    logger.info(`Wallet: ${mnemonicEntry.label} (${mnemonicEntry.id})`);
+    logger.info(`Data directory: ${dataDir}`);
+    logger.info(
+      `Chain ID: ${nodeConfig.chainId} (Core), ${nodeConfig.evmChainId} (eSpace)`
+    );
+    logger.info(`Genesis accounts: ${nodeConfig.accountsCount}`);
 
     this.devkit = new DevKitCompatClass(devkitConfig);
+    logger.success('DevKit initialized successfully');
   }
 
   /**
    * Get current DevKit instance
+   * @throws Error if setup not completed or DevKit not initialized
    */
   getDevKit(): DevKitCompat {
+    if (!this.setupCompleted) {
+      throw new Error(
+        'Setup not completed. Complete initial setup before using DevKit.'
+      );
+    }
     if (!this.devkit) {
       throw new Error('DevKit not initialized. Call initialize() first.');
     }
@@ -91,10 +156,10 @@ export class DevKitManager {
   }
 
   /**
-   * Switch to a different mnemonic
+   * Switch to a different mnemonic (by ID)
    * This will stop the node, recreate DevKit with new config, and optionally restart
    */
-  async switchMnemonic(index: number): Promise<{
+  async switchMnemonic(mnemonicId: string): Promise<{
     success: boolean;
     nodeRestarted: boolean;
     activeLabel: string;
@@ -107,8 +172,10 @@ export class DevKitManager {
     const wasRunning = this.devkit ? await this.isNodeRunning() : false;
     const wasMining = wasRunning && (await this.isMining());
 
-    logger.info(`Switching to mnemonic index ${index}...`);
-    logger.info(`Node status BEFORE switch - Running: ${wasRunning}, Mining: ${wasMining}`);
+    logger.info(`Switching to mnemonic: ${mnemonicId}...`);
+    logger.info(
+      `Node status BEFORE switch - Running: ${wasRunning}, Mining: ${wasMining}`
+    );
 
     // Stop node if running
     if (wasRunning && this.devkit) {
@@ -122,22 +189,41 @@ export class DevKitManager {
       }
     }
 
-    // Update keystore active index
-    await keystore.setActiveMnemonic(index);
-    const activeLabel = keystore.getActiveLabel();
+    // Switch active mnemonic in keystore
+    await keystore.switchActiveMnemonic(mnemonicId);
 
-    // Get new mnemonic and data directory
-    const newMnemonic = await keystore.getActiveMnemonic();
+    // Get new mnemonic entry and configuration
+    const mnemonicEntry = await keystore.getActiveMnemonic();
+    const nodeConfig = mnemonicEntry.nodeConfig;
+
+    // Decrypt mnemonic
+    const mnemonic = await keystore.getDecryptedMnemonic(mnemonicId);
+
+    // Get data directory for this mnemonic
     const newDataDir = await keystore.getDataDir();
 
-    logger.info(`Switched to wallet: ${activeLabel}`);
+    logger.info(`Switched to wallet: ${mnemonicEntry.label}`);
     logger.info(`New data directory: ${newDataDir}`);
+    logger.info(
+      `Chain ID: ${nodeConfig.chainId} (Core), ${nodeConfig.evmChainId} (eSpace)`
+    );
 
-    // Create new DevKit instance with updated config
+    // Create new DevKit instance with updated config from mnemonic's node config
     const newConfig: DevKitConfig = {
-      ...this.baseConfig,
-      mnemonic: newMnemonic,
+      chainId: nodeConfig.chainId,
+      evmChainId: nodeConfig.evmChainId,
+      jsonrpcHttpPort: this.baseConfig.jsonrpcHttpPort,
+      jsonrpcHttpEthPort: this.baseConfig.jsonrpcHttpEthPort,
+      jsonrpcWsPort: this.baseConfig.jsonrpcWsPort,
+      jsonrpcWsEthPort: this.baseConfig.jsonrpcWsEthPort,
+      log: this.baseConfig.log,
+      mnemonic,
       dataDir: newDataDir,
+      accountsCount: nodeConfig.accountsCount,
+      miningAuthor:
+        nodeConfig.miningAuthor === 'auto'
+          ? undefined
+          : nodeConfig.miningAuthor,
     };
 
     this.devkit = new DevKitCompatClass(newConfig);
@@ -169,14 +255,16 @@ export class DevKitManager {
         nodeRestarted = true;
       } catch (error) {
         logger.error('Failed to restart node:', error);
-        throw new Error(`Failed to restart node: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+          `Failed to restart node: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
 
     return {
       success: true,
       nodeRestarted,
-      activeLabel,
+      activeLabel: mnemonicEntry.label,
       dataDir: newDataDir,
     };
   }
@@ -184,30 +272,26 @@ export class DevKitManager {
   /**
    * Add a new mnemonic and optionally switch to it
    */
-  async addMnemonic(options: {
-    mnemonic?: string;
-    label?: string;
-    setActive?: boolean;
-  }): Promise<{
-    index: number;
+  async addMnemonic(data: AddMnemonicData): Promise<{
+    id: string;
     label: string;
     switchedTo: boolean;
   }> {
     const keystore = getKeystoreService();
-    const result = await keystore.addMnemonic(options);
+    const mnemonicEntry = await keystore.addMnemonic(data);
 
     let switchedTo = false;
 
     // If setActive was requested, switch to the new mnemonic
-    if (options.setActive) {
-      logger.info(`Switching to newly added wallet: ${result.label}`);
-      await this.switchMnemonic(result.index);
+    if (data.setAsActive) {
+      logger.info(`Switching to newly added wallet: ${mnemonicEntry.label}`);
+      await this.switchMnemonic(mnemonicEntry.id);
       switchedTo = true;
     }
 
     return {
-      index: result.index,
-      label: result.label,
+      id: mnemonicEntry.id,
+      label: mnemonicEntry.label,
       switchedTo,
     };
   }
@@ -222,7 +306,9 @@ export class DevKitManager {
 
     try {
       const status = await this.devkit.getStatus();
-      return status.core.status === 'running' || status.evm.status === 'running';
+      return (
+        status.core.status === 'running' || status.evm.status === 'running'
+      );
     } catch {
       return false;
     }
@@ -248,18 +334,98 @@ export class DevKitManager {
    * Get current wallet status
    */
   async getWalletStatus(): Promise<{
-    activeIndex: number;
+    activeId: string;
     activeLabel: string;
     dataDir: string;
     walletCount: number;
   }> {
     const keystore = getKeystoreService();
+    const activeMnemonic = await keystore.getActiveMnemonic();
+    const mnemonics = await keystore.listMnemonics();
 
     return {
-      activeIndex: keystore.getActiveIndex(),
-      activeLabel: keystore.getActiveLabel(),
+      activeId: activeMnemonic.id,
+      activeLabel: activeMnemonic.label,
       dataDir: await keystore.getDataDir(),
-      walletCount: keystore.getEntries().length,
+      walletCount: mnemonics.length,
     };
+  }
+
+  /**
+   * Reinitialize DevKit after setup completion
+   * This allows hot-reloading without requiring a server restart
+   * @returns true if reinitialization was successful, false if already initialized or setup not completed
+   */
+  async reinitialize(): Promise<boolean> {
+    const keystore = getKeystoreService();
+
+    // Re-check setup status
+    this.setupCompleted = await keystore.isSetupCompleted();
+
+    if (!this.setupCompleted) {
+      logger.warn('Cannot reinitialize - setup not completed');
+      return false;
+    }
+
+    // If already initialized, skip
+    if (this.devkit !== null) {
+      logger.info('DevKit already initialized');
+      return true;
+    }
+
+    logger.info('🔄 Reinitializing DevKit after setup completion...');
+
+    // Get active mnemonic and its configuration
+    const mnemonicEntry = await keystore.getActiveMnemonic();
+    const nodeConfig = mnemonicEntry.nodeConfig;
+
+    // Decrypt mnemonic if encrypted
+    const mnemonic = await keystore.getDecryptedMnemonic(mnemonicEntry.id);
+
+    // Get data directory for this mnemonic
+    const dataDir = await keystore.getDataDir();
+
+    // Create DevKit config using node configuration from mnemonic
+    const devkitConfig: DevKitConfig = {
+      chainId: nodeConfig.chainId,
+      evmChainId: nodeConfig.evmChainId,
+      jsonrpcHttpPort: this.baseConfig.jsonrpcHttpPort,
+      jsonrpcHttpEthPort: this.baseConfig.jsonrpcHttpEthPort,
+      jsonrpcWsPort: this.baseConfig.jsonrpcWsPort,
+      jsonrpcWsEthPort: this.baseConfig.jsonrpcWsEthPort,
+      log: this.baseConfig.log,
+      mnemonic,
+      dataDir,
+      accountsCount: nodeConfig.accountsCount,
+      miningAuthor:
+        nodeConfig.miningAuthor === 'auto'
+          ? undefined
+          : nodeConfig.miningAuthor,
+    };
+
+    logger.info(`Wallet: ${mnemonicEntry.label} (${mnemonicEntry.id})`);
+    logger.info(`Data directory: ${dataDir}`);
+    logger.info(
+      `Chain ID: ${nodeConfig.chainId} (Core), ${nodeConfig.evmChainId} (eSpace)`
+    );
+    logger.info(`Genesis accounts: ${nodeConfig.accountsCount}`);
+
+    this.devkit = new DevKitCompatClass(devkitConfig);
+    logger.success('✅ DevKit reinitialized successfully after setup');
+
+    // Notify listeners that devkit instance was created
+    if (this.updateCallback) {
+      this.updateCallback(this.devkit);
+      logger.info('DevKit instance reference updated in dependent services');
+    }
+
+    return true;
+  }
+
+  /**
+   * Get the DevKit instance (nullable version for setup routes)
+   */
+  getDevKitOrNull(): DevKitCompat | null {
+    return this.devkit;
   }
 }

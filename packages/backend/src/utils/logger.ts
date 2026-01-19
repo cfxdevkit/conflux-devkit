@@ -33,8 +33,12 @@ function formatMessage(level: string, message: string, ...args: any[]): string {
       ? ` ${args
           .map((arg) =>
             typeof arg === 'object'
-              ? JSON.stringify(arg, (key, value) =>
-                  typeof value === 'bigint' ? value.toString() : value, 2)
+              ? JSON.stringify(
+                  arg,
+                  (_key, value) =>
+                    typeof value === 'bigint' ? value.toString() : value,
+                  2
+                )
               : String(arg)
           )
           .join(' ')}`

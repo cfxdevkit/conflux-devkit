@@ -20,8 +20,13 @@
  * Manages wallet connection state and provides wallet-related functionality
  */
 
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
 import type { ChainType } from '@conflux-devkit/core';
+import React, {
+  createContext,
+  type ReactNode,
+  useContext,
+  useState,
+} from 'react';
 
 export interface WalletContextValue {
   isConnected: boolean;
@@ -93,7 +98,9 @@ export function WalletProvider({ children }: WalletProviderProps) {
     switchChain,
   };
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  return (
+    <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
+  );
 }
 
 /**

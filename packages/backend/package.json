@@ -50,7 +50,10 @@
     "url": "https://github.com/cfxdevkit/conflux-devkit/issues"
   },
   "dependencies": {
+    "@conflux-devkit/contracts": "workspace:*",
+    "@conflux-devkit/core": "workspace:*",
     "@conflux-devkit/plugin-devnode": "workspace:*",
+    "@scure/bip39": "^2.0.1",
     "cive": "^0.8.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",

@@ -15,7 +15,7 @@
  */
 
 import type { ClientManager } from '@conflux-devkit/core';
-import type { ReadOptions, ContractInfo } from '../types/index.js';
+import type { ContractInfo, ReadOptions } from '../types/index.js';
 import { InteractionError } from '../types/index.js';
 
 /**
@@ -61,7 +61,7 @@ export class ContractReader {
           functionName: options.functionName,
           chain: options.chain,
           error: error instanceof Error ? error.message : 'Unknown error',
-        },
+        }
       );
     }
   }
@@ -79,7 +79,7 @@ export class ContractReader {
     address: string,
     abi: unknown[],
     calls: Array<{ functionName: string; args?: unknown[] }>,
-    chain: 'core' | 'evm',
+    chain: 'core' | 'evm'
   ): Promise<T[]> {
     const results: T[] = [];
 
@@ -106,7 +106,7 @@ export class ContractReader {
    */
   async getContractInfo(
     address: string,
-    chain: 'core' | 'evm',
+    chain: 'core' | 'evm'
   ): Promise<ContractInfo> {
     // In production, fetch actual contract bytecode and metadata
     return {

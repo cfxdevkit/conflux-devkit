@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { wsClient } from '@/services/websocket';
-import { useDevNodeStore } from '@/stores/devnodeStore';
 import { Badge, Card, Code, Group, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { IconCoin, IconNetwork, IconWallet } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { wsClient } from '@/services/websocket';
+import { useDevNodeStore } from '@/stores/devnodeStore';
 
 const formatGasPriceGDrip = (value?: string | number) => {
   if (value === undefined || value === null) return '—';
@@ -27,9 +27,8 @@ const formatGasPriceGDrip = (value?: string | number) => {
     const gdrip = Number(big) / 1e9;
     if (Number.isNaN(gdrip)) return `${big.toString()} drip`;
 
-    const formatted = gdrip % 1 === 0
-      ? gdrip.toFixed(0)
-      : gdrip.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+    const formatted =
+      gdrip % 1 === 0 ? gdrip.toFixed(0) : gdrip.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
 
     return `${formatted} GDrip`;
   } catch (err) {
@@ -81,7 +80,7 @@ export function DevNodeStatus() {
               <IconWallet size={20} />
               <Title order={5}>Active Wallet</Title>
             </Group>
-            <Badge color={status.isRunning ? "green" : "gray"} variant="light">
+            <Badge color={status.isRunning ? 'green' : 'gray'} variant="light">
               {status.wallet.activeLabel}
             </Badge>
           </Group>
@@ -119,114 +118,122 @@ export function DevNodeStatus() {
       {/* Blockchain Status - only show when running */}
       {status?.isRunning && (
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack gap="md">
-          <Group justify="space-between">
-            <Group gap="xs">
-              <IconNetwork size={20} />
-              <Text size="lg" fw={600}>
-                Core Space
-              </Text>
-            </Group>
-            <Badge color="blue" variant="light">
-              Chain {status.coreSpace.chainId}
-            </Badge>
-          </Group>
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Group gap="xs">
+                  <IconNetwork size={20} />
+                  <Text size="lg" fw={600}>
+                    Core Space
+                  </Text>
+                </Group>
+                <Badge color="blue" variant="light">
+                  Chain {status.coreSpace.chainId}
+                </Badge>
+              </Group>
 
-          {nodeInfo?.core?.clientVersion && (
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Client Version
-              </Text>
-              <Text size="sm" fw={500}>{nodeInfo.core.clientVersion}</Text>
-            </Group>
-          )}
+              {nodeInfo?.core?.clientVersion && (
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Client Version
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {nodeInfo.core.clientVersion}
+                  </Text>
+                </Group>
+              )}
 
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Block Number
-              </Text>
-              <Text size="sm" fw={500}>
-                {liveBlockNumbers.coreBlock > 0 ? liveBlockNumbers.coreBlock.toLocaleString() : '—'}
-              </Text>
-            </Group>
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Block Number
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {liveBlockNumbers.coreBlock > 0
+                      ? liveBlockNumbers.coreBlock.toLocaleString()
+                      : '—'}
+                  </Text>
+                </Group>
 
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Gas Price
-              </Text>
-              <Text size="sm" fw={500}>
-                {formatGasPriceGDrip(status.coreSpace.gasPrice)}
-              </Text>
-            </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Gas Price
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {formatGasPriceGDrip(status.coreSpace.gasPrice)}
+                  </Text>
+                </Group>
 
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                RPC URL
-              </Text>
-              <Text size="xs" c="blue" style={{ fontFamily: 'monospace' }}>
-                {status.coreSpace.rpcUrl || 'http://localhost:12537'}
-              </Text>
-            </Group>
-          </Stack>
-        </Stack>
-      </Card>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    RPC URL
+                  </Text>
+                  <Text size="xs" c="blue" style={{ fontFamily: 'monospace' }}>
+                    {status.coreSpace.rpcUrl || 'http://localhost:12537'}
+                  </Text>
+                </Group>
+              </Stack>
+            </Stack>
+          </Card>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack gap="md">
-          <Group justify="space-between">
-            <Group gap="xs">
-              <IconCoin size={20} />
-              <Text size="lg" fw={600}>
-                eSpace
-              </Text>
-            </Group>
-            <Badge color="purple" variant="light">
-              Chain {status.eSpace.chainId}
-            </Badge>
-          </Group>
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Group gap="xs">
+                  <IconCoin size={20} />
+                  <Text size="lg" fw={600}>
+                    eSpace
+                  </Text>
+                </Group>
+                <Badge color="purple" variant="light">
+                  Chain {status.eSpace.chainId}
+                </Badge>
+              </Group>
 
-          {nodeInfo?.eSpace?.clientVersion && (
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Client Version
-              </Text>
-              <Text size="sm" fw={500}>{nodeInfo.eSpace.clientVersion}</Text>
-            </Group>
-          )}
+              {nodeInfo?.eSpace?.clientVersion && (
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Client Version
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {nodeInfo.eSpace.clientVersion}
+                  </Text>
+                </Group>
+              )}
 
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Block Number
-              </Text>
-              <Text size="sm" fw={500}>
-                {liveBlockNumbers.evmBlock > 0 ? liveBlockNumbers.evmBlock.toLocaleString() : '—'}
-              </Text>
-            </Group>
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Block Number
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {liveBlockNumbers.evmBlock > 0
+                      ? liveBlockNumbers.evmBlock.toLocaleString()
+                      : '—'}
+                  </Text>
+                </Group>
 
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                Gas Price
-              </Text>
-              <Text size="sm" fw={500}>
-                {formatGasPriceGDrip(status.eSpace.gasPrice)}
-              </Text>
-            </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Gas Price
+                  </Text>
+                  <Text size="sm" fw={500}>
+                    {formatGasPriceGDrip(status.eSpace.gasPrice)}
+                  </Text>
+                </Group>
 
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                RPC URL
-              </Text>
-              <Text size="xs" c="purple" style={{ fontFamily: 'monospace' }}>
-                {status.eSpace.rpcUrl || 'http://localhost:8545'}
-              </Text>
-            </Group>
-          </Stack>
-        </Stack>
-      </Card>
-      </SimpleGrid>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    RPC URL
+                  </Text>
+                  <Text size="xs" c="purple" style={{ fontFamily: 'monospace' }}>
+                    {status.eSpace.rpcUrl || 'http://localhost:8545'}
+                  </Text>
+                </Group>
+              </Stack>
+            </Stack>
+          </Card>
+        </SimpleGrid>
       )}
     </Stack>
   );

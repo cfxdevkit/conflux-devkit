@@ -31,70 +31,65 @@
  * @packageDocumentation
  */
 
-// Providers
-export {
-  DevKitProvider,
-  useDevKitContext,
-  WalletProvider,
-  useWalletContext,
-} from './providers/index.js';
-
-// Hooks
-export {
-  useBalance,
-  useTransaction,
-  useContract,
-} from './hooks/index.js';
-
-// Components
-export {
-  ConnectButton,
-  AccountCard,
-  ContractReader,
-  ContractWriter,
-  SwapWidget,
-} from './components/index.js';
-
-// Types
 export type {
-  DevKitProviderProps,
-  DevKitContextValue,
-  WalletProviderProps,
-  WalletContextValue,
-} from './providers/index.js';
-
-export type {
-  UseBalanceOptions,
-  UseBalanceReturn,
-  SendTransactionOptions,
-  TransactionResult,
-  UseTransactionReturn,
-  ReadContractOptions,
-  WriteContractOptions,
-  UseContractReturn,
-} from './hooks/index.js';
-
-export type {
-  ConnectButtonProps,
-  ConnectButtonRenderProps,
   AccountCardProps,
   AccountCardRenderProps,
+  ConnectButtonProps,
+  ConnectButtonRenderProps,
   ContractReaderProps,
   ContractReaderRenderProps,
   ContractWriterProps,
   ContractWriterRenderProps,
+  SwapQuote,
   SwapWidgetProps,
   SwapWidgetRenderProps,
-  SwapQuote,
 } from './components/index.js';
+// Components
+export {
+  AccountCard,
+  ConnectButton,
+  ContractReader,
+  ContractWriter,
+  SwapWidget,
+} from './components/index.js';
+export type {
+  ReadContractOptions,
+  SendTransactionOptions,
+  TransactionResult,
+  UseBalanceOptions,
+  UseBalanceReturn,
+  UseContractReturn,
+  UseTransactionReturn,
+  WriteContractOptions,
+} from './hooks/index.js';
+// Hooks
+export {
+  useBalance,
+  useContract,
+  useTransaction,
+} from './hooks/index.js';
+// Types
+export type {
+  DevKitContextValue,
+  DevKitProviderProps,
+  WalletContextValue,
+  WalletProviderProps,
+} from './providers/index.js';
+// Providers
+export {
+  DevKitProvider,
+  useDevKitContext,
+  useWalletContext,
+  WalletProvider,
+} from './providers/index.js';
 
 export type {
-  WalletConnection,
-  NetworkInfo,
-  ContractDeployment,
-  TransactionResult as TxResult,
-  RenderPropChild,
   BaseComponentProps,
+  ContractDeployment,
+  NetworkInfo,
+  RenderPropChild,
+  TransactionResult as TxResult,
+  WalletConnection,
 } from './types/index.js';
 
 // Version

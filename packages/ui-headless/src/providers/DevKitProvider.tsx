@@ -20,7 +20,7 @@
  * Provides DevKit instance and configuration to all child components
  */
 
-import React, { createContext, useContext, type ReactNode } from 'react';
+import React, { createContext, type ReactNode, useContext } from 'react';
 
 export interface DevKitContextValue {
   /** Backend API URL */
@@ -69,7 +69,9 @@ export function DevKitProvider({
     debug,
   };
 
-  return <DevKitContext.Provider value={value}>{children}</DevKitContext.Provider>;
+  return (
+    <DevKitContext.Provider value={value}>{children}</DevKitContext.Provider>
+  );
 }
 
 /**

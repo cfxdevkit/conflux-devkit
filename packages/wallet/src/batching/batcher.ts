@@ -16,9 +16,9 @@
 
 import type { ChainType } from '@conflux-devkit/core';
 import type {
-  BatchTransaction,
-  BatchResult,
   BatcherOptions,
+  BatchResult,
+  BatchTransaction,
 } from '../types/index.js';
 import { BatcherError } from '../types/index.js';
 
@@ -101,7 +101,7 @@ export class TransactionBatcher {
     if (batch.length >= this.options.maxBatchSize) {
       // Emit event or trigger callback (in production, you'd have proper event handling)
       console.log(
-        `Batch for ${tx.chain} is full (${batch.length} transactions)`,
+        `Batch for ${tx.chain} is full (${batch.length} transactions)`
       );
     }
 
@@ -173,7 +173,7 @@ export class TransactionBatcher {
    */
   async executeBatch(
     chain: ChainType,
-    signer?: (tx: BatchTransaction) => Promise<string>,
+    signer?: (tx: BatchTransaction) => Promise<string>
   ): Promise<BatchResult> {
     const batch = chain === 'core' ? this.coreBatch : this.evmBatch;
 
@@ -202,7 +202,7 @@ export class TransactionBatcher {
         } else {
           // Simulate execution for testing
           const hash = `0x${Array.from({ length: 64 }, () =>
-            Math.floor(Math.random() * 16).toString(16),
+            Math.floor(Math.random() * 16).toString(16)
           ).join('')}`;
           transactionHashes.push(hash);
           successCount++;
@@ -261,7 +261,7 @@ export class TransactionBatcher {
       if (batch.length > 0) {
         // In production, emit event or trigger callback
         console.log(
-          `Auto-executing batch for ${chain} (${batch.length} transactions)`,
+          `Auto-executing batch for ${chain} (${batch.length} transactions)`
         );
         // You would call executeBatch here with appropriate signer
       }

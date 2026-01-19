@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-import {
-    confluxESpace,
-    confluxESpaceTestnet,
-    confluxLocalESpace,
-} from '@/config/wagmi';
-import { useDevNodeStore } from '@/stores/devnodeStore';
-import type { NetworkType } from '@/types/devnode';
 import { Badge, Button, Group, Menu, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-    IconCheck,
-    IconChevronDown,
-    IconCloud,
-    IconLock,
-    IconServer,
-    IconTestPipe,
+  IconCheck,
+  IconChevronDown,
+  IconCloud,
+  IconLock,
+  IconServer,
+  IconTestPipe,
 } from '@tabler/icons-react';
 import { useSwitchChain } from 'wagmi';
+import { confluxESpace, confluxESpaceTestnet, confluxLocalESpace } from '@/config/wagmi';
+import { useDevNodeStore } from '@/stores/devnodeStore';
+import type { NetworkType } from '@/types/devnode';
 
 interface NetworkConfig {
   id: NetworkType;
@@ -163,12 +159,7 @@ export function NavbarNetworkDropdown() {
         </Menu.Label>
 
         {isNodeRunning && (
-          <Menu.Item
-            disabled
-            leftSection={<IconLock size={14} />}
-            c="blue"
-            bg="blue.0"
-          >
+          <Menu.Item disabled leftSection={<IconLock size={14} />} c="blue" bg="blue.0">
             <Text size="xs">Locked while node running</Text>
           </Menu.Item>
         )}

@@ -29,23 +29,23 @@
  * @packageDocumentation
  */
 
+export type { BaseDevKit, DevNodePlugin } from './plugin.js';
 // Main plugin exports
-export { devNodePlugin, DevKitWithDevNode } from './plugin.js';
-export type { DevNodePlugin, BaseDevKit } from './plugin.js';
+export { DevKitWithDevNode, devNodePlugin } from './plugin.js';
 
 // Server Manager (for advanced usage)
 export { ServerManager } from './server-manager.js';
 
 // Types
 export type {
+  AccountInfo,
+  ChainBalances,
+  FaucetBalances,
+  MiningStatus,
   NodeConfig,
   ServerConfig,
-  StartOptions,
-  MiningStatus,
-  AccountInfo,
-  FaucetBalances,
-  ChainBalances,
   ServerStatus,
+  StartOptions,
 } from './types.js';
 
 // Version

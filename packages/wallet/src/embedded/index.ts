@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-export { EmbeddedWalletManager } from './custody.js';
 export type {
   EmbeddedWallet,
-  WalletExport,
   EmbeddedWalletOptions,
+  WalletExport,
 } from '../types/index.js';
+export { EmbeddedWalletManager } from './custody.js';

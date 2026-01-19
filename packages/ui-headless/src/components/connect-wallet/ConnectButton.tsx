@@ -66,7 +66,12 @@ export function ConnectButton({
   children,
   className,
 }: ConnectButtonProps) {
-  const { isConnected, address, connect: contextConnect, disconnect: contextDisconnect } = useWalletContext();
+  const {
+    isConnected,
+    address,
+    connect: contextConnect,
+    disconnect: contextDisconnect,
+  } = useWalletContext();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const connect = async () => {
@@ -118,10 +123,17 @@ export function ConnectButton({
     <button
       onClick={isConnected ? disconnect : connect}
       disabled={isLoading}
-      className={className || 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50'}
+      className={
+        className ||
+        'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50'
+      }
       type="button"
     >
-      {isLoading ? 'Connecting...' : isConnected ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Connect Wallet'}
+      {isLoading
+        ? 'Connecting...'
+        : isConnected
+          ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
+          : 'Connect Wallet'}
     </button>
   );
 }

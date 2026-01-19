@@ -40,6 +40,30 @@ pnpm dev:frontend  # Terminal 2
 
 Open http://localhost:5173 to access the dashboard.
 
+### First-Time Setup
+
+On first run, you'll see a Setup Wizard that guides you through:
+1. **Connect Wallet** - Set up admin address
+2. **Mnemonic** - Generate or import a BIP-39 recovery phrase
+3. **Configuration** - Set number of accounts, chain IDs
+4. **Security** - Optional encryption for your keystore
+
+### Reset Configuration
+
+```bash
+# Check current DevKit status
+pnpm devkit:status
+
+# Delete keystore only (re-run setup wizard)
+pnpm devkit:reset:config
+
+# Delete blockchain data only (keep config)
+pnpm devkit:reset:data
+
+# Full reset - delete both keystore and blockchain data
+pnpm devkit:reset
+```
+
 ## Features
 
 - 🔗 **Dual-Chain**: Core Space + eSpace support
