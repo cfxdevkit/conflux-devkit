@@ -67,6 +67,8 @@ export function NodeControlPanel() {
   const isLocalNetwork = !status?.network || status.network === 'local';
 
   const [resetModalOpened, { open: openResetModal, close: closeResetModal }] = useDisclosure(false);
+  const [clearDataModalOpened, { open: openClearDataModal, close: closeClearDataModal }] = useDisclosure(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Mining controls
   const [blocksToMine, setBlocksToMine] = useState(1);
@@ -204,6 +206,29 @@ export function NodeControlPanel() {
     }
   };
 
+  const handleClearData = async () => {
+    closeClearDataModal();
+    setIsClearing(true);
+    try {
+      // Use the clearData endpoint which works when node is stopped
+      const { clearData } = useDevNodeStore.getState();
+      await clearData();
+      notifications.show({
+        title: 'Data Cleared',
+        message: 'Blockchain data has been cleared. You can now start the node fresh.',
+        color: 'green',
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Clear Failed',
+        message: error.response?.data?.error || error.message || 'Failed to clear data directory',
+        color: 'red',
+      });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <>
       {/* Reset Confirmation Modal */}
@@ -236,6 +261,31 @@ export function NodeControlPanel() {
           <Text size="xs" c="dimmed">
             <strong>Clear Data:</strong> Delete blockchain data and start fresh from block 0.
           </Text>
+        </Stack>
+      </Modal>
+
+      {/* Clear Data Confirmation Modal (for when node is stopped) */}
+      <Modal opened={clearDataModalOpened} onClose={closeClearDataModal} title="Clear Data Directory" centered>
+        <Stack gap="md">
+          <Alert icon={<IconAlertCircle size={16} />} color="orange">
+            This will delete all blockchain data including deployed contracts and transaction history.
+          </Alert>
+          <Text size="sm">
+            Use this to recover from a failed startup (e.g., after a sudden shutdown that left lock files).
+          </Text>
+          <Group grow>
+            <Button variant="light" color="gray" onClick={closeClearDataModal}>
+              Cancel
+            </Button>
+            <Button
+              color="orange"
+              onClick={handleClearData}
+              loading={isClearing}
+              leftSection={<IconTrash size={16} />}
+            >
+              Clear Data
+            </Button>
+          </Group>
         </Stack>
       </Modal>
 
@@ -314,6 +364,20 @@ export function NodeControlPanel() {
               </Button>
             </Tooltip>
           </Group>
+
+          {/* Clear Data Button - Only when node is stopped */}
+          {!isRunning && canControlNode && isAdmin && (
+            <Button
+              variant="subtle"
+              color="orange"
+              size="xs"
+              leftSection={<IconTrash size={14} />}
+              onClick={openClearDataModal}
+              loading={isClearing}
+            >
+              Clear blockchain data (fix startup issues)
+            </Button>
+          )}
 
           {/* Mining Controls - Only when node is running */}
           {isRunning && canMine && (

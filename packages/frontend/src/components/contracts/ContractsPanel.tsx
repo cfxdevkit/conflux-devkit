@@ -18,11 +18,14 @@ import {
   ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
   Card,
   Code,
   CopyButton,
+  Divider,
   Group,
+  List,
   Loader,
   Modal,
   NumberInput,
@@ -34,6 +37,7 @@ import {
   Tabs,
   Text,
   Textarea,
+  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -41,9 +45,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
+  IconAlertTriangle,
   IconCheck,
   IconCode,
   IconCopy,
+  IconFileCode,
+  IconPlayerPlay,
   IconRefresh,
   IconRocket,
   IconTrash,
@@ -77,6 +84,53 @@ interface CompilerInfo {
   defaultOptimizer: { enabled: boolean; runs: number };
 }
 
+interface CompiledContract {
+  contractName: string;
+  bytecode: string;
+  deployedBytecode: string;
+  abi: unknown[];
+  compilerVersion: string;
+  gasEstimates?: {
+    creation: {
+      codeDepositCost: string;
+      executionCost: string;
+      totalCost: string;
+    };
+  };
+}
+
+interface CompilationError {
+  severity: 'error' | 'warning';
+  message: string;
+  formattedMessage: string;
+}
+
+// Default Solidity template
+const DEFAULT_SOLIDITY_CODE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract MyContract {
+    uint256 private value;
+    address public owner;
+
+    event ValueChanged(uint256 oldValue, uint256 newValue);
+
+    constructor(uint256 initialValue) {
+        value = initialValue;
+        owner = msg.sender;
+    }
+
+    function setValue(uint256 newValue) public {
+        uint256 oldValue = value;
+        value = newValue;
+        emit ValueChanged(oldValue, newValue);
+    }
+
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+}`;
+
 export function ContractsPanel() {
   const { status } = useDevNodeStore();
   const isNodeRunning = status?.isRunning ?? false;
@@ -100,6 +154,19 @@ export function ContractsPanel() {
   const [callArgs, setCallArgs] = useState('');
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
+
+  // Custom code editor state
+  const [solidityCode, setSolidityCode] = useState(DEFAULT_SOLIDITY_CODE);
+  const [contractName, setContractName] = useState('MyContract');
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [compiledContracts, setCompiledContracts] = useState<CompiledContract[]>([]);
+  const [compilationErrors, setCompilationErrors] = useState<CompilationError[]>([]);
+  const [compilationWarnings, setCompilationWarnings] = useState<CompilationError[]>([]);
+  const [selectedCompiledContract, setSelectedCompiledContract] = useState<string | null>(null);
+  const [customDeployChain, setCustomDeployChain] = useState<'evm' | 'core'>('evm');
+  const [customConstructorArgs, setCustomConstructorArgs] = useState('[0]');
+  const [customAccountIndex, setCustomAccountIndex] = useState(0);
+  const [isDeployingCustom, setIsDeployingCustom] = useState(false);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -128,6 +195,130 @@ export function ContractsPanel() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Compile custom code
+  const handleCompile = async () => {
+    setIsCompiling(true);
+    setCompiledContracts([]);
+    setCompilationErrors([]);
+    setCompilationWarnings([]);
+    setSelectedCompiledContract(null);
+
+    try {
+      const result = await apiClient.compileContract({
+        source: solidityCode,
+        contractName,
+      });
+
+      if (result.success) {
+        setCompiledContracts(result.contracts);
+        setCompilationWarnings(result.warnings);
+        if (result.contracts.length > 0) {
+          setSelectedCompiledContract(result.contracts[0].contractName);
+        }
+        notifications.show({
+          title: 'Compilation Successful',
+          message: `Compiled ${result.contracts.length} contract(s)`,
+          color: 'green',
+        });
+      } else {
+        setCompilationErrors(result.errors);
+        setCompilationWarnings(result.warnings);
+        notifications.show({
+          title: 'Compilation Failed',
+          message: `${result.errors.length} error(s) found`,
+          color: 'red',
+        });
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Compilation Error',
+        message: error.response?.data?.details || error.message,
+        color: 'red',
+      });
+    } finally {
+      setIsCompiling(false);
+    }
+  };
+
+  // Deploy custom compiled contract
+  const handleDeployCustom = async () => {
+    if (!selectedCompiledContract) return;
+
+    const contract = compiledContracts.find((c) => c.contractName === selectedCompiledContract);
+    if (!contract) return;
+
+    setIsDeployingCustom(true);
+    try {
+      let args: unknown[] = [];
+      if (customConstructorArgs.trim()) {
+        try {
+          args = JSON.parse(customConstructorArgs);
+          if (!Array.isArray(args)) {
+            args = [args];
+          }
+        } catch {
+          notifications.show({
+            title: 'Invalid Arguments',
+            message: 'Constructor arguments must be valid JSON',
+            color: 'red',
+          });
+          setIsDeployingCustom(false);
+          return;
+        }
+      }
+
+      const result = await apiClient.deployContract({
+        chain: customDeployChain,
+        abi: contract.abi,
+        bytecode: contract.bytecode,
+        constructorArgs: args.length > 0 ? args : undefined,
+        accountIndex: customAccountIndex,
+        contractName: contract.contractName,
+      });
+
+      notifications.show({
+        title: 'Contract Deployed',
+        message: `${result.deployment.name} deployed at ${result.deployment.address}`,
+        color: 'green',
+      });
+
+      loadData();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Deployment Failed',
+        message: error.response?.data?.details || error.response?.data?.error || error.message,
+        color: 'red',
+      });
+    } finally {
+      setIsDeployingCustom(false);
+    }
+  };
+
+  // Load template source into editor
+  const loadTemplateSource = async (templateId: string) => {
+    try {
+      const template = await apiClient.getContractTemplate(templateId);
+      setSolidityCode(template.source);
+      setContractName(template.name);
+      // Clear previous compilation
+      setCompiledContracts([]);
+      setCompilationErrors([]);
+      setCompilationWarnings([]);
+      setSelectedCompiledContract(null);
+      notifications.show({
+        title: 'Template Loaded',
+        message: `${template.name} source code loaded into editor`,
+        color: 'blue',
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to load template',
+        color: 'red',
+      });
+    }
+  };
 
   // Deploy template
   const handleDeploy = async () => {
@@ -280,6 +471,13 @@ export function ContractsPanel() {
       }));
   };
 
+  // Get constructor from ABI
+  const getConstructor = (abi: unknown[]) => {
+    const constructor = (abi as Array<{ type: string; inputs?: Array<{ name: string; type: string }> }>)
+      .find((item) => item.type === 'constructor');
+    return constructor?.inputs || [];
+  };
+
   if (isLoading) {
     return (
       <Stack align="center" gap="md" py="xl">
@@ -313,8 +511,11 @@ export function ContractsPanel() {
         </Paper>
       )}
 
-      <Tabs defaultValue="templates">
+      <Tabs defaultValue="editor">
         <Tabs.List>
+          <Tabs.Tab value="editor" leftSection={<IconFileCode size={16} />}>
+            Code Editor
+          </Tabs.Tab>
           <Tabs.Tab value="templates">Contract Templates</Tabs.Tab>
           <Tabs.Tab value="deployed">
             Deployed Contracts
@@ -325,6 +526,201 @@ export function ContractsPanel() {
             )}
           </Tabs.Tab>
         </Tabs.List>
+
+        {/* Code Editor Tab */}
+        <Tabs.Panel value="editor" pt="md">
+          <Stack gap="md">
+            {/* Quick load templates */}
+            <Group gap="xs">
+              <Text size="sm" c="dimmed">Quick load:</Text>
+              {templates.map((t) => (
+                <Button
+                  key={t.id}
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => loadTemplateSource(t.id)}
+                >
+                  {t.name}
+                </Button>
+              ))}
+              <Button
+                size="xs"
+                variant="subtle"
+                color="gray"
+                onClick={() => {
+                  setSolidityCode(DEFAULT_SOLIDITY_CODE);
+                  setContractName('MyContract');
+                  setCompiledContracts([]);
+                  setCompilationErrors([]);
+                  setCompilationWarnings([]);
+                }}
+              >
+                Reset
+              </Button>
+            </Group>
+
+            {/* Contract name input */}
+            <TextInput
+              label="Contract Name"
+              description="Used for compilation output naming"
+              value={contractName}
+              onChange={(e) => setContractName(e.target.value)}
+              placeholder="MyContract"
+            />
+
+            {/* Code editor */}
+            <Box>
+              <Text size="sm" fw={500} mb="xs">Solidity Source Code</Text>
+              <Textarea
+                value={solidityCode}
+                onChange={(e) => setSolidityCode(e.target.value)}
+                minRows={15}
+                maxRows={25}
+                autosize
+                styles={{
+                  input: {
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+                    fontSize: '13px',
+                    lineHeight: '1.5',
+                  },
+                }}
+                placeholder="// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract MyContract {
+    // Your code here
+}"
+              />
+            </Box>
+
+            {/* Compile button */}
+            <Group>
+              <Button
+                leftSection={<IconPlayerPlay size={16} />}
+                loading={isCompiling}
+                onClick={handleCompile}
+              >
+                Compile
+              </Button>
+              {compiledContracts.length > 0 && (
+                <Badge color="green" variant="light">
+                  {compiledContracts.length} contract(s) compiled
+                </Badge>
+              )}
+            </Group>
+
+            {/* Compilation errors */}
+            {compilationErrors.length > 0 && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" title="Compilation Errors">
+                <List size="sm" spacing="xs">
+                  {compilationErrors.map((err, i) => (
+                    <List.Item key={i}>
+                      <Code block style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                        {err.formattedMessage || err.message}
+                      </Code>
+                    </List.Item>
+                  ))}
+                </List>
+              </Alert>
+            )}
+
+            {/* Compilation warnings */}
+            {compilationWarnings.length > 0 && (
+              <Alert icon={<IconAlertTriangle size={16} />} color="yellow" title="Warnings">
+                <List size="sm" spacing="xs">
+                  {compilationWarnings.map((warn, i) => (
+                    <List.Item key={i}>
+                      <Text size="xs">{warn.message}</Text>
+                    </List.Item>
+                  ))}
+                </List>
+              </Alert>
+            )}
+
+            {/* Compiled contracts - deployment section */}
+            {compiledContracts.length > 0 && (
+              <Card withBorder>
+                <Stack gap="md">
+                  <Title order={5}>Deploy Compiled Contract</Title>
+
+                  <Select
+                    label="Contract to Deploy"
+                    value={selectedCompiledContract}
+                    onChange={setSelectedCompiledContract}
+                    data={compiledContracts.map((c) => ({
+                      value: c.contractName,
+                      label: `${c.contractName} (${Math.floor(c.bytecode.length / 2)} bytes)`,
+                    }))}
+                  />
+
+                  {selectedCompiledContract && (() => {
+                    const contract = compiledContracts.find((c) => c.contractName === selectedCompiledContract);
+                    if (!contract) return null;
+                    const constructorInputs = getConstructor(contract.abi);
+
+                    return (
+                      <>
+                        {constructorInputs.length > 0 && (
+                          <Paper withBorder p="sm">
+                            <Text size="sm" fw={500} mb="xs">Constructor Parameters:</Text>
+                            <Code block style={{ fontSize: '12px' }}>
+                              {constructorInputs.map((i) => `${i.type} ${i.name}`).join(', ')}
+                            </Code>
+                          </Paper>
+                        )}
+
+                        <Textarea
+                          label="Constructor Arguments"
+                          description="JSON array matching constructor parameters"
+                          placeholder="[0]"
+                          value={customConstructorArgs}
+                          onChange={(e) => setCustomConstructorArgs(e.target.value)}
+                          minRows={2}
+                        />
+
+                        <Select
+                          label="Target Chain"
+                          value={customDeployChain}
+                          onChange={(v) => setCustomDeployChain(v as 'evm' | 'core')}
+                          data={[
+                            { value: 'evm', label: 'eSpace (EVM)' },
+                            { value: 'core', label: 'Core Space' },
+                          ]}
+                        />
+
+                        <NumberInput
+                          label="Account Index"
+                          description="Which genesis account to deploy from (0-9)"
+                          value={customAccountIndex}
+                          onChange={(v) => setCustomAccountIndex(Number(v))}
+                          min={0}
+                          max={9}
+                        />
+
+                        <Button
+                          leftSection={<IconRocket size={16} />}
+                          loading={isDeployingCustom}
+                          onClick={handleDeployCustom}
+                          disabled={!isNodeRunning}
+                        >
+                          Deploy {selectedCompiledContract}
+                        </Button>
+
+                        {/* ABI Preview */}
+                        <Divider label="Contract ABI" />
+                        <ScrollArea h={150}>
+                          <Code block style={{ fontSize: '11px' }}>
+                            {JSON.stringify(contract.abi, null, 2)}
+                          </Code>
+                        </ScrollArea>
+                      </>
+                    );
+                  })()}
+                </Stack>
+              </Card>
+            )}
+          </Stack>
+        </Tabs.Panel>
 
         {/* Templates Tab */}
         <Tabs.Panel value="templates" pt="md">
@@ -341,25 +737,33 @@ export function ContractsPanel() {
                   <Text size="sm" c="dimmed">
                     {template.description}
                   </Text>
-                  <Button
-                    leftSection={<IconRocket size={16} />}
-                    variant="light"
-                    disabled={!isNodeRunning}
-                    onClick={() => {
-                      setSelectedTemplate(template.id);
-                      // Set default args based on template
-                      if (template.id === 'SimpleStorage') {
-                        setConstructorArgs('[42]');
-                      } else if (template.id === 'TestToken') {
-                        setConstructorArgs('["Test Token", "TEST", 1000000]');
-                      } else {
-                        setConstructorArgs('');
-                      }
-                      openDeployModal();
-                    }}
-                  >
-                    Deploy
-                  </Button>
+                  <Group>
+                    <Button
+                      leftSection={<IconRocket size={16} />}
+                      variant="light"
+                      disabled={!isNodeRunning}
+                      onClick={() => {
+                        setSelectedTemplate(template.id);
+                        if (template.id === 'SimpleStorage') {
+                          setConstructorArgs('[42]');
+                        } else if (template.id === 'TestToken') {
+                          setConstructorArgs('["Test Token", "TEST", 1000000]');
+                        } else {
+                          setConstructorArgs('');
+                        }
+                        openDeployModal();
+                      }}
+                    >
+                      Deploy
+                    </Button>
+                    <Button
+                      leftSection={<IconFileCode size={16} />}
+                      variant="subtle"
+                      onClick={() => loadTemplateSource(template.id)}
+                    >
+                      Edit Source
+                    </Button>
+                  </Group>
                 </Stack>
               </Card>
             ))}
@@ -374,7 +778,7 @@ export function ContractsPanel() {
                 <IconCode size={48} stroke={1.5} color="gray" />
                 <Text c="dimmed">No contracts deployed yet</Text>
                 <Text size="sm" c="dimmed">
-                  Deploy a template contract to get started
+                  Deploy a template or custom contract to get started
                 </Text>
               </Stack>
             </Card>
@@ -458,11 +862,11 @@ export function ContractsPanel() {
         </Tabs.Panel>
       </Tabs>
 
-      {/* Deploy Modal */}
+      {/* Deploy Template Modal */}
       <Modal
         opened={deployModalOpened}
         onClose={closeDeployModal}
-        title="Deploy Contract"
+        title="Deploy Template Contract"
         size="md"
       >
         <Stack gap="md">
@@ -550,7 +954,7 @@ export function ContractsPanel() {
             <Textarea
               label="Arguments"
               description="JSON array of arguments"
-              placeholder='[]'
+              placeholder="[]"
               value={callArgs}
               onChange={(e) => setCallArgs(e.target.value)}
               minRows={2}
