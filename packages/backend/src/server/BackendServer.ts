@@ -30,6 +30,7 @@ import type { DevKitCompat } from '../devkit-compat.js';
 import { DevKitManager } from '../devkit-manager.js';
 import { createSetupCheckMiddleware } from '../middleware/setup-check.js';
 import { createAdminRoutes } from '../routes/admin.js';
+import { createContractRoutes } from '../routes/contracts.js';
 import { createDevKitRoutes } from '../routes/devkit.js';
 import { createSetupRoutes } from '../routes/setup.js';
 import { createSwapRoutes } from '../routes/swap.js';
@@ -303,6 +304,11 @@ export class BackendServer {
       '/api/swap',
       createSwapRoutes(() => this.devkit!)
     );
+
+    // Contract deployment API routes (requires auth + setup)
+    this.app.use('/api/contracts', this.authService.requireAuth);
+    this.app.use('/api/contracts', createSetupCheckMiddleware());
+    this.app.use('/api/contracts', createContractRoutes());
 
     // Public routes (no auth required)
     this.app.get('/api/status', async (_req, res) => {

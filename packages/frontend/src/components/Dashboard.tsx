@@ -15,10 +15,11 @@
  */
 
 import { Divider, Group, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconActivity, IconDatabase, IconServer } from '@tabler/icons-react';
+import { IconActivity, IconCode, IconDatabase, IconServer } from '@tabler/icons-react';
 import { useState } from 'react';
 import { AccountsTable } from '@/components/AccountsTable';
 import { BlockchainMonitor } from '@/components/BlockchainMonitor';
+import { ContractsPanel } from '@/components/contracts';
 import { ActiveWalletCard } from '@/components/dashboard/ActiveWalletCard';
 import { NodeControlPanel } from '@/components/dashboard/NodeControlPanel';
 import { NodeStatsCards } from '@/components/dashboard/NodeStatsCards';
@@ -59,6 +60,9 @@ export function Dashboard() {
           <Tabs.Tab value="accounts" leftSection={<IconDatabase size={16} />}>
             Accounts
           </Tabs.Tab>
+          <Tabs.Tab value="contracts" leftSection={<IconCode size={16} />}>
+            Contracts
+          </Tabs.Tab>
         </Tabs.List>
 
         {/* Overview Tab */}
@@ -90,6 +94,11 @@ export function Dashboard() {
               <Text c="dimmed">Start the node to view accounts</Text>
             </Stack>
           )}
+        </Tabs.Panel>
+
+        {/* Contracts Tab */}
+        <Tabs.Panel value="contracts" pt="md">
+          <ContractsPanel />
         </Tabs.Panel>
       </Tabs>
     </Stack>

@@ -775,6 +775,207 @@ class ApiClient {
     };
   }
 
+  // ===== Contract Deployment API =====
+
+  async getCompilerInfo() {
+    const response = await this.client.get('/contracts/compiler');
+    return response.data as {
+      version: string;
+      defaultEvmVersion: string;
+      defaultOptimizer: { enabled: boolean; runs: number };
+    };
+  }
+
+  async getContractTemplates() {
+    const response = await this.client.get('/contracts/templates');
+    return response.data as {
+      templates: Array<{
+        id: string;
+        name: string;
+        description: string;
+      }>;
+    };
+  }
+
+  async getContractTemplate(name: string) {
+    const response = await this.client.get(`/contracts/templates/${name}`);
+    return response.data as {
+      id: string;
+      name: string;
+      description: string;
+      source: string;
+      abi: unknown[];
+      bytecode: string;
+      compilerVersion: string;
+      gasEstimates?: {
+        creation: {
+          codeDepositCost: string;
+          executionCost: string;
+          totalCost: string;
+        };
+      };
+    };
+  }
+
+  async compileContract(params: {
+    source: string;
+    contractName?: string;
+    optimizer?: { enabled: boolean; runs: number };
+    evmVersion?: string;
+  }) {
+    const response = await this.client.post('/contracts/compile', params);
+    return response.data as {
+      success: boolean;
+      contracts: Array<{
+        contractName: string;
+        bytecode: string;
+        deployedBytecode: string;
+        abi: unknown[];
+        compilerVersion: string;
+        gasEstimates?: {
+          creation: {
+            codeDepositCost: string;
+            executionCost: string;
+            totalCost: string;
+          };
+        };
+      }>;
+      errors: Array<{
+        severity: 'error' | 'warning';
+        message: string;
+        formattedMessage: string;
+      }>;
+      warnings: Array<{
+        severity: 'error' | 'warning';
+        message: string;
+        formattedMessage: string;
+      }>;
+    };
+  }
+
+  async deployContract(params: {
+    chain: 'evm' | 'core';
+    abi: unknown[];
+    bytecode: string;
+    constructorArgs?: unknown[];
+    accountIndex?: number;
+    contractName?: string;
+  }) {
+    const response = await this.client.post('/contracts/deploy', params);
+    return response.data as {
+      success: boolean;
+      deployment: {
+        id: string;
+        name: string;
+        address: string;
+        chain: 'evm' | 'core';
+        chainId: number;
+        deployedAt: string;
+        deployer: string;
+        transactionHash: string;
+        abi: unknown[];
+        constructorArgs: unknown[];
+      };
+    };
+  }
+
+  async deployTemplate(params: {
+    template: string;
+    chain: 'evm' | 'core';
+    constructorArgs?: unknown[];
+    accountIndex?: number;
+  }) {
+    const response = await this.client.post('/contracts/deploy-template', params);
+    return response.data as {
+      success: boolean;
+      deployment: {
+        id: string;
+        name: string;
+        address: string;
+        chain: 'evm' | 'core';
+        chainId: number;
+        deployedAt: string;
+        deployer: string;
+        transactionHash: string;
+        abi: unknown[];
+        constructorArgs: unknown[];
+      };
+    };
+  }
+
+  async getDeployedContracts() {
+    const response = await this.client.get('/contracts/deployed');
+    return response.data as {
+      contracts: Array<{
+        id: string;
+        name: string;
+        address: string;
+        chain: 'evm' | 'core';
+        chainId: number;
+        deployedAt: string;
+        deployer: string;
+        transactionHash: string;
+        abi: unknown[];
+        constructorArgs: unknown[];
+      }>;
+    };
+  }
+
+  async getDeployedContract(id: string) {
+    const response = await this.client.get(`/contracts/deployed/${id}`);
+    return response.data as {
+      contract: {
+        id: string;
+        name: string;
+        address: string;
+        chain: 'evm' | 'core';
+        chainId: number;
+        deployedAt: string;
+        deployer: string;
+        transactionHash: string;
+        abi: unknown[];
+        constructorArgs: unknown[];
+      };
+    };
+  }
+
+  async deleteDeployedContract(id: string) {
+    const response = await this.client.delete(`/contracts/deployed/${id}`);
+    return response.data as { success: boolean };
+  }
+
+  async clearDeployedContracts() {
+    const response = await this.client.delete('/contracts/deployed');
+    return response.data as { success: boolean };
+  }
+
+  async callContract(params: {
+    address: string;
+    abi: unknown[];
+    functionName: string;
+    args?: unknown[];
+    chain: 'evm' | 'core';
+  }) {
+    const response = await this.client.post('/contracts/call', params);
+    return response.data as { result: unknown };
+  }
+
+  async sendToContract(params: {
+    address: string;
+    abi: unknown[];
+    functionName: string;
+    args?: unknown[];
+    chain: 'evm' | 'core';
+    accountIndex?: number;
+  }) {
+    const response = await this.client.post('/contracts/send', params);
+    return response.data as {
+      success: boolean;
+      transactionHash: string;
+      sender: string;
+    };
+  }
+
   // Generic request method for extensibility
   async request(method: string, url: string, data?: unknown) {
     const response = await this.client.request({
