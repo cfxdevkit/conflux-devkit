@@ -84,13 +84,14 @@ export interface DerivedKeys {
 }
 
 /**
- * Single derived account with addresses and private key
+ * Single derived account with addresses and private keys for both chains
  */
 export interface DerivedAccount {
   index: number;
   core: string; // Core Space address (net2029:...)
   evm: string; // eSpace address (0x...)
-  privateKey: string; // 0x...
+  privateKey: string; // Core Space private key (0x...) - from m/44'/503'/0'/0/i
+  evmPrivateKey: string; // eSpace private key (0x...) - from m/44'/60'/0'/0/i
   // Legacy properties for backward compatibility
   address?: string; // Same as core or evm depending on network
   path?: string; // BIP-32 derivation path

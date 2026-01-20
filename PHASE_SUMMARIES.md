@@ -2,7 +2,7 @@
 
 **Project:** Conflux DevKit v2.0 Complete Refactor
 **Timeline:** 6 weeks (8 phases)
-**Status:** Phases 1-6 Complete, Phase 7 (Testing) Pending
+**Status:** Phases 1-6 Complete, Phase 3 (CLI) Complete, Phase 7 (Testing) Pending
 
 ## Implementation Progress
 
@@ -10,7 +10,7 @@
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Backend Foundation |
 | Phase 2 | ✅ Complete | API Endpoints |
-| Phase 3 | ⏳ Pending | CLI Implementation |
+| Phase 3 | ✅ Complete | CLI Implementation |
 | Phase 4 | ✅ Complete | Frontend - Setup Wizard |
 | Phase 5 | ✅ Complete | Frontend - Dashboard |
 | Phase 6 | ✅ Complete | Frontend - Configuration |
@@ -127,22 +127,81 @@ Provide CLI interface with same functionality as web UI.
 3. **Wallet Commands** - List, add, switch, delete wallets
 4. **Admin Commands** - List, add, remove admins
 5. **Interactive Prompts** - Inquirer.js for user input
+6. **Core Node Commands** - Start, stop, web modes
+7. **Account Commands** - List accounts, faucet info
+8. **Status Command** - Show overall DevKit status
 
 ### Key Files Created/Modified
-- `packages/backend/src/cli/index.ts` (NEW)
-- `packages/backend/src/cli/setup.ts` (NEW)
-- `packages/backend/src/cli/wallet.ts` (NEW)
-- `packages/backend/src/cli/admin.ts` (NEW)
-- `packages/backend/package.json` (UPDATE - add bin field)
+- `packages/backend/src/cli/index.ts` (NEW) - Command registration
+- `packages/backend/src/cli/commands/setup.ts` (NEW) - Interactive setup wizard
+- `packages/backend/src/cli/commands/start.ts` (NEW) - Start node (direct mode)
+- `packages/backend/src/cli/commands/web.ts` (NEW) - Start web mode (API + frontend)
+- `packages/backend/src/cli/commands/wallets.ts` (NEW) - Wallet management
+- `packages/backend/src/cli/commands/accounts.ts` (NEW) - Account listing
+- `packages/backend/src/cli/commands/admin.ts` (NEW) - Admin management
+- `packages/backend/src/cli/commands/status.ts` (NEW) - DevKit status
+- `packages/backend/src/cli/commands/reset.ts` (NEW) - Reset data/config
+- `packages/backend/src/cli/utils/logger.ts` (NEW) - CLI logger with chalk
+- `packages/backend/src/cli/utils/display.ts` (NEW) - Table formatting
+- `packages/backend/src/bin.ts` (NEW) - CLI entry point
+- `packages/backend/tsup.config.ts` (UPDATE) - Dual build config
+- `packages/backend/package.json` (UPDATE) - Add bin field
+- `packages/package.json` (UPDATE) - Add convenience scripts
 
 ### CLI Commands Added
 ```bash
-conflux-devkit setup              # Run setup wizard
-conflux-devkit wallet list        # List wallets
-conflux-devkit wallet add         # Add wallet
-conflux-devkit wallet switch <id> # Switch wallet
-conflux-devkit admin list         # List admins
-conflux-devkit admin add <addr>   # Add admin
+# Core Commands
+cfx-devkit start              # Start node (direct mode)
+cfx-devkit web                # Start web mode (API + frontend)
+cfx-devkit status             # Show DevKit status
+cfx-devkit reset              # Reset config/data
+
+# Setup
+cfx-devkit setup              # Run interactive setup wizard
+
+# Wallet Management
+cfx-devkit wallets list       # List all wallets
+cfx-devkit wallets add        # Add new wallet
+cfx-devkit wallets switch <id># Switch active wallet
+cfx-devkit wallets delete <id># Delete wallet
+cfx-devkit wallets show <id>  # Show wallet details
+
+# Account Management
+cfx-devkit accounts           # List all genesis accounts
+cfx-devkit accounts <index>   # Show single account details
+cfx-devkit accounts --json    # JSON output
+cfx-devkit faucet             # Show faucet/mining account
+
+# Admin Management
+cfx-devkit admin list         # List admin addresses
+cfx-devkit admin add <addr>   # Add admin
+cfx-devkit admin remove <addr># Remove admin
+cfx-devkit admin check <addr> # Check if address is admin
+```
+
+### Implementation Complete (2026-01-20)
+
+**Dependencies Added:**
+- commander (CLI framework)
+- inquirer (interactive prompts)
+- chalk (colored output)
+- ora (spinners)
+- cli-table3 (formatted tables)
+
+**Build Configuration:**
+- tsup configured with dual builds (index.ts + bin.ts)
+- Shebang automatically added via banner config
+- ESM format with Node 18 target
+
+**pnpm Scripts Added:**
+```json
+{
+  "cfx-devkit": "pnpm --filter @conflux-devkit/backend dev:cli",
+  "cfx:start": "pnpm cfx-devkit start",
+  "cfx:web": "pnpm cfx-devkit web",
+  "cfx:status": "pnpm cfx-devkit status",
+  "cfx:setup": "pnpm cfx-devkit setup"
+}
 ```
 
 ### Success Criteria
@@ -150,11 +209,17 @@ conflux-devkit admin add <addr>   # Add admin
 - ✅ Setup wizard completes successfully
 - ✅ All wallet commands work
 - ✅ All admin commands work
-- ✅ CLI tests pass
+- ✅ All account commands work
+- ✅ Start/web/status commands work
+- ✅ JSON output options work
+- ✅ Type check passes
 
 ### What Users See
-- Can run `conflux-devkit setup` from terminal
+- Can run `pnpm cfx-devkit status` from terminal
+- Can run `pnpm cfx:start` to start node
+- Can run `pnpm cfx:web` to start web mode
 - Full setup without opening browser
+- Consistent experience with web UI
 
 ### Estimated Time: 3-4 days
 

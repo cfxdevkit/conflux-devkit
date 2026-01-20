@@ -673,10 +673,11 @@ export class KeystoreService {
 
   /**
    * Derive accounts from mnemonic (HD wallet derivation)
+   * Returns accounts with both Core and eSpace private keys
    */
   async deriveAccountsFromMnemonic(
     mnemonic: string,
-    network: 'core' | 'espace',
+    _network: 'core' | 'espace', // Kept for API compatibility, both keys are always derived
     count: number,
     startIndex: number = 0,
     chainIdOverride?: number
@@ -721,7 +722,8 @@ export class KeystoreService {
         index: i,
         core: coreAccount.address,
         evm: evmAccount.address,
-        privateKey: network === 'core' ? corePrivateKey : evmPrivateKey,
+        privateKey: corePrivateKey, // Core Space private key (m/44'/503'/0'/0/i)
+        evmPrivateKey: evmPrivateKey, // eSpace private key (m/44'/60'/0'/0/i)
       });
     }
 
