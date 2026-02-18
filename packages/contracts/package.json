@@ -34,6 +34,16 @@
       "import": "./dist/abis/index.js",
       "require": "./dist/abis/index.cjs"
     },
+    "./compiler": {
+      "types": "./dist/compiler/index.d.ts",
+      "import": "./dist/compiler/index.js",
+      "require": "./dist/compiler/index.cjs"
+    },
+    "./templates": {
+      "types": "./dist/templates/index.d.ts",
+      "import": "./dist/templates/index.js",
+      "require": "./dist/templates/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -56,8 +66,9 @@
   },
   "dependencies": {
     "@conflux-devkit/core": "workspace:*",
-    "viem": "^2.43.3",
-    "cive": "^0.8.1"
+    "cive": "^0.8.1",
+    "solc": "0.8.28",
+    "viem": "^2.43.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",

@@ -24,6 +24,10 @@ import { Router } from 'express';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
 import type { DevKitCompat } from '../devkit-compat.js';
 import type { DevKitWebSocketServer } from '../server/WebSocketServer.js';
+import {
+  getContractStorageService,
+  initializeContractStorage,
+} from '../services/contract-storage-service.js';
 import { getKeystoreService } from '../services/keystore-service.js';
 import type { DerivedAccount } from '../types/keystore.js';
 import { logger } from '../utils/logger.js';
@@ -138,6 +142,9 @@ export function createDevKitRoutes(
           status: 'stopped',
           running: false,
           mining: { isRunning: false, interval: 0, blocksMined: 0 },
+          network: currentNetwork,
+          networkConfig: getNetworkConfig(currentNetwork),
+          capabilities: getNetworkCapabilities(currentNetwork),
           wallet: walletInfo,
           chains: {
             core: {
@@ -316,6 +323,9 @@ export function createDevKitRoutes(
         status: 'error',
         running: false,
         mining: { isRunning: false, interval: 0, blocksMined: 0 },
+        network: currentNetwork,
+        networkConfig: getNetworkConfig(currentNetwork),
+        capabilities: getNetworkCapabilities(currentNetwork),
         chains: {
           core: { connected: false, status: 'error' },
           evm: { connected: false, status: 'error' },
@@ -1961,6 +1971,15 @@ export function createDevKitRoutes(
       currentNetwork = network as NetworkType;
       const networkConfig = getNetworkConfig(currentNetwork);
       const capabilities = getNetworkCapabilities(currentNetwork);
+
+      // Update contract storage service with new network context
+      const keystore = getKeystoreService();
+      const walletDataDir =
+        network === 'local' ? await keystore.getDataDir() : undefined;
+      await initializeContractStorage(
+        network as 'local' | 'testnet' | 'mainnet',
+        walletDataDir
+      );
 
       logger.info(`Network switched to: ${network}`, networkConfig);
 

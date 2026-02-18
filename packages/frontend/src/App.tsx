@@ -132,10 +132,23 @@ function App() {
       console.error('DevNode error:', data);
     });
 
+    // Subscribe to network switch events from backend
+    const unsubNetworkSwitch = wsClient.on('network-switched', (data) => {
+      console.log('[App] Network switched:', data);
+      if (data.network && data.config && data.capabilities) {
+        updateStatus({
+          network: data.network,
+          networkConfig: data.config,
+          capabilities: data.capabilities,
+        });
+      }
+    });
+
     return () => {
       unsubStats();
       unsubBlock();
       unsubError();
+      unsubNetworkSwitch();
       wsClient.disconnect();
     };
   }, [isAuthenticated, updateStatus, fetchStatus, fetchAccounts]);

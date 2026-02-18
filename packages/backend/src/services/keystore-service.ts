@@ -35,11 +35,12 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { HDKey } from '@scure/bip32';
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from 'bip39';
-import { privateKeyToAccount as civePrivateKeyToAccount } from 'cive/accounts';
-import { bytesToHex } from 'viem';
-import { privateKeyToAccount as viemPrivateKeyToAccount } from 'viem/accounts';
+import {
+  deriveAccounts as coreDeriveAccounts,
+  generateMnemonic as coreGenerateMnemonic,
+  validateMnemonic as coreValidateMnemonic,
+  type DerivedAccount as CoreDerivedAccount,
+} from '@conflux-devkit/core/wallet';
 import type {
   AddMnemonicData,
   ConfigModificationCheck,
@@ -674,6 +675,7 @@ export class KeystoreService {
   /**
    * Derive accounts from mnemonic (HD wallet derivation)
    * Returns accounts with both Core and eSpace private keys
+   * Uses @conflux-devkit/core/wallet for derivation
    */
   async deriveAccountsFromMnemonic(
     mnemonic: string,
@@ -682,9 +684,6 @@ export class KeystoreService {
     startIndex: number = 0,
     chainIdOverride?: number
   ): Promise<DerivedAccount[]> {
-    const seed = mnemonicToSeedSync(mnemonic);
-    const accounts: DerivedAccount[] = [];
-
     // Get chainId from override or active mnemonic
     let coreNetworkId: number;
     if (chainIdOverride !== undefined) {
@@ -694,40 +693,24 @@ export class KeystoreService {
       coreNetworkId = activeMnemonic.nodeConfig.chainId;
     }
 
-    for (let i = startIndex; i < startIndex + count; i++) {
-      const corePath = `m/44'/503'/0'/0/${i}`;
-      const evmPath = `m/44'/60'/0'/0/${i}`;
+    // Use core wallet module for derivation
+    const coreAccounts = coreDeriveAccounts(mnemonic, {
+      count,
+      startIndex,
+      coreNetworkId,
+      accountType: 'standard',
+    });
 
-      const coreKey = HDKey.fromMasterSeed(seed).derive(corePath);
-      const evmKey = HDKey.fromMasterSeed(seed).derive(evmPath);
-
-      if (!coreKey.privateKey || !evmKey.privateKey) {
-        throw new Error(`Failed to derive key at index ${i}`);
-      }
-
-      const corePrivateKey = bytesToHex(coreKey.privateKey);
-      const evmPrivateKey = bytesToHex(evmKey.privateKey);
-
-      const coreAccount = civePrivateKeyToAccount(
-        corePrivateKey as `0x${string}`,
-        {
-          networkId: coreNetworkId,
-        }
-      );
-      const evmAccount = viemPrivateKeyToAccount(
-        evmPrivateKey as `0x${string}`
-      );
-
-      accounts.push({
-        index: i,
-        core: coreAccount.address,
-        evm: evmAccount.address,
-        privateKey: corePrivateKey, // Core Space private key (m/44'/503'/0'/0/i)
-        evmPrivateKey: evmPrivateKey, // eSpace private key (m/44'/60'/0'/0/i)
-      });
-    }
-
-    return accounts;
+    // Map to backend's DerivedAccount type
+    return coreAccounts.map(
+      (acc: CoreDerivedAccount): DerivedAccount => ({
+        index: acc.index,
+        core: acc.coreAddress,
+        evm: acc.evmAddress,
+        privateKey: acc.corePrivateKey, // Core Space private key (m/44'/503'/0'/0/i)
+        evmPrivateKey: acc.evmPrivateKey, // eSpace private key (m/44'/60'/0'/0/i)
+      })
+    );
   }
 
   // ===== UTILITY METHODS =====
@@ -776,16 +759,18 @@ export class KeystoreService {
 
   /**
    * Generate new BIP-39 mnemonic
+   * Uses @conflux-devkit/core/wallet for generation
    */
   generateMnemonic(): string {
-    return generateMnemonic();
+    return coreGenerateMnemonic();
   }
 
   /**
    * Validate mnemonic format
+   * Uses @conflux-devkit/core/wallet for validation
    */
   validateMnemonic(mnemonic: string): boolean {
-    return validateMnemonic(mnemonic);
+    return coreValidateMnemonic(mnemonic).valid;
   }
 
   // ===== PRIVATE HELPERS =====

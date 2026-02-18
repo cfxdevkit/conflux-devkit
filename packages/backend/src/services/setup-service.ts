@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { validateMnemonic } from 'bip39';
+import { validateMnemonic as coreValidateMnemonic } from '@conflux-devkit/core/wallet';
 import { isAddress } from 'viem';
 import type { SetupData, ValidationResult } from '../types/keystore';
 import { logger } from '../utils/logger';
@@ -56,7 +56,7 @@ export class SetupService {
     // Validate mnemonic
     if (!data.mnemonic) {
       errors.push('Mnemonic is required');
-    } else if (!validateMnemonic(data.mnemonic)) {
+    } else if (!coreValidateMnemonic(data.mnemonic).valid) {
       errors.push('Invalid BIP-39 mnemonic phrase');
     }
 
@@ -159,7 +159,7 @@ export class SetupService {
    * Validate mnemonic format
    */
   static validateMnemonic(mnemonic: string): boolean {
-    return validateMnemonic(mnemonic);
+    return coreValidateMnemonic(mnemonic).valid;
   }
 
   /**

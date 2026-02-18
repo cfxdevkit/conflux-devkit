@@ -36,4 +36,24 @@ export default defineConfig([
       js: '#!/usr/bin/env node',
     },
   },
+  // MCP server builds
+  {
+    ...commonConfig,
+    entry: {
+      'mcp/index': 'src/mcp/index.ts',
+    },
+    dts: true,
+    clean: false,
+  },
+  {
+    ...commonConfig,
+    entry: {
+      'mcp/bin': 'src/mcp/bin.ts',
+    },
+    dts: false,
+    clean: false,
+    banner: {
+      js: '#!/usr/bin/env node',
+    },
+  },
 ]);

@@ -24,8 +24,10 @@
  * 4. POST /api/setup/generate-mnemonic - Generate a new BIP-39 mnemonic
  */
 
-import { generateMnemonic, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
+import {
+  generateMnemonic as coreGenerateMnemonic,
+  validateMnemonic as coreValidateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import { Router } from 'express';
 import { getKeystoreService } from '../services/keystore-service.js';
 import type { SetupData, ValidationResult } from '../types/keystore.js';
@@ -86,7 +88,7 @@ export function createSetupRoutes(options: SetupRoutesOptions = {}): Router {
    */
   router.post('/generate-mnemonic', (_req, res) => {
     try {
-      const mnemonic = generateMnemonic(wordlist, 128); // 12 words
+      const mnemonic = coreGenerateMnemonic(128); // 12 words
       res.json({
         mnemonic,
         wordCount: 12,
@@ -235,7 +237,7 @@ function validateSetupData(data: Partial<SetupData>): ValidationResult {
     const words = data.mnemonic.trim().split(/\s+/);
     if (words.length !== 12 && words.length !== 24) {
       errors.push('Mnemonic must be 12 or 24 words');
-    } else if (!validateMnemonic(data.mnemonic, wordlist)) {
+    } else if (!coreValidateMnemonic(data.mnemonic).valid) {
       errors.push('Invalid mnemonic phrase');
     }
   }

@@ -36,7 +36,12 @@ import { createSetupRoutes } from '../routes/setup.js';
 import { createSwapRoutes } from '../routes/swap.js';
 import { createWalletRoutes } from '../routes/wallet.js';
 import { logger } from '../utils/logger.js';
-import { DevKitWebSocketServer } from './WebSocketServer.js';
+import { initializeContractStorage } from '../services/contract-storage-service.js';
+import { getKeystoreService } from '../services/keystore-service.js';
+import {
+  DevKitWebSocketServer,
+  setWebSocketServerInstance,
+} from './WebSocketServer.js';
 
 export interface BackendServerConfig {
   port: number;
@@ -137,6 +142,12 @@ export class BackendServer {
         );
         logger.info(`Data directory: ${walletStatus.dataDir}`);
 
+        // Initialize contract storage with wallet's data directory (defaults to local network)
+        const keystore = getKeystoreService();
+        const walletDataDir = await keystore.getDataDir();
+        await initializeContractStorage('local', walletDataDir);
+        logger.info('Contract storage initialized for local network');
+
         // Initialize auth service with DevKit
         this.authService = new DevelopmentAuthService(this.devkit);
         await this.authService.initialize();
@@ -147,6 +158,7 @@ export class BackendServer {
           this.config.wsPort,
           this.devkit
         );
+        setWebSocketServerInstance(this.wsServer);
         this.wsServer.startNodeStatsUpdates();
         logger.success(`WebSocket server started on port ${this.config.wsPort}`);
       } else {
@@ -165,6 +177,7 @@ export class BackendServer {
           this.config.wsPort,
           undefined
         );
+        setWebSocketServerInstance(this.wsServer);
         logger.success(`WebSocket server started on port ${this.config.wsPort} (setup mode)`);
       }
 

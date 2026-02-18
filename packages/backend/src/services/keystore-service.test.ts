@@ -14,89 +14,61 @@
  * limitations under the License.
  */
 
-import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { privateKeyToAccount } from 'viem/accounts';
+import {
+  deriveAccounts,
+  deriveFaucetAccount,
+  validateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Test the account derivation logic
+// Test the account derivation logic using core wallet module
 describe('Account Derivation', () => {
   const TEST_MNEMONIC =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
   describe('HD Key Derivation', () => {
     it('should derive consistent accounts from mnemonic', () => {
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
+      const accounts = deriveAccounts(TEST_MNEMONIC, { count: 1 });
 
-      // Derive first account using BIP-44 path: m/44'/60'/0'/0/0
-      const childKey = hdKey.derive("m/44'/60'/0'/0/0");
-      expect(childKey.privateKey).toBeDefined();
-      expect(childKey.privateKey?.length).toBe(32);
+      expect(accounts.length).toBe(1);
+      expect(accounts[0].evmPrivateKey).toBeDefined();
+      expect(accounts[0].corePrivateKey).toBeDefined();
     });
 
     it('should derive different keys for different indices', () => {
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
+      const accounts = deriveAccounts(TEST_MNEMONIC, { count: 2 });
 
-      const key0 = hdKey.derive("m/44'/60'/0'/0/0");
-      const key1 = hdKey.derive("m/44'/60'/0'/0/1");
-
-      expect(key0.privateKey).not.toEqual(key1.privateKey);
+      expect(accounts[0].evmPrivateKey).not.toEqual(accounts[1].evmPrivateKey);
+      expect(accounts[0].corePrivateKey).not.toEqual(accounts[1].corePrivateKey);
     });
 
     it('should generate valid Ethereum addresses', () => {
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
-      const childKey = hdKey.derive("m/44'/60'/0'/0/0");
+      const accounts = deriveAccounts(TEST_MNEMONIC, { count: 1 });
 
-      if (childKey.privateKey) {
-        const privateKeyHex = `0x${Buffer.from(childKey.privateKey).toString('hex')}` as `0x${string}`;
-        const account = privateKeyToAccount(privateKeyHex);
-
-        expect(account.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
-      }
+      expect(accounts[0].evmAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
     });
 
     it('should derive expected address for test mnemonic', () => {
       // Known first address for the "abandon..." mnemonic
       const EXPECTED_FIRST_ADDRESS = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
 
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
-      const childKey = hdKey.derive("m/44'/60'/0'/0/0");
+      const accounts = deriveAccounts(TEST_MNEMONIC, { count: 1 });
 
-      if (childKey.privateKey) {
-        const privateKeyHex = `0x${Buffer.from(childKey.privateKey).toString('hex')}` as `0x${string}`;
-        const account = privateKeyToAccount(privateKeyHex);
-
-        expect(account.address.toLowerCase()).toBe(
-          EXPECTED_FIRST_ADDRESS.toLowerCase()
-        );
-      }
+      expect(accounts[0].evmAddress.toLowerCase()).toBe(
+        EXPECTED_FIRST_ADDRESS.toLowerCase()
+      );
     });
   });
 
   describe('Multiple Account Derivation', () => {
     it('should derive specified number of accounts', () => {
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
       const accountsCount = 10;
-
-      const accounts: string[] = [];
-      for (let i = 0; i < accountsCount; i++) {
-        const childKey = hdKey.derive(`m/44'/60'/0'/0/${i}`);
-        if (childKey.privateKey) {
-          const privateKeyHex = `0x${Buffer.from(childKey.privateKey).toString('hex')}` as `0x${string}`;
-          const account = privateKeyToAccount(privateKeyHex);
-          accounts.push(account.address);
-        }
-      }
+      const accounts = deriveAccounts(TEST_MNEMONIC, { count: accountsCount });
 
       expect(accounts.length).toBe(accountsCount);
       // All addresses should be unique
-      expect(new Set(accounts).size).toBe(accountsCount);
+      const evmAddresses = accounts.map((a) => a.evmAddress);
+      expect(new Set(evmAddresses).size).toBe(accountsCount);
     });
   });
 });
@@ -266,60 +238,41 @@ describe('Setup Completion Integration', () => {
 
   describe('Account derivation during setup', () => {
     it('should derive accounts without requiring existing keystore', () => {
-      // This test verifies that deriveAccountsFromMnemonic can work
-      // with chainIdOverride during initial setup when no active mnemonic exists
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
-      const chainId = 2029; // Simulating chainIdOverride parameter
-
-      const accounts: Array<{ index: number; evm: string }> = [];
-
-      // Derive multiple accounts using eSpace path (BIP-44 for Ethereum)
-      for (let i = 0; i < 10; i++) {
-        const evmPath = `m/44'/60'/0'/0/${i}`;
-        const evmKey = hdKey.derive(evmPath);
-
-        if (evmKey.privateKey) {
-          const privateKeyHex = `0x${Buffer.from(evmKey.privateKey).toString('hex')}` as `0x${string}`;
-          const account = privateKeyToAccount(privateKeyHex);
-          accounts.push({
-            index: i,
-            evm: account.address,
-          });
-        }
-      }
+      // This test verifies that deriveAccounts can work during initial setup
+      const accounts = deriveAccounts(TEST_MNEMONIC, {
+        count: 10,
+        coreNetworkId: 2029, // Simulating chainIdOverride parameter
+      });
 
       expect(accounts.length).toBe(10);
-      expect(accounts[0].evm).toMatch(/^0x[a-fA-F0-9]{40}$/);
-      // chainId is used for Core Space, but accounts should still derive
-      expect(chainId).toBe(2029);
+      expect(accounts[0].evmAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      // Core addresses should use network-specific prefix
+      expect(accounts[0].coreAddress).toMatch(/^net2029:/);
     });
 
-    it('should derive faucet account at specified index', () => {
-      const seed = mnemonicToSeedSync(TEST_MNEMONIC);
-      const hdKey = HDKey.fromMasterSeed(seed);
-      const accountsCount = 10;
+    it('should derive faucet account', () => {
+      // Faucet account derivation
+      const faucetAccount = deriveFaucetAccount(TEST_MNEMONIC, 2029);
 
-      // Faucet account is at accountsCount index (Core path)
-      const corePath = `m/44'/503'/0'/0/${accountsCount}`;
-      const coreKey = hdKey.derive(corePath);
-
-      expect(coreKey.privateKey).toBeDefined();
-      expect(coreKey.privateKey?.length).toBe(32);
+      expect(faucetAccount.evmPrivateKey).toBeDefined();
+      expect(faucetAccount.corePrivateKey).toBeDefined();
+      expect(faucetAccount.evmAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      // Faucet uses mining path, so it's index 0 in mining account type
+      expect(faucetAccount.index).toBe(0);
     });
 
     it('should handle mnemonic validation during setup', () => {
       // Valid mnemonic
-      expect(validateMnemonic(TEST_MNEMONIC, wordlist)).toBe(true);
+      expect(validateMnemonic(TEST_MNEMONIC).valid).toBe(true);
 
       // Invalid mnemonic (wrong word)
       expect(
-        validateMnemonic('invalid mnemonic phrase that should fail', wordlist)
+        validateMnemonic('invalid mnemonic phrase that should fail').valid
       ).toBe(false);
 
       // Mnemonic with extra whitespace should be trimmed
       const mnemonicWithSpaces = `  ${TEST_MNEMONIC}  `;
-      expect(validateMnemonic(mnemonicWithSpaces.trim(), wordlist)).toBe(true);
+      expect(validateMnemonic(mnemonicWithSpaces.trim()).valid).toBe(true);
     });
   });
 });

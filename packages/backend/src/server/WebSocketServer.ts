@@ -223,6 +223,28 @@ export class DevKitWebSocketServer {
   }
 
   /**
+   * Notify clients about contract deployment
+   */
+  notifyContractDeployment(deployment: {
+    id: string;
+    name: string;
+    address: string;
+    chain: 'evm' | 'core';
+    chainId: number;
+    deployer: string;
+    transactionHash: string;
+  }) {
+    logger.info(
+      `Broadcasting contract deployment: ${deployment.name} at ${deployment.address}`
+    );
+    this.broadcast({
+      type: 'contractDeployed',
+      data: deployment,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
    * Start smart node statistics updates
    * Polls frequently when node is running, less frequently when stopped
    */
@@ -558,14 +580,50 @@ export class DevKitWebSocketServer {
           const block = data.result;
 
           if (block?.transactions && block.transactions.length > 0) {
-            const transactions = block.transactions.map((tx: any) => ({
-              hash: tx.hash || '',
-              from: tx.from || '',
-              to: tx.to || undefined,
-              value: tx.value
-                ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
-                : '0 CFX',
-            }));
+            const transactions = await Promise.all(
+              block.transactions.map(async (tx: any) => {
+                const txInfo: any = {
+                  hash: tx.hash || '',
+                  from: tx.from || '',
+                  to: tx.to || undefined,
+                  value: tx.value
+                    ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+                    : '0 CFX',
+                  gas: tx.gas ? parseInt(tx.gas, 16).toString() : undefined,
+                  gasPrice: tx.gasPrice
+                    ? `${(parseInt(tx.gasPrice, 16) / 1e9).toFixed(2)} Gwei`
+                    : undefined,
+                  input: tx.data || tx.input || undefined,
+                  isContractCreation: !tx.to,
+                };
+
+                // For contract creation transactions, fetch the receipt to get contract address
+                if (!tx.to && tx.hash) {
+                  try {
+                    const receiptResponse = await fetch(coreRpcUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'cfx_getTransactionReceipt',
+                        params: [tx.hash],
+                        id: 1,
+                      }),
+                    });
+                    const receiptData = (await receiptResponse.json()) as {
+                      result: any;
+                    };
+                    if (receiptData.result?.contractCreated) {
+                      txInfo.contractAddress = receiptData.result.contractCreated;
+                    }
+                  } catch {
+                    // Ignore receipt fetch errors
+                  }
+                }
+
+                return txInfo;
+              })
+            );
 
             blocksWithTxs.push({
               blockNumber: String(epoch),
@@ -599,14 +657,50 @@ export class DevKitWebSocketServer {
           const block = data.result;
 
           if (block?.transactions && block.transactions.length > 0) {
-            const transactions = block.transactions.map((tx: any) => ({
-              hash: tx.hash || '',
-              from: tx.from || '',
-              to: tx.to || undefined,
-              value: tx.value
-                ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
-                : '0 CFX',
-            }));
+            const transactions = await Promise.all(
+              block.transactions.map(async (tx: any) => {
+                const txInfo: any = {
+                  hash: tx.hash || '',
+                  from: tx.from || '',
+                  to: tx.to || undefined,
+                  value: tx.value
+                    ? `${(parseInt(tx.value, 16) / 1e18).toFixed(4)} CFX`
+                    : '0 CFX',
+                  gas: tx.gas ? parseInt(tx.gas, 16).toString() : undefined,
+                  gasPrice: tx.gasPrice
+                    ? `${(parseInt(tx.gasPrice, 16) / 1e9).toFixed(2)} Gwei`
+                    : undefined,
+                  input: tx.input || undefined,
+                  isContractCreation: !tx.to,
+                };
+
+                // For contract creation transactions, fetch the receipt to get contract address
+                if (!tx.to && tx.hash) {
+                  try {
+                    const receiptResponse = await fetch(evmRpcUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_getTransactionReceipt',
+                        params: [tx.hash],
+                        id: 1,
+                      }),
+                    });
+                    const receiptData = (await receiptResponse.json()) as {
+                      result: any;
+                    };
+                    if (receiptData.result?.contractAddress) {
+                      txInfo.contractAddress = receiptData.result.contractAddress;
+                    }
+                  } catch {
+                    // Ignore receipt fetch errors
+                  }
+                }
+
+                return txInfo;
+              })
+            );
 
             blocksWithTxs.push({
               blockNumber: String(blockNum),
@@ -662,5 +756,26 @@ export class DevKitWebSocketServer {
     this.stopNodeStatsUpdates();
     this.stopBlockMonitoring();
     this.wss.close();
+    // Clear singleton reference
+    if (wsServerInstance === this) {
+      wsServerInstance = null;
+    }
   }
+}
+
+// Singleton instance for access from routes
+let wsServerInstance: DevKitWebSocketServer | null = null;
+
+/**
+ * Set the global WebSocket server instance
+ */
+export function setWebSocketServerInstance(server: DevKitWebSocketServer): void {
+  wsServerInstance = server;
+}
+
+/**
+ * Get the global WebSocket server instance
+ */
+export function getWebSocketServer(): DevKitWebSocketServer | null {
+  return wsServerInstance;
 }

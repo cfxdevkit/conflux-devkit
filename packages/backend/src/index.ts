@@ -59,6 +59,12 @@ export {
   KeystoreLockedError,
   KeystoreService,
 } from './services/keystore-service.js';
+// MCP state exports
+export {
+  DevKitMcpContext,
+  SetupNotCompletedError,
+  NodeNotRunningError,
+} from './mcp/state/index.js';
 // Type exports
 export type {
   AddMnemonicData,

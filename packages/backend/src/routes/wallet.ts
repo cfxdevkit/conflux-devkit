@@ -30,8 +30,10 @@
  * 10. POST /api/wallet/lock - Lock keystore
  */
 
-import { generateMnemonic, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
+import {
+  generateMnemonic as coreGenerateMnemonic,
+  validateMnemonic as coreValidateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import { Router } from 'express';
 import type {
   AuthenticatedRequest,
@@ -131,7 +133,7 @@ export function createWalletRoutes(
         return;
       }
 
-      if (!validateMnemonic(mnemonic, wordlist)) {
+      if (!coreValidateMnemonic(mnemonic).valid) {
         res.status(400).json({
           error: 'Validation failed',
           message: 'Invalid mnemonic phrase',
@@ -634,7 +636,7 @@ export function createWalletRoutes(
    */
   router.post('/generate-mnemonic', authService.requireAdmin, (_req, res) => {
     try {
-      const mnemonic = generateMnemonic(wordlist, 128); // 12 words
+      const mnemonic = coreGenerateMnemonic(128); // 12 words
       res.json({
         mnemonic,
         wordCount: 12,

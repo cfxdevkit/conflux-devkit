@@ -22,6 +22,7 @@ import {
   Card,
   CopyButton,
   Group,
+  Pagination,
   SimpleGrid,
   Stack,
   Text,
@@ -35,16 +36,26 @@ import {
   IconBooks,
   IconCheck,
   IconCoin,
+  IconCode,
   IconCopy,
   IconFileText,
   IconFilter,
   IconPlayerPause,
   IconPlayerPlay,
+  IconSearch,
   IconTrash,
+  IconX,
 } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { apiClient } from '@/services/api';
 import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
+import {
+  addContractToCache,
+  clearAbiCache,
+  decodeTransactionInput,
+  type DecodedTransaction,
+} from '@/utils/tx-decoder';
 
 interface BlockInfo {
   blockNumber: string;
@@ -62,6 +73,14 @@ interface TransactionInfo {
   blockNumber: string;
   timestamp: number;
   chainType: 'core' | 'evm';
+  // Enhanced transaction details
+  gas?: string;
+  gasPrice?: string;
+  input?: string;
+  isContractCreation?: boolean;
+  contractAddress?: string;
+  // Decoded transaction data (if ABI available)
+  decodedData?: DecodedTransaction | null;
 }
 
 interface MonitorStats {
@@ -74,11 +93,25 @@ interface MonitorStats {
   miningInterval?: number; // Current mining interval from node
 }
 
+// Pagination settings
+const BLOCKS_PER_PAGE = 20;
+
 export function BlockchainMonitor() {
   const { status } = useDevNodeStore();
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
+
+  // Search state (scaffold-eth pattern: search by hash or address)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<{
+    type: 'transaction' | 'address' | 'none';
+    transactions: TransactionInfo[];
+    blocks: BlockInfo[];
+  } | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Address filter state (for non-local networks)
   const [addressFilter, setAddressFilter] = useState('');
@@ -99,11 +132,53 @@ export function BlockchainMonitor() {
   const prevEvmBlockRef = useRef<number>(0);
   const prevTimestampRef = useRef<number>(Date.now());
 
+  // ABI cache state
+  const [contractsLoaded, setContractsLoaded] = useState(0);
+
   // Network awareness
   const isLocalNetwork = status?.network === 'local';
   // canMonitor capability indicates if monitoring is available at all
 
   const isNodeRunning = status?.isRunning ?? false;
+
+  // Load deployed contracts into ABI cache for transaction decoding
+  const loadContractsForDecoding = useCallback(async () => {
+    try {
+      const { contracts } = await apiClient.getDeployedContracts();
+      clearAbiCache();
+
+      let loaded = 0;
+      for (const contract of contracts) {
+        if (contract.abi && Array.isArray(contract.abi)) {
+          addContractToCache({
+            address: contract.address,
+            name: contract.name,
+            abi: contract.abi as any,
+          });
+          loaded++;
+        }
+      }
+
+      setContractsLoaded(loaded);
+      console.log(`[Monitor] Loaded ${loaded} contract ABIs for decoding`);
+    } catch (error) {
+      console.warn('[Monitor] Failed to load contracts for decoding:', error);
+    }
+  }, []);
+
+  // Load contracts on mount and when new contracts are deployed
+  useEffect(() => {
+    loadContractsForDecoding();
+
+    // Subscribe to contract deployments to refresh ABI cache
+    const unsubDeploy = wsClient.on('contractDeployed', () => {
+      loadContractsForDecoding();
+    });
+
+    return () => {
+      unsubDeploy();
+    };
+  }, [loadContractsForDecoding]);
 
   useEffect(() => {
     if (!isNodeRunning) return;
@@ -138,8 +213,18 @@ export function BlockchainMonitor() {
       // Add new blocks to the list (only if we have blocks with transactions)
       if (blocks && blocks.length > 0) {
         console.log(`[Monitor] Received ${blocks.length} new blocks from WebSocket`);
+
+        // Decode transactions using cached ABIs
+        const decodedBlocks = blocks.map((block: BlockInfo) => ({
+          ...block,
+          transactions: block.transactions.map((tx: TransactionInfo) => ({
+            ...tx,
+            decodedData: tx.input ? decodeTransactionInput(tx.input, tx.to) : null,
+          })),
+        }));
+
         setBlocks((prev) => {
-          const newBlocks = [...blocks, ...prev];
+          const newBlocks = [...decodedBlocks, ...prev];
           return newBlocks.slice(0, 1000); // Keep last 1000 blocks
         });
       }
@@ -233,6 +318,110 @@ export function BlockchainMonitor() {
   // For non-local networks, require filters
   const requiresFilter = !isLocalNetwork;
 
+  // Search function (scaffold-eth pattern)
+  const handleSearch = useCallback(() => {
+    if (!searchQuery.trim()) {
+      setSearchResult(null);
+      return;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+
+    // Check if it's a transaction hash (0x + 64 hex chars)
+    const isTxHash = /^0x[a-f0-9]{64}$/i.test(query);
+
+    // Check if it's an address (0x + 40 hex chars)
+    const isAddress = /^0x[a-f0-9]{40}$/i.test(query);
+
+    if (isTxHash) {
+      // Search for transaction by hash
+      const matchingTxs: TransactionInfo[] = [];
+      const matchingBlocks: BlockInfo[] = [];
+
+      for (const block of blocks) {
+        for (const tx of block.transactions) {
+          if (tx.hash.toLowerCase() === query) {
+            matchingTxs.push(tx);
+            if (!matchingBlocks.find((b) => b.blockNumber === block.blockNumber)) {
+              matchingBlocks.push(block);
+            }
+          }
+        }
+      }
+
+      setSearchResult({
+        type: 'transaction',
+        transactions: matchingTxs,
+        blocks: matchingBlocks,
+      });
+    } else if (isAddress) {
+      // Search for transactions involving this address
+      const matchingTxs: TransactionInfo[] = [];
+      const matchingBlocks: BlockInfo[] = [];
+
+      for (const block of blocks) {
+        for (const tx of block.transactions) {
+          if (
+            tx.from?.toLowerCase() === query ||
+            tx.to?.toLowerCase() === query ||
+            tx.contractAddress?.toLowerCase() === query
+          ) {
+            matchingTxs.push(tx);
+            if (!matchingBlocks.find((b) => b.blockNumber === block.blockNumber)) {
+              matchingBlocks.push(block);
+            }
+          }
+        }
+      }
+
+      setSearchResult({
+        type: 'address',
+        transactions: matchingTxs,
+        blocks: matchingBlocks,
+      });
+    } else {
+      setSearchResult({ type: 'none', transactions: [], blocks: [] });
+    }
+  }, [searchQuery, blocks]);
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResult(null);
+  };
+
+  // Paginated blocks (scaffold-eth pattern)
+  const paginatedBlocks = useMemo(() => {
+    const displayBlocks = searchResult ? searchResult.blocks : blocks;
+    const startIndex = (currentPage - 1) * BLOCKS_PER_PAGE;
+    return displayBlocks.slice(startIndex, startIndex + BLOCKS_PER_PAGE);
+  }, [blocks, searchResult, currentPage]);
+
+  const totalPages = useMemo(() => {
+    const displayBlocks = searchResult ? searchResult.blocks : blocks;
+    return Math.max(1, Math.ceil(displayBlocks.length / BLOCKS_PER_PAGE));
+  }, [blocks, searchResult]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchResult]);
+
+  // Format time mined (scaffold-eth pattern)
+  const formatTimeMined = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  };
+
+  // Format relative time
+  const formatRelativeTime = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  };
+
   return (
     <Stack gap="md">
       {/* Network Warning for non-local networks */}
@@ -250,12 +439,56 @@ export function BlockchainMonitor() {
         </Alert>
       )}
 
-      {/* Filter Controls */}
+      {/* Search Bar (scaffold-eth pattern) */}
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Group gap="xs">
+            <IconSearch size={20} />
+            <Text fw={500}>Search Transactions</Text>
+            {searchResult && (
+              <Badge
+                color={searchResult.transactions.length > 0 ? 'green' : 'orange'}
+                variant="light"
+                size="sm"
+              >
+                {searchResult.transactions.length} found
+              </Badge>
+            )}
+          </Group>
+          <Group>
+            <TextInput
+              placeholder="Search by transaction hash or address (0x...)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              leftSection={<IconSearch size={16} />}
+              size="sm"
+              style={{ flex: 1 }}
+            />
+            <Button size="sm" onClick={handleSearch} disabled={!searchQuery.trim()}>
+              Search
+            </Button>
+            {searchResult && (
+              <Button size="sm" variant="light" onClick={clearSearch} leftSection={<IconX size={14} />}>
+                Clear
+              </Button>
+            )}
+          </Group>
+          {searchResult?.type === 'none' && (
+            <Text size="xs" c="orange">
+              No results found. Enter a valid transaction hash (0x + 64 chars) or address (0x + 40
+              chars).
+            </Text>
+          )}
+        </Stack>
+      </Card>
+
+      {/* Advanced Filter Controls */}
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
           <Group gap="xs">
             <IconFilter size={20} />
-            <Text fw={500}>Transaction Filters</Text>
+            <Text fw={500}>Advanced Filters</Text>
             {isFilterActive && (
               <Badge color="green" variant="light" size="sm">
                 Active
@@ -396,6 +629,13 @@ export function BlockchainMonitor() {
                   {stats.miningInterval}ms interval
                 </Badge>
               )}
+              {contractsLoaded > 0 && (
+                <Tooltip label={`${contractsLoaded} contract ABI(s) loaded for decoding`}>
+                  <Badge size="sm" color="cyan" variant="light" leftSection={<IconCode size={10} />}>
+                    {contractsLoaded} ABIs
+                  </Badge>
+                </Tooltip>
+              )}
             </Group>
             <Group gap="xs">
               <Tooltip label={isPaused ? 'Resume monitoring' : 'Pause monitoring'}>
@@ -422,16 +662,43 @@ export function BlockchainMonitor() {
           </Group>
         </Card.Section>
 
-        {blocks.length === 0 ? (
+        {/* Pagination Controls (scaffold-eth pattern) */}
+        {blocks.length > BLOCKS_PER_PAGE && (
+          <Card.Section inheritPadding py="xs">
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">
+                Showing {(currentPage - 1) * BLOCKS_PER_PAGE + 1}-
+                {Math.min(
+                  currentPage * BLOCKS_PER_PAGE,
+                  searchResult ? searchResult.blocks.length : blocks.length
+                )}{' '}
+                of {searchResult ? searchResult.blocks.length : blocks.length} blocks
+              </Text>
+              <Pagination
+                value={currentPage}
+                onChange={setCurrentPage}
+                total={totalPages}
+                size="sm"
+                siblings={1}
+              />
+            </Group>
+          </Card.Section>
+        )}
+
+        {paginatedBlocks.length === 0 ? (
           <Stack align="center" gap="md" py="xl">
             <Text size="sm" c="dimmed">
-              {isNodeRunning
-                ? 'Waiting for blocks with transactions... Use the faucet or send transactions to see activity.'
-                : 'Start the node and send transactions to see blocks here.'}
+              {searchResult
+                ? 'No matching blocks found for your search.'
+                : isNodeRunning
+                  ? 'Waiting for blocks with transactions... Use the faucet or send transactions to see activity.'
+                  : 'Start the node and send transactions to see blocks here.'}
             </Text>
-            <Text size="xs" c="dimmed">
-              Note: Only blocks containing transactions are displayed
-            </Text>
+            {!searchResult && (
+              <Text size="xs" c="dimmed">
+                Note: Only blocks containing transactions are displayed
+              </Text>
+            )}
           </Stack>
         ) : (
           <div
@@ -445,7 +712,7 @@ export function BlockchainMonitor() {
               padding: '0 8px 0 0',
             }}
           >
-            {blocks.map((block, idx) => (
+            {paginatedBlocks.map((block, idx) => (
               <Card
                 key={`${block.chainType}-${block.blockNumber}-${idx}`}
                 withBorder
@@ -468,9 +735,11 @@ export function BlockchainMonitor() {
                         {block.transactionCount} {block.transactionCount === 1 ? 'tx' : 'txs'}
                       </Badge>
                     </Group>
-                    <Text size="xs" c="dimmed">
-                      {new Date(block.timestamp).toLocaleTimeString()}
-                    </Text>
+                    <Tooltip label={formatTimeMined(block.timestamp)}>
+                      <Text size="xs" c="dimmed">
+                        {formatRelativeTime(block.timestamp)}
+                      </Text>
+                    </Tooltip>
                   </Group>
 
                   {/* Transactions List - Show last 3 by default */}
@@ -592,22 +861,138 @@ export function BlockchainMonitor() {
                                       →
                                     </Text>
                                     <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                                      To:
+                                      {tx.isContractCreation || !tx.to ? 'Creates:' : 'To:'}
                                     </Text>
-                                    <Tooltip label={tx.to || 'Contract Creation'}>
-                                      <Text
-                                        ff="monospace"
-                                        size="xs"
-                                        style={{
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          whiteSpace: 'nowrap',
-                                        }}
-                                      >
-                                        {tx.to ? formatAddress(tx.to) : 'Contract'}
-                                      </Text>
-                                    </Tooltip>
+                                    {tx.contractAddress ? (
+                                      <Group gap={4} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                                        <Badge size="xs" color="purple" variant="light">
+                                          Contract
+                                        </Badge>
+                                        <Tooltip label={tx.contractAddress}>
+                                          <Text
+                                            ff="monospace"
+                                            size="xs"
+                                            style={{
+                                              overflow: 'hidden',
+                                              textOverflow: 'ellipsis',
+                                              whiteSpace: 'nowrap',
+                                            }}
+                                          >
+                                            {formatAddress(tx.contractAddress)}
+                                          </Text>
+                                        </Tooltip>
+                                        <CopyButton value={tx.contractAddress} timeout={2000}>
+                                          {({ copied }) => (
+                                            <Tooltip
+                                              label={copied ? 'Copied!' : 'Copy contract address'}
+                                            >
+                                              <ActionIcon
+                                                color={copied ? 'teal' : 'gray'}
+                                                variant="subtle"
+                                                size="xs"
+                                              >
+                                                {copied ? (
+                                                  <IconCheck style={{ width: 10 }} />
+                                                ) : (
+                                                  <IconCopy style={{ width: 10 }} />
+                                                )}
+                                              </ActionIcon>
+                                            </Tooltip>
+                                          )}
+                                        </CopyButton>
+                                      </Group>
+                                    ) : tx.to ? (
+                                      <Tooltip label={tx.to}>
+                                        <Text
+                                          ff="monospace"
+                                          size="xs"
+                                          style={{
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                          }}
+                                        >
+                                          {formatAddress(tx.to)}
+                                        </Text>
+                                      </Tooltip>
+                                    ) : (
+                                      <Badge size="xs" color="orange" variant="light">
+                                        Pending...
+                                      </Badge>
+                                    )}
                                   </Group>
+                                  {/* Show decoded function call if available */}
+                                  {tx.decodedData && tx.decodedData.functionName && (
+                                    <Card
+                                      p="xs"
+                                      mt={4}
+                                      withBorder
+                                      bg="var(--mantine-color-dark-7)"
+                                      radius="sm"
+                                    >
+                                      <Group gap="xs" wrap="nowrap">
+                                        <ThemeIcon
+                                          size="xs"
+                                          color="cyan"
+                                          variant="light"
+                                          radius="sm"
+                                        >
+                                          <IconCode size={10} />
+                                        </ThemeIcon>
+                                        <Badge size="xs" color="cyan" variant="light">
+                                          {tx.decodedData.functionName}
+                                        </Badge>
+                                      </Group>
+                                      {tx.decodedData.parameters &&
+                                        tx.decodedData.parameters.length > 0 && (
+                                          <Stack gap={2} mt={4}>
+                                            {tx.decodedData.parameters.map((param, i) => (
+                                              <Group
+                                                key={i}
+                                                gap="xs"
+                                                wrap="nowrap"
+                                                style={{ overflow: 'hidden' }}
+                                              >
+                                                <Text
+                                                  size="xs"
+                                                  c="dimmed"
+                                                  style={{ flexShrink: 0 }}
+                                                >
+                                                  {param.name}:
+                                                </Text>
+                                                <Tooltip label={String(param.value)}>
+                                                  <Text
+                                                    size="xs"
+                                                    ff="monospace"
+                                                    c="cyan"
+                                                    style={{
+                                                      overflow: 'hidden',
+                                                      textOverflow: 'ellipsis',
+                                                      whiteSpace: 'nowrap',
+                                                    }}
+                                                  >
+                                                    {param.displayValue}
+                                                  </Text>
+                                                </Tooltip>
+                                              </Group>
+                                            ))}
+                                          </Stack>
+                                        )}
+                                    </Card>
+                                  )}
+                                  {/* Show gas info if available */}
+                                  {tx.gas && (
+                                    <Group gap="xs" mt={2}>
+                                      <Text size="xs" c="dimmed">
+                                        Gas: {tx.gas}
+                                      </Text>
+                                      {tx.gasPrice && (
+                                        <Text size="xs" c="dimmed">
+                                          @ {tx.gasPrice}
+                                        </Text>
+                                      )}
+                                    </Group>
+                                  )}
                                 </Card>
                               ))}
                             </Stack>

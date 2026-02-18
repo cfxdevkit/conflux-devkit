@@ -48,10 +48,7 @@
   },
   "dependencies": {
     "@xcfx/node": "0.8.0",
-    "bip32": "^4.0.0",
-    "bip39": "^3.1.0",
     "cive": "^0.8.1",
-    "tiny-secp256k1": "^2.2.4",
     "viem": "^2.43.3"
   },
   "peerDependencies": {

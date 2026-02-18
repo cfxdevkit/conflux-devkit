@@ -21,12 +21,15 @@ import type { ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { defaultNetworkSelector } from '@conflux-devkit/core/config';
+import {
+  deriveAccount,
+  deriveAccounts,
+  deriveFaucetAccount,
+  generateMnemonic as coreGenerateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import { createServer } from '@xcfx/node';
-import { BIP32Factory } from 'bip32';
-import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import type { TestClient } from 'cive';
 import { privateKeyToAccount } from 'cive/accounts';
-import * as ecc from 'tiny-secp256k1';
 import { privateKeyToAccount as privateKeyToEvmAccount } from 'viem/accounts';
 import {
   type AccountInfo,
@@ -84,7 +87,7 @@ export class ServerManager {
 
     // Generate or use provided mnemonic and immediately generate accounts
     // This ensures accounts are always available regardless of node state
-    this.mnemonic = this.config.mnemonic || generateMnemonic();
+    this.mnemonic = this.config.mnemonic || coreGenerateMnemonic(128);
     this.generateAccountsSync();
     this.generateMiningAccountSync();
   }
@@ -454,72 +457,27 @@ export class ServerManager {
   }
 
   /**
-   * Generate accounts from mnemonic using BIP32/BIP39
-   */
-  /**
-   * Generate accounts from mnemonic (synchronous)
+   * Generate accounts from mnemonic using core wallet module
    * Called from constructor to ensure accounts are always available
    */
   private generateAccountsSync(): void {
-    // Initialize BIP32 with secure elliptic curve implementation
-    const bip32 = BIP32Factory(ecc);
+    // Use core wallet module for account derivation
+    const derivedAccounts = deriveAccounts(this.mnemonic, {
+      count: this.config.accounts || 10,
+      coreNetworkId: this.config.chainId || 2029,
+    });
 
-    // Generate seed from mnemonic with proper error handling
-    const seed = mnemonicToSeedSync(this.mnemonic);
-    const root = bip32.fromSeed(seed);
-
-    this.accounts = [];
-
-    for (let i = 0; i < (this.config.accounts || 10); i++) {
-      // Derive private key using BIP32 path for Conflux (m/44'/503'/0'/0/i)
-      const confluxChild = root.derivePath(`m/44'/503'/0'/0/${i}`);
-
-      if (!confluxChild.privateKey) {
-        throw new NodeError(
-          `Failed to derive Conflux private key for account ${i}`,
-          'KEY_DERIVATION_ERROR'
-        );
-      }
-
-      const confluxPrivateKey = `0x${confluxChild.privateKey.toString('hex')}`;
-
-      // Derive EVM private key using Ethereum derivation path (m/44'/60'/0'/0/i)
-      const ethereumChild = root.derivePath(`m/44'/60'/0'/0/${i}`);
-
-      if (!ethereumChild.privateKey) {
-        throw new NodeError(
-          `Failed to derive Ethereum private key for account ${i}`,
-          'KEY_DERIVATION_ERROR'
-        );
-      }
-
-      const ethereumPrivateKey = `0x${ethereumChild.privateKey.toString('hex')}`;
-
-      // Create Core account using Conflux-derived private key
-      const coreAccount = privateKeyToAccount(
-        confluxPrivateKey as `0x${string}`,
-        {
-          networkId: this.config.chainId || 1,
-        }
-      );
-
-      // Create EVM account using Ethereum-derived private key
-      const evmAccount = privateKeyToEvmAccount(
-        ethereumPrivateKey as `0x${string}`
-      );
-
-      this.accounts.push({
-        index: i,
-        privateKey: confluxPrivateKey, // Keep Conflux private key as primary
-        coreAddress: coreAccount.address,
-        evmAddress: evmAccount.address,
-        mnemonic: this.mnemonic,
-        path: `m/44'/503'/0'/0/${i}`, // Core path
-        // Store additional EVM-specific info
-        evmPrivateKey: ethereumPrivateKey,
-        evmPath: `m/44'/60'/0'/0/${i}`,
-      });
-    }
+    this.accounts = derivedAccounts.map((account) => ({
+      index: account.index,
+      privateKey: account.corePrivateKey, // Keep Conflux private key as primary
+      coreAddress: account.coreAddress,
+      evmAddress: account.evmAddress,
+      mnemonic: this.mnemonic,
+      path: account.paths.core,
+      // Store additional EVM-specific info
+      evmPrivateKey: account.evmPrivateKey,
+      evmPath: account.paths.evm,
+    }));
   }
 
   /**
@@ -528,52 +486,22 @@ export class ServerManager {
    * Called synchronously from constructor to ensure always available
    */
   private generateMiningAccountSync(): void {
-    // Initialize BIP32 with secure elliptic curve implementation
-    const bip32 = BIP32Factory(ecc);
-
-    // Generate seed from mnemonic
-    const seed = mnemonicToSeedSync(this.mnemonic);
-    const root = bip32.fromSeed(seed);
-
-    // Use different derivation paths for Core and EVM mining accounts
-    // Core: m/44'/503'/1'/0/0 (Conflux path)
-    // EVM: m/44'/60'/1'/0/0 (Ethereum path)
-    const confluxChild = root.derivePath(`m/44'/503'/1'/0/0`);
-    const ethereumChild = root.derivePath(`m/44'/60'/1'/0/0`);
-
-    if (!confluxChild.privateKey || !ethereumChild.privateKey) {
-      throw new NodeError(
-        'Failed to derive private keys for mining account',
-        'KEY_DERIVATION_ERROR'
-      );
-    }
-
-    const confluxPrivateKey = `0x${confluxChild.privateKey.toString('hex')}`;
-    const ethereumPrivateKey = `0x${ethereumChild.privateKey.toString('hex')}`;
-
-    // Create Core account using Conflux-derived private key
-    const coreAccount = privateKeyToAccount(
-      confluxPrivateKey as `0x${string}`,
-      {
-        networkId: this.config.chainId || 1,
-      }
-    );
-
-    // Create EVM account using Ethereum-derived private key
-    const evmAccount = privateKeyToEvmAccount(
-      ethereumPrivateKey as `0x${string}`
+    // Use core wallet module for faucet/mining account derivation
+    const faucetAccount = deriveFaucetAccount(
+      this.mnemonic,
+      this.config.chainId || 2029
     );
 
     this.miningAccount = {
       index: -1, // Special index for mining account
-      privateKey: confluxPrivateKey, // Core/Conflux private key
-      coreAddress: coreAccount.address,
-      evmAddress: evmAccount.address,
+      privateKey: faucetAccount.corePrivateKey, // Core/Conflux private key
+      coreAddress: faucetAccount.coreAddress,
+      evmAddress: faucetAccount.evmAddress,
       mnemonic: this.mnemonic,
-      path: `m/44'/503'/1'/0/0`, // Core path
+      path: faucetAccount.paths.core,
       // Store additional EVM-specific info
-      evmPrivateKey: ethereumPrivateKey,
-      evmPath: `m/44'/60'/1'/0/0`,
+      evmPrivateKey: faucetAccount.evmPrivateKey,
+      evmPath: faucetAccount.paths.evm,
     };
 
     console.log(
@@ -1040,30 +968,14 @@ export class ServerManager {
    * This address will match what MetaMask and other Ethereum wallets derive
    */
   getEthereumAdminAddress(): string {
-    // Initialize BIP32 with secure elliptic curve implementation
-    const bip32 = BIP32Factory(ecc);
+    // Use core wallet module for account derivation
+    const account = deriveAccount(
+      this.mnemonic,
+      0,
+      this.config.chainId || 2029
+    );
 
-    // Generate seed from mnemonic
-    const seed = mnemonicToSeedSync(this.mnemonic);
-    const root = bip32.fromSeed(seed);
-
-    // Use Ethereum derivation path (m/44'/60'/0'/0/0)
-    // 60 is Ethereum's coin type in BIP44
-    const child = root.derivePath(`m/44'/60'/0'/0/0`);
-
-    if (!child.privateKey) {
-      throw new NodeError(
-        'Failed to derive Ethereum admin private key',
-        'KEY_DERIVATION_ERROR'
-      );
-    }
-
-    const privateKey = `0x${child.privateKey.toString('hex')}`;
-
-    // Create EVM account from the private key
-    const evmAccount = privateKeyToEvmAccount(privateKey as `0x${string}`);
-
-    return evmAccount.address.toLowerCase();
+    return account.evmAddress.toLowerCase();
   }
 
   /**

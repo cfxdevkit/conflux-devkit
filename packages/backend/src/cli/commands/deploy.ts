@@ -30,6 +30,13 @@ import {
   createWalletClient as createCoreWalletClient,
 } from 'cive';
 import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
+import {
+  getChainConfig,
+  toCiveChain,
+  toViemChain,
+  isValidChainId,
+  type SupportedChainId,
+} from '@conflux-devkit/core/config';
 import { getKeystoreService } from '../../services/keystore-service.js';
 import {
   TEST_CONTRACTS,
@@ -46,6 +53,28 @@ const DEFAULT_EVM_RPC = 'http://localhost:8545';
 const DEFAULT_CORE_RPC = 'http://localhost:12537';
 
 /**
+ * Get Core chain definition for a given network ID
+ */
+function getCoreChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported Core chain ID: ${networkId}`);
+  }
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toCiveChain(chainConfig);
+}
+
+/**
+ * Get EVM chain definition for a given network ID
+ */
+function getEvmChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported EVM chain ID: ${networkId}`);
+  }
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toViemChain(chainConfig);
+}
+
+/**
  * Deploy contract to eSpace
  */
 async function deployToEvm(params: {
@@ -53,10 +82,12 @@ async function deployToEvm(params: {
   bytecode: `0x${string}`;
   args: unknown[];
   privateKey: `0x${string}`;
+  evmChainId: number;
   rpcUrl?: string;
 }): Promise<{ address: string; transactionHash: string }> {
-  const { abi, bytecode, args, privateKey, rpcUrl = DEFAULT_EVM_RPC } = params;
+  const { abi, bytecode, args, privateKey, evmChainId, rpcUrl = DEFAULT_EVM_RPC } = params;
 
+  const evmChain = getEvmChain(evmChainId);
   const account = evmPrivateKeyToAccount(privateKey);
   const walletClient = createWalletClient({
     account,
@@ -67,7 +98,7 @@ async function deployToEvm(params: {
     abi,
     bytecode,
     args,
-    chain: null,
+    chain: evmChain,
   });
 
   const publicClient = createPublicClient({
@@ -95,9 +126,11 @@ async function deployToCore(params: {
 }): Promise<{ address: string; transactionHash: string }> {
   const { abi, bytecode, args, privateKey, chainId, rpcUrl = DEFAULT_CORE_RPC } = params;
 
+  const coreChain = getCoreChain(chainId);
   const account = corePrivateKeyToAccount(privateKey, { networkId: chainId });
   const walletClient = createCoreWalletClient({
     account,
+    chain: coreChain,
     transport: coreHttp(rpcUrl),
   });
 
@@ -105,7 +138,6 @@ async function deployToCore(params: {
     abi,
     bytecode,
     args,
-    chain: null,
   });
 
   const publicClient = createCorePublicClient({
@@ -182,10 +214,12 @@ async function writeToEvm(params: {
   functionName: string;
   args: unknown[];
   privateKey: `0x${string}`;
+  evmChainId: number;
   rpcUrl?: string;
 }): Promise<string> {
-  const { address, abi, functionName, args, privateKey, rpcUrl = DEFAULT_EVM_RPC } = params;
+  const { address, abi, functionName, args, privateKey, evmChainId, rpcUrl = DEFAULT_EVM_RPC } = params;
 
+  const evmChain = getEvmChain(evmChainId);
   const account = evmPrivateKeyToAccount(privateKey);
   const walletClient = createWalletClient({
     account,
@@ -197,7 +231,7 @@ async function writeToEvm(params: {
     abi,
     functionName,
     args,
-    chain: null,
+    chain: evmChain,
   });
 }
 
@@ -215,9 +249,11 @@ async function writeToCore(params: {
 }): Promise<string> {
   const { address, abi, functionName, args, privateKey, chainId, rpcUrl = DEFAULT_CORE_RPC } = params;
 
+  const coreChain = getCoreChain(chainId);
   const account = corePrivateKeyToAccount(privateKey, { networkId: chainId });
   const walletClient = createCoreWalletClient({
     account,
+    chain: coreChain,
     transport: coreHttp(rpcUrl),
   });
 
@@ -227,7 +263,6 @@ async function writeToCore(params: {
     abi,
     functionName,
     args,
-    chain: null,
   });
 }
 
@@ -398,6 +433,7 @@ export function registerDeployCommand(program: Command): void {
             bytecode: compiled.bytecode as `0x${string}`,
             args: constructorArgs,
             privateKey: deployer.evmPrivateKey as `0x${string}`,
+            evmChainId: mnemonic.nodeConfig.evmChainId,
           });
         } else {
           result = await deployToCore({
@@ -480,6 +516,7 @@ export function registerDeployCommand(program: Command): void {
             bytecode: simpleStorage.bytecode as `0x${string}`,
             args: [initialValue],
             privateKey: deployer.evmPrivateKey as `0x${string}`,
+            evmChainId: mnemonic.nodeConfig.evmChainId,
           });
         } else {
           deployResult = await deployToCore({
@@ -526,6 +563,7 @@ export function registerDeployCommand(program: Command): void {
             functionName: 'set',
             args: [newValue],
             privateKey: deployer.evmPrivateKey as `0x${string}`,
+            evmChainId: mnemonic.nodeConfig.evmChainId,
           });
         } else {
           writeHash = await writeToCore({

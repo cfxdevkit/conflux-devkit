@@ -84,5 +84,23 @@ export type {
   WalletConfig,
 } from './types/index.js';
 
+// Wallet derivation
+export {
+  COIN_TYPES,
+  CORE_NETWORK_IDS,
+  deriveAccount,
+  deriveAccounts,
+  deriveFaucetAccount,
+  generateMnemonic,
+  getDerivationPath,
+  validateMnemonic,
+} from './wallet/index.js';
+
+export type {
+  DerivedAccount,
+  DerivationOptions,
+  MnemonicValidation,
+} from './wallet/index.js';
+
 // Version info
 export const VERSION = '0.1.0';

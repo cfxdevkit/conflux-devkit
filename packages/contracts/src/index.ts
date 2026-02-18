@@ -67,5 +67,30 @@ export {
   InteractionError,
 } from './types/index.js';
 
+// Compiler
+export {
+  compileMultipleSources,
+  compileSolidity,
+  getSolcVersion,
+} from './compiler/index.js';
+
+export type {
+  CompilationError,
+  CompilationInput,
+  CompilationOutput,
+  CompilationResult,
+} from './compiler/index.js';
+
+// Templates
+export {
+  getSimpleStorageContract,
+  getTestTokenContract,
+  SIMPLE_STORAGE_SOURCE,
+  TEST_CONTRACTS,
+  TEST_TOKEN_SOURCE,
+} from './templates/index.js';
+
+export type { TestContractName } from './templates/index.js';
+
 // Version
 export const VERSION = '0.1.0';

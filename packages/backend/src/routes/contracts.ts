@@ -29,6 +29,13 @@ import {
   createWalletClient as createCoreWalletClient,
 } from 'cive';
 import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
+import {
+  getChainConfig,
+  toCiveChain,
+  toViemChain,
+  isValidChainId,
+  type SupportedChainId,
+} from '@conflux-devkit/core/config';
 import type { AuthenticatedRequest } from '../auth/AuthService.js';
 import {
   TEST_CONTRACTS,
@@ -40,28 +47,44 @@ import {
   getSolcVersion,
   type CompilationResult,
 } from '../services/solidity-compiler.js';
+import {
+  getContractStorageService,
+  type StoredContract,
+} from '../services/contract-storage-service.js';
 import { getKeystoreService } from '../services/keystore-service.js';
+import { getWebSocketServer } from '../server/WebSocketServer.js';
 import { logger } from '../utils/logger.js';
 
 // Default RPC URLs for local node
 const DEFAULT_EVM_RPC = 'http://localhost:8545';
 const DEFAULT_CORE_RPC = 'http://localhost:12537';
 
-// In-memory storage for deployed contracts (per session)
-interface DeployedContract {
-  id: string;
-  name: string;
-  address: string;
-  chain: 'evm' | 'core';
-  chainId: number;
-  deployedAt: string;
-  deployer: string;
-  transactionHash: string;
-  abi: unknown[];
-  constructorArgs: unknown[];
+/**
+ * Get Core chain definition for a given network ID
+ * Uses the chain configuration from @conflux-devkit/core
+ */
+function getCoreChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported Core chain ID: ${networkId}. Supported IDs: 1029, 1, 2029`);
+  }
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toCiveChain(chainConfig);
 }
 
-const deployedContracts: Map<string, DeployedContract> = new Map();
+/**
+ * Get EVM chain definition for a given network ID
+ * Uses the chain configuration from @conflux-devkit/core
+ */
+function getEvmChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported EVM chain ID: ${networkId}. Supported IDs: 1030, 71, 2030`);
+  }
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toViemChain(chainConfig);
+}
+
+// Re-export for backward compatibility
+type DeployedContract = StoredContract;
 
 /**
  * Create contract routes
@@ -263,6 +286,7 @@ export function createContractRoutes(): Router {
           bytecode: bytecode as `0x${string}`,
           args: constructorArgs,
           privateKey: deployer.evmPrivateKey as `0x${string}`,
+          evmChainId: mnemonic.nodeConfig.evmChainId,
         });
       } else {
         result = await deployToCore({
@@ -274,7 +298,10 @@ export function createContractRoutes(): Router {
         });
       }
 
-      // Store deployed contract
+      // Store deployed contract persistently
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
+
       const deploymentId = `${chain}-${Date.now()}`;
       const deployment: DeployedContract = {
         id: deploymentId,
@@ -282,6 +309,7 @@ export function createContractRoutes(): Router {
         address: result.address,
         chain,
         chainId: chain === 'evm' ? mnemonic.nodeConfig.evmChainId : mnemonic.nodeConfig.chainId,
+        network: contractStorage.getNetwork(),
         deployedAt: new Date().toISOString(),
         deployer: chain === 'evm' ? deployer.evm : deployer.core,
         transactionHash: result.transactionHash,
@@ -289,9 +317,23 @@ export function createContractRoutes(): Router {
         constructorArgs,
       };
 
-      deployedContracts.set(deploymentId, deployment);
+      await contractStorage.addContract(deployment);
 
       logger.info(`Contract deployed: ${contractName} at ${result.address} on ${chain}`);
+
+      // Broadcast deployment via WebSocket for real-time updates
+      const wsServer = getWebSocketServer();
+      if (wsServer) {
+        wsServer.notifyContractDeployment({
+          id: deployment.id,
+          name: deployment.name,
+          address: deployment.address,
+          chain: deployment.chain,
+          chainId: deployment.chainId,
+          deployer: deployment.deployer,
+          transactionHash: deployment.transactionHash,
+        });
+      }
 
       res.json({
         success: true,
@@ -379,6 +421,7 @@ export function createContractRoutes(): Router {
           bytecode: compiled.bytecode as `0x${string}`,
           args,
           privateKey: deployer.evmPrivateKey as `0x${string}`,
+          evmChainId: mnemonic.nodeConfig.evmChainId,
         });
       } else {
         result = await deployToCore({
@@ -390,7 +433,10 @@ export function createContractRoutes(): Router {
         });
       }
 
-      // Store deployed contract
+      // Store deployed contract persistently
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
+
       const deploymentId = `${chain}-${Date.now()}`;
       const deployment: DeployedContract = {
         id: deploymentId,
@@ -398,6 +444,7 @@ export function createContractRoutes(): Router {
         address: result.address,
         chain,
         chainId: chain === 'evm' ? mnemonic.nodeConfig.evmChainId : mnemonic.nodeConfig.chainId,
+        network: contractStorage.getNetwork(),
         deployedAt: new Date().toISOString(),
         deployer: chain === 'evm' ? deployer.evm : deployer.core,
         transactionHash: result.transactionHash,
@@ -405,9 +452,23 @@ export function createContractRoutes(): Router {
         constructorArgs: args,
       };
 
-      deployedContracts.set(deploymentId, deployment);
+      await contractStorage.addContract(deployment);
 
       logger.info(`Template deployed: ${compiled.contractName} at ${result.address} on ${chain}`);
+
+      // Broadcast deployment via WebSocket for real-time updates
+      const wsServer = getWebSocketServer();
+      if (wsServer) {
+        wsServer.notifyContractDeployment({
+          id: deployment.id,
+          name: deployment.name,
+          address: deployment.address,
+          chain: deployment.chain,
+          chainId: deployment.chainId,
+          deployer: deployment.deployer,
+          transactionHash: deployment.transactionHash,
+        });
+      }
 
       res.json({
         success: true,
@@ -428,12 +489,12 @@ export function createContractRoutes(): Router {
    * GET /contracts/deployed
    * List all deployed contracts
    */
-  router.get('/deployed', (_req, res) => {
+  router.get('/deployed', async (_req, res) => {
     try {
-      const contracts = Array.from(deployedContracts.values()).sort(
-        (a, b) => new Date(b.deployedAt).getTime() - new Date(a.deployedAt).getTime()
-      );
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
 
+      const contracts = await contractStorage.getAllContracts();
       res.json({ contracts });
     } catch (error) {
       logger.error('Failed to list deployed contracts:', error);
@@ -445,9 +506,12 @@ export function createContractRoutes(): Router {
    * GET /contracts/deployed/:id
    * Get a specific deployed contract
    */
-  router.get('/deployed/:id', (req, res) => {
+  router.get('/deployed/:id', async (req, res) => {
     try {
-      const contract = deployedContracts.get(req.params.id);
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
+
+      const contract = await contractStorage.getContract(req.params.id);
 
       if (!contract) {
         return res.status(404).json({ error: 'Contract not found' });
@@ -464,9 +528,12 @@ export function createContractRoutes(): Router {
    * DELETE /contracts/deployed/:id
    * Remove a deployed contract from tracking (doesn't affect blockchain)
    */
-  router.delete('/deployed/:id', (req, res) => {
+  router.delete('/deployed/:id', async (req, res) => {
     try {
-      const deleted = deployedContracts.delete(req.params.id);
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
+
+      const deleted = await contractStorage.deleteContract(req.params.id);
 
       if (!deleted) {
         return res.status(404).json({ error: 'Contract not found' });
@@ -483,9 +550,12 @@ export function createContractRoutes(): Router {
    * DELETE /contracts/deployed
    * Clear all deployed contracts from tracking
    */
-  router.delete('/deployed', (_req, res) => {
+  router.delete('/deployed', async (_req, res) => {
     try {
-      deployedContracts.clear();
+      const contractStorage = getContractStorageService();
+      await contractStorage.initialize();
+
+      await contractStorage.clearAllContracts();
       res.json({ success: true });
     } catch (error) {
       logger.error('Failed to clear deployed contracts:', error);
@@ -597,6 +667,7 @@ export function createContractRoutes(): Router {
       let transactionHash: string;
 
       if (chain === 'evm') {
+        const evmChain = getEvmChain(mnemonic.nodeConfig.evmChainId);
         const account = evmPrivateKeyToAccount(sender.evmPrivateKey as `0x${string}`);
         const walletClient = createWalletClient({
           account,
@@ -608,15 +679,17 @@ export function createContractRoutes(): Router {
           abi,
           functionName,
           args,
-          chain: null,
+          chain: evmChain,
         });
       } else if (chain === 'core') {
+        const coreChain = getCoreChain(mnemonic.nodeConfig.chainId);
         const account = corePrivateKeyToAccount(
           sender.privateKey as `0x${string}`,
           { networkId: mnemonic.nodeConfig.chainId }
         );
         const walletClient = createCoreWalletClient({
           account,
+          chain: coreChain,
           transport: coreHttp(DEFAULT_CORE_RPC),
         });
 
@@ -625,7 +698,6 @@ export function createContractRoutes(): Router {
           abi,
           functionName,
           args,
-          chain: null,
         });
       } else {
         return res.status(400).json({ error: 'Chain must be "evm" or "core"' });
@@ -658,10 +730,12 @@ async function deployToEvm(params: {
   bytecode: `0x${string}`;
   args: unknown[];
   privateKey: `0x${string}`;
+  evmChainId: number;
   rpcUrl?: string;
 }): Promise<{ address: string; transactionHash: string }> {
-  const { abi, bytecode, args, privateKey, rpcUrl = DEFAULT_EVM_RPC } = params;
+  const { abi, bytecode, args, privateKey, evmChainId, rpcUrl = DEFAULT_EVM_RPC } = params;
 
+  const evmChain = getEvmChain(evmChainId);
   const account = evmPrivateKeyToAccount(privateKey);
   const walletClient = createWalletClient({
     account,
@@ -672,7 +746,7 @@ async function deployToEvm(params: {
     abi,
     bytecode,
     args,
-    chain: null,
+    chain: evmChain,
   });
 
   const publicClient = createPublicClient({
@@ -700,9 +774,11 @@ async function deployToCore(params: {
 }): Promise<{ address: string; transactionHash: string }> {
   const { abi, bytecode, args, privateKey, chainId, rpcUrl = DEFAULT_CORE_RPC } = params;
 
+  const coreChain = getCoreChain(chainId);
   const account = corePrivateKeyToAccount(privateKey, { networkId: chainId });
   const walletClient = createCoreWalletClient({
     account,
+    chain: coreChain,
     transport: coreHttp(rpcUrl),
   });
 
@@ -710,7 +786,6 @@ async function deployToCore(params: {
     abi,
     bytecode,
     args,
-    chain: null,
   });
 
   const publicClient = createCorePublicClient({

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import { validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
+import {
+  generateMnemonic,
+  validateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import express, { type Express } from 'express';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSetupRoutes } from './setup.js';
@@ -107,13 +109,13 @@ describe('Setup Routes', () => {
       it('should accept valid 12-word mnemonic', () => {
         const mnemonic =
           'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-        expect(validateMnemonic(mnemonic, wordlist)).toBe(true);
+        expect(validateMnemonic(mnemonic).valid).toBe(true);
       });
 
       it('should accept valid 24-word mnemonic', () => {
         const mnemonic =
           'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
-        expect(validateMnemonic(mnemonic, wordlist)).toBe(true);
+        expect(validateMnemonic(mnemonic).valid).toBe(true);
       });
 
       it('should reject invalid mnemonic', () => {
@@ -124,7 +126,7 @@ describe('Setup Routes', () => {
         ];
 
         for (const mnemonic of invalidMnemonics) {
-          expect(validateMnemonic(mnemonic, wordlist)).toBe(false);
+          expect(validateMnemonic(mnemonic).valid).toBe(false);
         }
       });
 
@@ -192,14 +194,12 @@ describe('Setup Routes', () => {
   });
 
   describe('Mnemonic Generation', () => {
-    it('should generate valid BIP-39 mnemonic', async () => {
-      const { generateMnemonic } = await import('@scure/bip39');
-
-      const mnemonic = generateMnemonic(wordlist, 128); // 12 words
+    it('should generate valid BIP-39 mnemonic', () => {
+      const mnemonic = generateMnemonic(128); // 12 words
       const words = mnemonic.split(' ');
 
       expect(words.length).toBe(12);
-      expect(validateMnemonic(mnemonic, wordlist)).toBe(true);
+      expect(validateMnemonic(mnemonic).valid).toBe(true);
     });
   });
 });

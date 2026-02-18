@@ -23,7 +23,10 @@
 import type { Command } from 'commander';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { generateMnemonic, validateMnemonic } from 'bip39';
+import {
+  generateMnemonic as coreGenerateMnemonic,
+  validateMnemonic as coreValidateMnemonic,
+} from '@conflux-devkit/core/wallet';
 import { getKeystoreService } from '../../services/keystore-service.js';
 import { chalk, cliLogger } from '../utils/index.js';
 
@@ -143,7 +146,7 @@ export function registerSetupCommand(program: Command): void {
 
       let mnemonic: string;
       if (walletMethod === 'generate') {
-        mnemonic = generateMnemonic(); // 12 words (128 bits)
+        mnemonic = coreGenerateMnemonic(128); // 12 words (128 bits)
         console.log(
           chalk.yellow('\n⚠️  Save this mnemonic securely (for development use only):\n')
         );
@@ -171,7 +174,7 @@ export function registerSetupCommand(program: Command): void {
             mask: '*',
             validate: (input: string) => {
               const trimmed = input.trim();
-              if (!validateMnemonic(trimmed)) {
+              if (!coreValidateMnemonic(trimmed).valid) {
                 return 'Invalid mnemonic phrase. Please check your words and try again.';
               }
               return true;

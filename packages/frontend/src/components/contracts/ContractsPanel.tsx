@@ -57,6 +57,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/services/api';
+import { wsClient } from '@/services/websocket';
 import { useDevNodeStore } from '@/stores/devnodeStore';
 
 interface ContractTemplate {
@@ -195,6 +196,32 @@ export function ContractsPanel() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to WebSocket contract deployment events for real-time updates
+  useEffect(() => {
+    const unsubscribe = wsClient.on('contractDeployed', (data: any) => {
+      // Add the newly deployed contract to the list
+      setDeployedContracts((prev) => {
+        // Check if contract already exists (avoid duplicates)
+        if (prev.some((c) => c.id === data.id)) {
+          return prev;
+        }
+        // Add to beginning of list (newest first)
+        return [data, ...prev];
+      });
+
+      notifications.show({
+        title: 'Contract Deployed',
+        message: `${data.name} deployed at ${data.address.substring(0, 10)}...`,
+        color: 'green',
+        autoClose: 5000,
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Compile custom code
   const handleCompile = async () => {

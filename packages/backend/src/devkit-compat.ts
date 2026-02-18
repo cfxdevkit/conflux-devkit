@@ -31,6 +31,13 @@ import {
   ServerManager,
 } from '@conflux-devkit/plugin-devnode';
 import {
+  getChainConfig,
+  isValidChainId,
+  toCiveChain,
+  toViemChain,
+  type SupportedChainId,
+} from '@conflux-devkit/core/config';
+import {
   http as coreHttp,
   createPublicClient as createCorePublicClient,
   formatCFX,
@@ -38,6 +45,24 @@ import {
 import { privateKeyToAccount as corePrivateKeyToAccount } from 'cive/accounts';
 import { createPublicClient, createWalletClient, http as viemHttp } from 'viem';
 import { privateKeyToAccount as evmPrivateKeyToAccount } from 'viem/accounts';
+
+function getCoreChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported Core chain ID: ${networkId}`);
+  }
+
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toCiveChain(chainConfig);
+}
+
+function getEvmChain(networkId: number) {
+  if (!isValidChainId(networkId)) {
+    throw new Error(`Unsupported EVM chain ID: ${networkId}`);
+  }
+
+  const chainConfig = getChainConfig(networkId as SupportedChainId);
+  return toViemChain(chainConfig);
+}
 export interface DevKitConfig {
   chainId: number;
   evmChainId: number;
@@ -437,18 +462,20 @@ export class DevKitCompat {
         if (chain === 'core') {
           const { createWalletClient: createCoreWalletClient, parseCFX } =
             await import('cive');
+          const coreChain = getCoreChain(this._config.chainId || 2029);
           const walletClient = createCoreWalletClient({
             account: coreAccount,
+            chain: coreChain,
             transport: coreHttp(rpcUrls.core),
           });
           const hash = await walletClient.sendTransaction({
             to: to as any,
             value: parseCFX(value),
-            chain: null,
           });
           return hash;
         } else {
           const { parseEther } = await import('viem');
+          const evmChain = getEvmChain(this._config.evmChainId || 2030);
           const walletClient = createWalletClient({
             account: evmAccount,
             transport: viemHttp(rpcUrls.evm),
@@ -456,7 +483,7 @@ export class DevKitCompat {
           const hash = await walletClient.sendTransaction({
             to: to as `0x${string}`,
             value: parseEther(value),
-            chain: null,
+            chain: evmChain,
           });
           return hash;
         }
@@ -535,12 +562,14 @@ export class DevKitCompat {
       transport: coreHttp(rpcUrls.core),
     });
 
+    const coreChain = getCoreChain(this._config.chainId || 2029);
+
     if (isCore) {
       // Direct Core space transfer
       const hash = await walletClient.sendTransaction({
         to: address as any,
         value: parseCFX(amount),
-        chain: null,
+        chain: coreChain,
       });
       return hash;
     } else {
@@ -564,7 +593,7 @@ export class DevKitCompat {
           functionName: 'transferEVM',
           args: [address as `0x${string}`],
         }) as `0x${string}`,
-        chain: null,
+        chain: coreChain,
       });
       return hash;
     }
@@ -605,6 +634,7 @@ export class DevKitCompat {
 
     if (chain === 'evm') {
       const evmAccount = evmPrivateKeyToAccount(acc.evmPrivateKey);
+      const evmChain = getEvmChain(this._config.evmChainId || 2030);
       const walletClient = createWalletClient({
         account: evmAccount,
         transport: viemHttp(rpcUrls.evm),
@@ -614,7 +644,7 @@ export class DevKitCompat {
         abi,
         bytecode: bytecode as `0x${string}`,
         args,
-        chain: null,
+        chain: evmChain,
       });
 
       // Wait for transaction receipt to get contract address
@@ -632,8 +662,10 @@ export class DevKitCompat {
       const coreAccount = corePrivateKeyToAccount(acc.privateKey, {
         networkId: this._config.chainId || 2029,
       });
+      const coreChain = getCoreChain(this._config.chainId || 2029);
       const walletClient = createCoreWalletClient({
         account: coreAccount,
+        chain: coreChain,
         transport: coreHttp(rpcUrls.core),
       });
 
@@ -641,7 +673,6 @@ export class DevKitCompat {
         abi,
         bytecode: bytecode as `0x${string}`,
         args,
-        chain: null,
       });
 
       // Wait for receipt
@@ -716,6 +747,7 @@ export class DevKitCompat {
 
     if (chain === 'evm') {
       const evmAccount = evmPrivateKeyToAccount(acc.evmPrivateKey);
+      const evmChain = getEvmChain(this._config.evmChainId || 2030);
       const walletClient = createWalletClient({
         account: evmAccount,
         transport: viemHttp(rpcUrls.evm),
@@ -726,7 +758,7 @@ export class DevKitCompat {
         abi,
         functionName,
         args,
-        chain: null,
+        chain: evmChain,
       });
 
       return hash;
@@ -737,8 +769,10 @@ export class DevKitCompat {
       const coreAccount = corePrivateKeyToAccount(acc.privateKey, {
         networkId: this._config.chainId || 2029,
       });
+      const coreChain = getCoreChain(this._config.chainId || 2029);
       const walletClient = createCoreWalletClient({
         account: coreAccount,
+        chain: coreChain,
         transport: coreHttp(rpcUrls.core),
       });
 
@@ -747,7 +781,6 @@ export class DevKitCompat {
         abi,
         functionName,
         args,
-        chain: null,
       });
 
       return hash;

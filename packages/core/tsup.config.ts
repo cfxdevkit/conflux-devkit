@@ -7,6 +7,7 @@ export default defineConfig({
     'types/index': 'src/types/index.ts',
     'config/index': 'src/config/index.ts',
     'utils/index': 'src/utils/index.ts',
+    'wallet/index': 'src/wallet/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
